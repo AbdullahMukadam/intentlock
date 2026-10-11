@@ -33,3 +33,7 @@ export function orgDb(prisma: PrismaClient, orgId: string) {
 }
 
 export type OrgDb = ReturnType<typeof orgDb>;
+/** The client inside `orgDb(...).$transaction(async (tx) => ...)`; still org-scoped. */
+export type OrgTx = Parameters<
+  Extract<Parameters<OrgDb["$transaction"]>[0], (tx: never) => unknown>
+>[0];

@@ -1,0 +1,53 @@
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+
+import { AuditService } from "../audit/audit.service.js";
+import { newSecret, safeEqual, sha256Hex } from "../common/secrets.js";
+import { orgDb } from "../org/org-db.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { SESSION_TTL_MS } from "./session.js";
+
+// Compared against when the email is unknown, so both paths do the same work.
+const NO_MATCH_HASH = sha256Hex("no-such-user");
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** Returns the raw cookie value; only its SHA-256 is stored. */
+  async login(email: string, token: string, ip: string | undefined) {
+    // v0.1 has one organization, so the email alone identifies the user.
+    const user = await this.prisma.user.findFirst({ where: { email } });
+    const matches = safeEqual(sha256Hex(token), user?.loginTokenHash ?? NO_MATCH_HASH);
+    if (!user || !user.loginTokenHash || user.disabledAt || !matches) {
+      const orgId = user?.orgId ?? (await this.prisma.organization.findFirst())?.id;
+      if (orgId) {
+        await this.audit.append(orgId, [
+          { kind: "auth_login_failed", payload: { email, ip: ip ?? null } },
+        ]);
+      }
+      throw new UnauthorizedException({ statusCode: 401, error: "invalid_credentials" });
+    }
+
+    const cookie = newSecret();
+    await orgDb(this.prisma, user.orgId).session.create({
+      data: {
+        id: sha256Hex(cookie),
+        orgId: user.orgId,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      },
+    });
+    await this.audit.append(user.orgId, [
+      { kind: "auth_login", actor: user.id, payload: { email, ip: ip ?? null } },
+    ]);
+    return { cookie, user: { email: user.email, role: user.role, groups: user.groups } };
+  }
+
+  async logout(orgId: string, userId: string, sessionId: string) {
+    await orgDb(this.prisma, orgId).session.deleteMany({ where: { id: sessionId } });
+    await this.audit.append(orgId, [{ kind: "auth_logout", actor: userId }]);
+  }
+}
