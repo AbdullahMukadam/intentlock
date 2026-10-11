@@ -1,0 +1,3 @@
+{
+  "extends": "@intentgate/config/tsconfig.base.json"
+}
