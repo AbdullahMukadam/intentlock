@@ -43,6 +43,7 @@ You are building **Intentlock**: a self-hosted, intent-based authorization layer
 - **No paid key required to develop.** All tests use `FakeProvider`. Live runs use whatever `LLM_PROVIDER` is set in `.env` (default: an OpenAI-compatible free tier or local Ollama). The Anthropic adapter is tested with recorded/fake responses until a key is available.
 - **Secrets:** never commit API keys, GitHub tokens or private keys. Use `.env` (gitignored) and `.env.example`. The demo uses throwaway GitHub accounts and fake data only.
 - **Strict TypeScript** (`strict: true`, no `any` without a comment explaining why). Validate all external input with `zod`.
+- **No unnecessary comments.** Don't comment what the code already says. Comment only the non-obvious: a constraint, a workaround, a security reason, or a link to the spec (e.g. `// ARCHITECTURE §4`). No commented-out code, no section banners, no "added for X" notes.
 - **Tests:** Vitest for unit and integration. Every policy rule type, every decision path and the audit chain verifier must have tests. Unit tests sit next to the code (`*.test.ts`); app integration tests in `test/*.e2e.test.ts`.
 - **Import boundaries:** follow the dependency graph in `docs/STRUCTURE.md` §4. Import packages by name (`@intentlock/core`), never by deep path. Named exports only in packages.
 

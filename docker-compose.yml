@@ -1,5 +1,3 @@
-# Local development: PostgreSQL 16 (dev + test databases).
-# Mailpit for the support-assistant demo is added in Phase 5.
 services:
   postgres:
     image: postgres:16

@@ -209,7 +209,7 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Consequences:** Adding an `AuditEntry` column requires updating the hash function and changes hashes for new entries only (v0.1 has no data yet). Policy authors must remember that `notGlob`/`notIn` in an `allow` rule also match calls without the argument; the policy docs and tests call this out.
 
 ### ADR-029: Phase 0 scaffold — what we kept from the generators and what we changed
-- **Date:** 2026-10-11 · **Status:** Accepted · Amends ADR-018 and STRUCTURE.md
+- **Date:** 2026-10-11 · **Status:** Accepted · Amends ADR-018 and STRUCTURE.md · Prisma driver adapter (`@prisma/adapter-pg` + `pg`) approved by the owner on 2026-10-11
 - **Context:** Better-T-Stack 3.44 and Nest CLI 12 generate more (and slightly different) setup than STRUCTURE.md assumed.
 - **Decision:**
   - **Removed `varlock`** (env codegen + an `@next/env` override) and the `bunfig.toml` files that Better-T-Stack adds. Varlock is not an allowed dependency and ARCHITECTURE already specifies zod-validated env (`apps/inbox/src/lib/env.ts`, `apps/server/src/config/env.schema.ts`). Generated `apps/web` renamed to `apps/inbox`; the generator's scope (taken from the folder name `intentgate`) renamed to `@intentlock`.
