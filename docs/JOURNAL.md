@@ -118,3 +118,17 @@ A running log of every work session. **Append a new entry at the bottom** at the
 - **CI is unticked** until the repo is pushed to GitHub and the workflow runs green. Still to do: claim the npm scope and repo name (first Phase 0 task)
 - **Approval needed before Phase 2:** Prisma 7's runtime client needs `@prisma/adapter-pg` + `pg`, which are not in ARCHITECTURE's allowed list (ADR-029). The other option is to pin Prisma 6, which needs no adapter
 - `packages/ui` (generated shadcn components) has a typecheck but no smoke test or lint; it gets real tests when the inbox uses it in Phase 4
+
+### 2026-10-11 · Session 3 · Phase 0 — Docker verified
+
+**Done**
+- Docker Desktop installed by Abdullah; `docker compose up -d --wait` brings up Postgres 16.15, healthy in ~8 s, with `intentlock` and `intentlock_test` databases
+- Pinned the compose project name to `intentlock` (it defaulted to the folder name `intentgate`)
+- Prisma CLI connects via the root `.env` (`prisma migrate status`: no migrations yet, as expected)
+
+**Next**
+- Last Phase 0 item: CI green on GitHub (needs the repo pushed)
+- Phase 1: core zod schemas
+
+**Notes for Abdullah**
+- Docker's CLI isn't on PATH in shells opened before the install; open a new terminal or restart the editor

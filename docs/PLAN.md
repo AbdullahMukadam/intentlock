@@ -38,7 +38,7 @@
 - [x] ESLint (typescript-eslint flat config) in `packages/config` with the import-boundary rules from STRUCTURE §4, + Prettier; `pnpm lint`, `pnpm typecheck`; add a deliberately bad import in a scratch branch to confirm lint catches it
 - [x] Vitest workspace config; one passing smoke test per package
 - [x] `tsup` build for packages (ESM + d.ts)
-- [ ] `docker-compose.yml` with Postgres 16; `.env.example` (incl. `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`); `.gitignore` covers `.env*`, keys
+- [x] `docker-compose.yml` with Postgres 16; `.env.example` (incl. `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`); `.gitignore` covers `.env*`, keys
 - [ ] GitHub Actions: install → lint → typecheck → test on push and PR
 - [x] Fill in the Commands section of `CLAUDE.md`
 - [x] Journal entry
