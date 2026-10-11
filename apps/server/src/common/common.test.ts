@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { loadEnv } from "../config/env.schema.js";
 import { HttpExceptionFilter } from "./http-exception.filter.js";
-import { ZodValidationPipe } from "./zod-validation.pipe.js";
+import { ZodValidationPipe, zodDto } from "./zod-validation.pipe.js";
 
 function run(exception: unknown) {
   const sent: { status?: number; body?: unknown } = {};
@@ -40,15 +40,17 @@ describe("HttpExceptionFilter", () => {
 });
 
 describe("ZodValidationPipe", () => {
-  const pipe = new ZodValidationPipe(z.object({ name: z.string().min(1) }));
+  const pipe = new ZodValidationPipe();
+  class Body extends zodDto(z.object({ name: z.string().min(1) })) {}
+  const body = { type: "body", metatype: Body } as const;
 
   it("returns parsed data", () => {
-    expect(pipe.transform({ name: "x", extra: 1 })).toEqual({ name: "x" });
+    expect(pipe.transform({ name: "x", extra: 1 }, body)).toEqual({ name: "x" });
   });
 
   it("throws 400 with field paths", () => {
     try {
-      pipe.transform({ name: "" });
+      pipe.transform({ name: "" }, body);
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BadRequestException);
@@ -57,6 +59,14 @@ describe("ZodValidationPipe", () => {
         issues: [{ path: "name" }],
       });
     }
+  });
+
+  it("fails closed when an argument has no schema", () => {
+    expect(() => pipe.transform("x", { type: "param", metatype: String })).toThrow(/No zod schema/);
+  });
+
+  it("leaves custom decorators alone", () => {
+    expect(pipe.transform("u", { type: "custom" })).toBe("u");
   });
 });
 

@@ -5,13 +5,12 @@ import { z } from "zod";
 
 import { CurrentUser, Public, type SessionUser } from "../common/auth.decorators.js";
 import { Email } from "../common/schemas.js";
-import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
+import { zodDto } from "../common/zod-validation.pipe.js";
 import { ENV, type Env } from "../config/config.module.js";
 import { AuthService } from "./auth.service.js";
 import { clearSessionCookie, setSessionCookie } from "./session.js";
 
-const LoginBody = z.object({ email: Email, token: z.string().min(1).max(200) });
-type LoginBody = z.infer<typeof LoginBody>;
+class LoginBody extends zodDto(z.object({ email: Email, token: z.string().min(1).max(200) })) {}
 
 @Controller("v1")
 export class AuthController {
@@ -25,7 +24,7 @@ export class AuthController {
   @Post("auth/login")
   @HttpCode(200)
   async login(
-    @Body(new ZodValidationPipe(LoginBody)) body: LoginBody,
+    @Body() body: LoginBody,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {

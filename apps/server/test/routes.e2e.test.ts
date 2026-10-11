@@ -1,11 +1,13 @@
 import { type INestApplication, RequestMethod } from "@nestjs/common";
-import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants.js";
+import { METHOD_METADATA, PATH_METADATA, ROUTE_ARGS_METADATA } from "@nestjs/common/constants.js";
+import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum.js";
 import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 
 import { AppModule } from "../src/app.module.js";
 import { AUTH_KIND, type AuthKind } from "../src/common/auth.decorators.js";
+import { hasSchema } from "../src/common/zod-validation.pipe.js";
 import { configureApp } from "../src/configure-app.js";
 import { CSRF } from "./helpers.js";
 
@@ -14,7 +16,31 @@ import { CSRF } from "./helpers.js";
 const PUBLIC = ["POST /v1/auth/login"];
 const AGENT: string[] = [];
 
-type Route = { method: string; path: string; kind: AuthKind | "session" };
+type Route = {
+  method: string;
+  path: string;
+  kind: AuthKind | "session";
+  /** @Body/@Query/@Param arguments not typed with a zodDto class */
+  unvalidated: string[];
+};
+
+const VALIDATED = new Map([
+  [RouteParamtypes.BODY, "body"],
+  [RouteParamtypes.QUERY, "query"],
+  [RouteParamtypes.PARAM, "param"],
+]);
+
+function unvalidatedArgs(controller: object, proto: object, name: string): string[] {
+  const args = (Reflect.getMetadata(ROUTE_ARGS_METADATA, controller, name) ?? {}) as Record<
+    string,
+    { index: number }
+  >;
+  const types = (Reflect.getMetadata("design:paramtypes", proto, name) ?? []) as unknown[];
+  return Object.entries(args)
+    .map(([k, { index }]) => ({ kind: VALIDATED.get(Number(k.split(":")[0])), index }))
+    .filter(({ kind, index }) => kind && !hasSchema(types[index]))
+    .map(({ kind, index }) => `@${kind}() #${index}`);
+}
 
 function listRoutes(app: INestApplication): Route[] {
   const reflector = app.get(Reflector);
@@ -34,7 +60,12 @@ function listRoutes(app: INestApplication): Route[] {
         handler,
         metatype,
       ]);
-      routes.push({ method, path: full, kind: kind ?? "session" });
+      routes.push({
+        method,
+        path: full,
+        kind: kind ?? "session",
+        unvalidated: unvalidatedArgs(metatype, proto, name),
+      });
     }
   }
   return routes;
@@ -75,6 +106,14 @@ describe("route protection", () => {
         .map(key)
         .sort(),
     ).toEqual([...AGENT].sort());
+  });
+
+  it("validates every body, query and route parameter with a zod schema", () => {
+    expect(
+      routes
+        .filter((r) => r.unvalidated.length)
+        .map((r) => `${key(r)}: ${r.unvalidated.join(", ")}`),
+    ).toEqual([]);
   });
 
   it("returns 401 for every non-public route without credentials", async () => {
