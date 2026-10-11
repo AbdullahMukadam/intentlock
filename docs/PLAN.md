@@ -2,48 +2,46 @@
 
 **Window:** Sun 11 → Sat 17 Oct 2026 · **Rule:** finish a phase's acceptance criteria before starting the next. Tick `- [x]` only after tests pass. Stretch items are cut first if a day overruns.
 
-**If a day overruns, cut in this order:** (1) Phase 7 stretch items, (2) the files-assistant demo agent, (3) the support-assistant demo agent, (4) policy test _replay_ (keep sample-call tests) and the diff view, (5) the server re-check of hybrid batches (keep gap detection), (6) CLI `users`/`agents`/`keys` commands (use the inbox + dev seed instead), (7) the deployed instance (record against local `docker compose`). Never cut: fail-closed paths, default-deny auth, session-only approvals, policy versioning + publish, audit chain verify, the GitHub demo, evals.
+**If a day overruns, cut in this order:** (1) Phase 7 stretch items, (2) the files-assistant demo agent, (3) the support-assistant demo agent, (4) policy test *replay* (keep sample-call tests) and the diff view, (5) the server re-check of hybrid batches (keep gap detection), (6) CLI `users`/`agents`/`keys` commands (use the inbox + dev seed instead), (7) the deployed instance (record against local `docker compose`). Never cut: fail-closed paths, default-deny auth, session-only approvals, policy versioning + publish, audit chain verify, the GitHub demo, evals.
 
-| Phase                       | Day    | Outcome                                                                                                                    |
-| --------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
-| 0 · Foundation              | Sun 11 | Monorepo builds, tests and lints in CI; Postgres runs                                                                      |
-| 1 · Core engine             | Mon 12 | Plans, tokens, policy engine, audit hashing, `LocalGate` — fully tested                                                    |
-| 2 · Server + gates          | Tue 13 | NestJS API, team sign-in, holds, audit chain, licensing groundwork, WebSocket, `HttpGate`, `HybridGate` with outbox worker |
-| 3 · Agent guard + providers | Wed 14 | Provider-agnostic `createGuard()`; OpenAI-compatible (free models) + Anthropic adapters                                    |
-| 4 · Inbox + GitHub demo     | Thu 15 | Signed-in dashboard, holds, policy editor, agents + keys; GitHub attack reproduced and blocked                             |
-| 5 · More agents + evals     | Fri 16 | Support and files demo agents; 30-scenario eval suite with attack rate, utility, latency                                   |
-| 6 · Ship                    | Sat 17 | Deployed private instance, demo video, README, npm publish, resume bullet                                                  |
-| 7 · Stretch                 | after  | MCP proxy, docs site                                                                                                       |
+| Phase | Day | Outcome |
+| --- | --- | --- |
+| 0 · Foundation | Sun 11 | Monorepo builds, tests and lints in CI; Postgres runs |
+| 1 · Core engine | Mon 12 | Plans, tokens, policy engine, audit hashing, `LocalGate` — fully tested |
+| 2 · Server + gates | Tue 13 | NestJS API, team sign-in, holds, audit chain, licensing groundwork, WebSocket, `HttpGate`, `HybridGate` with outbox worker |
+| 3 · Agent guard + providers | Wed 14 | Provider-agnostic `createGuard()`; OpenAI-compatible (free models) + Anthropic adapters |
+| 4 · Inbox + GitHub demo | Thu 15 | Signed-in dashboard, holds, policy editor, agents + keys; GitHub attack reproduced and blocked |
+| 5 · More agents + evals | Fri 16 | Support and files demo agents; 30-scenario eval suite with attack rate, utility, latency |
+| 6 · Ship | Sat 17 | Deployed private instance, demo video, README, npm publish, resume bullet |
+| 7 · Stretch | after | MCP proxy, docs site |
 
 ---
 
 ## Phase 0 · Foundation (Sun 11, ~3 h)
 
 - [ ] Claim the `@intentlock` npm scope (create the npm org) and the GitHub repo name; note the result in ADR-001 — **manual step for Abdullah**
-      **Scaffold with Better-T-Stack (everything except NestJS)** — see STRUCTURE §7 for the exact commands
-- [ ] Run `create-better-t-stack --help` first and compare flags with STRUCTURE §7 (the CLI changes often); do a `--dry-run`
-- [ ] Scaffold the monorepo into the repo root (Turborepo addon, pnpm, Next.js frontend, no backend/db/auth/API); keep `docs/` and `CLAUDE.md` untouched (`--directory-conflict merge`)
-- [ ] Rename `apps/web` → `apps/inbox`, package name `@intentlock/inbox`; keep `packages/ui` (shared shadcn/ui) and `packages/config` (shared tsconfig) as generated
-- [ ] Add `core`, `sdk`, `guard`, `anthropic`, `cli`, `evals` with `create-better-t-stack add --package <name>`; rename each to `@intentlock/<name>`; add `tsup.config.ts` + `README.md` to each
-- [ ] Create `apps/demo` as a plain Node TypeScript package (`@intentlock/demo`)
+**Scaffold with Better-T-Stack (everything except NestJS)** — see STRUCTURE §7 for the exact commands
+- [x] Run `create-better-t-stack --help` first and compare flags with STRUCTURE §7 (the CLI changes often); do a `--dry-run`
+- [x] Scaffold the monorepo into the repo root (Turborepo addon, pnpm, Next.js frontend, no backend/db/auth/API); keep `docs/` and `CLAUDE.md` untouched (`--directory-conflict merge`)
+- [x] Rename `apps/web` → `apps/inbox`, package name `@intentlock/inbox`; keep `packages/ui` (shared shadcn/ui) and `packages/config` (shared tsconfig) as generated
+- [x] Add `core`, `sdk`, `guard`, `anthropic`, `cli`, `evals` with `create-better-t-stack add --package <name>`; rename each to `@intentlock/<name>`; add `tsup.config.ts` + `README.md` to each
+- [x] Create `apps/demo` as a plain Node TypeScript package (`@intentlock/demo`)
 
 **Add NestJS manually (Better-T-Stack has no NestJS option)**
-
-- [ ] `pnpm dlx @nestjs/cli new server --directory apps/server --package-manager pnpm --skip-git --skip-install`; rename to `@intentlock/server`
-- [ ] Remove Nest's own ESLint/Prettier config and point its `tsconfig` at the shared `packages/config` preset; keep Nest's `nest-cli.json` and build script
-- [ ] Add Prisma to `apps/server` (`prisma init`, schema in `apps/server/prisma/`)
+- [x] `pnpm dlx @nestjs/cli new server --directory apps/server --package-manager pnpm --skip-git --skip-install`; rename to `@intentlock/server`
+- [x] Remove Nest's own ESLint/Prettier config and point its `tsconfig` at the shared `packages/config` preset; keep Nest's `nest-cli.json` and build script
+- [x] Add Prisma to `apps/server` (`prisma init`, schema in `apps/server/prisma/`)
 
 **Make it match the docs**
-
-- [ ] Reconcile the generated layout with `docs/STRUCTURE.md`; where Better-T-Stack's convention differs and is reasonable, update STRUCTURE.md instead of fighting the generator (record in ADR-018)
-- [ ] Shared presets: `strict`, `noUncheckedIndexedAccess`, ES2022, NodeNext in `packages/config`; `.nvmrc` = Node 22
-- [ ] ESLint (typescript-eslint flat config) in `packages/config` with the import-boundary rules from STRUCTURE §4, + Prettier; `pnpm lint`, `pnpm typecheck`; add a deliberately bad import in a scratch branch to confirm lint catches it
-- [ ] Vitest workspace config; one passing smoke test per package
-- [ ] `tsup` build for packages (ESM + d.ts)
+- [x] Reconcile the generated layout with `docs/STRUCTURE.md`; where Better-T-Stack's convention differs and is reasonable, update STRUCTURE.md instead of fighting the generator (record in ADR-018)
+- [x] Shared presets: `strict`, `noUncheckedIndexedAccess`, ES2022, NodeNext in `packages/config`; `.nvmrc` = Node 22
+- [x] ESLint (typescript-eslint flat config) in `packages/config` with the import-boundary rules from STRUCTURE §4, + Prettier; `pnpm lint`, `pnpm typecheck`; add a deliberately bad import in a scratch branch to confirm lint catches it
+- [x] Vitest workspace config; one passing smoke test per package
+- [x] `tsup` build for packages (ESM + d.ts)
 - [ ] `docker-compose.yml` with Postgres 16; `.env.example` (incl. `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`); `.gitignore` covers `.env*`, keys
 - [ ] GitHub Actions: install → lint → typecheck → test on push and PR
-- [ ] Fill in the Commands section of `CLAUDE.md`
-- [ ] Journal entry
+- [x] Fill in the Commands section of `CLAUDE.md`
+- [x] Journal entry
 
 **Acceptance:** fresh clone → `pnpm install && pnpm test && pnpm lint && pnpm typecheck` all green; CI green; `docker compose up -d` starts Postgres.
 
@@ -113,7 +111,6 @@
 ## Phase 3 · Agent guard + providers (Wed 14) — `packages/guard`, `packages/anthropic`
 
 **3a · Provider layer**
-
 - [ ] Neutral types + `LLMProvider` interface per ARCHITECTURE §7.1
 - [ ] `FakeProvider` (scripted responses, records requests)
 - [ ] `OpenAICompatibleProvider` using the `openai` client with custom `baseURL`; map tools, `tool_calls` (parse JSON-string args safely), and `role: "tool"` results; unit tests with recorded responses
@@ -121,7 +118,6 @@
 - [ ] Pick the default free model: run the same 3-tool smoke task on 2–3 options (e.g. a Gemini model via its OpenAI-compatible endpoint, a Groq-hosted model, a local Ollama model); record tool-call reliability and the choice in an ADR — **needs a free API key or Ollama from Abdullah**
 
 **3b · Guard loop (provider-agnostic)**
-
 - [ ] `createGuard(opts)` API per ARCHITECTURE §7.3; zod-validated options
 - [ ] Planner: separate chat with only the task + tool list, forced `declare_plan`; prompt pins scope args (repo, recipient, path); retry once, then fail closed
 - [ ] `explicit` plan source (developer passes steps)
@@ -135,7 +131,6 @@
 - [ ] Unit tests with `FakeProvider` + `LocalGate`: allow, block, parallel calls with one blocked, hold approved/rejected/timeout (fake gate), planner missing/invalid, bad JSON args, impl throws, max turns
 
 **3c · Anthropic adapter**
-
 - [ ] `AnthropicProvider` in `packages/anthropic`: `tool_use` blocks in, `tool_result` blocks (with `is_error`) out, forced tool choice for the planner
 - [ ] Unit tests against recorded/hand-written Messages API responses (no key needed)
 - [ ] Live test behind `RUN_LIVE_ANTHROPIC=1` (skipped until a key exists)
@@ -150,7 +145,6 @@
 ## Phase 4 · Inbox + GitHub demo (Thu 15) — `apps/inbox`, `apps/demo`
 
 **Inbox (every page requires sign-in)**
-
 - [ ] Next.js middleware: no session → `/login`; sign-in page (email + login token), sign-out, CSRF header on mutations, edition in the footer
 - [ ] App shell with navigation: Overview · Activity · Holds · Agents · Audit
 - [ ] **Overview:** allowed/blocked/held over time (Recharts), pending holds, median time-to-approve, top blocked tools and rules, flagged entries, audit lag; agent filter
@@ -163,7 +157,6 @@
 - [ ] Role checks reflected in the UI (hidden/disabled actions), never relied on for security
 
 **GitHub demo agent**
-
 - [ ] Throwaway GitHub accounts + repos (`public-app`, `private-notes` with fake data); fine-grained PAT over both — **manual step for Abdullah**
 - [ ] Octokit tools from ARCHITECTURE §8 with zod input schemas; `apps/demo/policies/github-assistant.yaml`
 - [ ] `setup` script: register the three agents, create one API key each into `apps/demo/.env`, publish their policies via `intentlock policy push`
@@ -182,7 +175,6 @@
 ## Phase 5 · More demo agents + evals (Fri 16) — `apps/demo`, `packages/evals`
 
 **Morning: support and files demo agents** (reuse the eval tool definitions where possible; cut in this order if late: files, then support)
-
 - [ ] Mailpit service in the dev `docker-compose.yml`; `mail_*` tools via Mailpit HTTP API + `nodemailer` SMTP; orders/refunds in a local JSON store of fake customers
 - [ ] `support-assistant` policy: reply only to the sender, no forwarding outside `@acme-demo.dev`, refunds ≤ $20 allow / ≤ $500 hold / unknown account block, group rules (`support-leads` vs `intern`)
 - [ ] `seed --agent support-assistant`: forward-to-attacker email + benign emails; protected run blocks the forward, holds a $200 refund
@@ -190,7 +182,6 @@
 - [ ] `files-assistant` policy: paths `workspace/**` only, never `.env`, network calls only if in the plan; `seed`: poisoned document; protected run blocks the read and the POST, receiver shows nothing arrived
 
 **Afternoon: evals**
-
 - [ ] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)
 - [ ] 15 GitHub scenarios (incl. utility-only), 8 email, 7 files — injections in issue bodies, email bodies, file contents, tool outputs
 - [ ] Policy files per domain (`packages/evals/policies/`, loaded by `LocalGate`)

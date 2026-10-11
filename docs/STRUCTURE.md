@@ -34,18 +34,17 @@ intentlock/
 ├── README.md
 ├── LICENSE                         # Elastic License 2.0 (everything except the MIT packages)
 ├── scripts/
-│   └── issue-license.ts            # vendor-only license issuer (not published; private key never in repo)
+│   ├── issue-license.ts            # vendor-only license issuer (not published; private key never in repo)
+│   └── create-test-db.sql          # run by the postgres container on first start: creates intentlock_test
 ├── package.json                    # root scripts only (turbo), devDeps for tooling
 ├── pnpm-workspace.yaml             # apps/*, packages/*
 ├── bts.jsonc                       # Better-T-Stack project config (keep; used by `add`)
 ├── turbo.json                      # build / dev / test / lint / typecheck pipelines
-├── vitest.workspace.ts
-├── eslint.config.js                # re-exports packages/config eslint preset
-├── .prettierrc
 ├── .nvmrc                          # Node 22 LTS
 ├── .gitignore                      # node_modules, dist, .env*, !.env.example, .intentlock/, keys/, coverage
 ├── .env.example                    # every variable used anywhere, with comments
-└── docker-compose.yml              # postgres:16 (dev + test databases) + mailpit (demo support agent)
+├── .prettierrc / .prettierignore   # docs/ and CLAUDE.md are excluded from formatting
+└── docker-compose.yml              # postgres:16 (dev + test databases); mailpit added in Phase 5
 ```
 
 ## 2. Every package has the same shape
@@ -60,6 +59,7 @@ packages/<name>/
 ├── LICENSE                         # MIT — only in core, sdk, guard, anthropic
 ├── tsconfig.json                   # extends the packages/config node preset
 ├── tsup.config.ts                  # ESM + .d.ts
+├── eslint.config.js                # `export default intentlock("<name>")` from @intentlock/config/eslint
 └── README.md                       # what it is, 5-line usage, API summary
 ```
 
@@ -210,6 +210,7 @@ src/
 
 ```
 Dockerfile                          # multi-stage, node:22-slim, non-root
+prisma.config.ts                    # Prisma 7 CLI config: schema path, migrations, DIRECT_URL (loads the root .env)
 prisma/
 ├── schema.prisma
 ├── migrations/
@@ -262,8 +263,8 @@ Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<fe
 
 ```
 Dockerfile                          # Next.js standalone output
-middleware.ts                       # no session cookie → /login (UX only; the server enforces access)
-app/
+src/middleware.ts                   # no session cookie → /login (UX only; the server enforces access)
+src/app/                            # Better-T-Stack puts the App Router under src/ (ADR-029)
 ├── layout.tsx
 ├── login/page.tsx                  # email + login token (the only public page)
 ├── (app)/                          # signed-in shell: nav, user menu, edition footer
@@ -276,7 +277,7 @@ app/
 │   ├── agents/[id]/page.tsx        # tabs: overview · policy · api keys · activity
 │   ├── audit/page.tsx              # verify chain
 │   └── demo/page.tsx               # split-screen: unprotected vs protected
-components/                         # app-specific; shared primitives come from @intentlock/ui
+src/components/                     # app-specific; shared primitives come from @intentlock/ui
 ├── overview/                       # verdict-chart.tsx, stat-tiles.tsx, top-blocked.tsx
 ├── activity/                       # decision-table.tsx, filters.tsx
 ├── runs/                           # run-timeline.tsx
@@ -286,7 +287,7 @@ components/                         # app-specific; shared primitives come from 
 │                                   # publish-dialog.tsx, version-history.tsx
 ├── audit/                          # verify-button.tsx
 └── demo/                           # agent-pane.tsx, event-row.tsx
-lib/
+src/lib/
 ├── api.ts                          # typed client for the server REST API
 ├── socket.ts                       # WebSocket connection
 └── env.ts                          # zod-validated public env
@@ -338,7 +339,7 @@ flowchart BT
     mcp["mcp-proxy"] --> sdk
     server["apps/server"] --> core
     demo["apps/demo"] --> guard
-    inbox["apps/inbox"] -.->|types only| core
+    inbox["apps/inbox"] -.->|pure validation in the browser| core
     inbox --> ui["ui"]
 ```
 
@@ -353,18 +354,18 @@ flowchart BT
 
 ## 5. Naming and code conventions
 
-| Thing                       | Convention                                    | Example                                                          |
-| --------------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
-| Files and folders           | kebab-case                                    | `hybrid-gate.ts`, `match-step.ts`                                |
-| Classes, types, zod schemas | PascalCase; schema and type share a name      | `const Plan = z.object(...)`; `type Plan = z.infer<typeof Plan>` |
-| Functions, variables        | camelCase                                     | `verifyBundle()`                                                 |
-| Constants                   | SCREAMING_SNAKE                               | `DEFAULT_TTL_SECONDS`                                            |
-| Tool names                  | snake_case, `^[a-zA-Z0-9_-]{1,64}$`           | `github_post_comment`                                            |
-| Rule ids, scenario ids      | kebab-case                                    | `hold-public-comments`, `gh-001-private-leak`                    |
-| NestJS files                | `<feature>.<kind>.ts`                         | `holds.controller.ts`                                            |
-| Unit tests                  | next to source, `*.test.ts`                   | `check.test.ts`                                                  |
-| Integration tests           | `test/*.e2e.test.ts`                          | `holds.e2e.test.ts`                                              |
-| Env vars                    | SCREAMING_SNAKE, documented in `.env.example` | `LLM_BASE_URL`                                                   |
+| Thing | Convention | Example |
+| --- | --- | --- |
+| Files and folders | kebab-case | `hybrid-gate.ts`, `match-step.ts` |
+| Classes, types, zod schemas | PascalCase; schema and type share a name | `const Plan = z.object(...)`; `type Plan = z.infer<typeof Plan>` |
+| Functions, variables | camelCase | `verifyBundle()` |
+| Constants | SCREAMING_SNAKE | `DEFAULT_TTL_SECONDS` |
+| Tool names | snake_case, `^[a-zA-Z0-9_-]{1,64}$` | `github_post_comment` |
+| Rule ids, scenario ids | kebab-case | `hold-public-comments`, `gh-001-private-leak` |
+| NestJS files | `<feature>.<kind>.ts` | `holds.controller.ts` |
+| Unit tests | next to source, `*.test.ts` | `check.test.ts` |
+| Integration tests | `test/*.e2e.test.ts` | `holds.e2e.test.ts` |
+| Env vars | SCREAMING_SNAKE, documented in `.env.example` | `LLM_BASE_URL` |
 
 - One main export per file; `index.ts` files only re-export.
 - No default exports in packages (named exports only); Next.js pages are the exception.
@@ -372,25 +373,25 @@ flowchart BT
 
 ## 5a. Licensing boundaries
 
-| Path                                                                | License                              | Published as                 |
-| ------------------------------------------------------------------- | ------------------------------------ | ---------------------------- |
-| `packages/core`, `sdk`, `guard`, `anthropic`                        | MIT (own `LICENSE` file)             | npm                          |
-| `apps/server`, `apps/inbox`                                         | Elastic License 2.0 (root `LICENSE`) | Docker images (GHCR)         |
-| `packages/cli`, `packages/evals`, `apps/demo`, `packages/mcp-proxy` | Elastic License 2.0                  | not published to npm in v0.1 |
-| `scripts/issue-license.ts`                                          | Elastic License 2.0                  | not published                |
+| Path | License | Published as |
+| --- | --- | --- |
+| `packages/core`, `sdk`, `guard`, `anthropic` | MIT (own `LICENSE` file) | npm |
+| `apps/server`, `apps/inbox` | Elastic License 2.0 (root `LICENSE`) | Docker images (GHCR) |
+| `packages/cli`, `packages/evals`, `apps/demo`, `packages/mcp-proxy` | Elastic License 2.0 | not published to npm in v0.1 |
+| `scripts/issue-license.ts` | Elastic License 2.0 | not published |
 
 MIT packages must not import from ELv2 packages (already guaranteed by the dependency graph in §4).
 
 ## 6. Runtime files (git-ignored)
 
-| Path                            | Created by          | Contents                                                  |
-| ------------------------------- | ------------------- | --------------------------------------------------------- |
-| `.env`                          | you                 | secrets and config (copy from `.env.example`)             |
-| `.intentlock/outbox/`           | `HybridGate`        | per-plan `*.jsonl` + `*.ack`                              |
-| `apps/demo/.env`                | demo `setup`        | API keys for the three demo agents, model + GitHub tokens |
-| `apps/demo/sandbox/`            | demo seed           | files-assistant workspace and fake `.env`                 |
-| `keys/`                         | `intentlock keygen` | dev signing keys (PEM)                                    |
-| `coverage/`, `dist/`, `.turbo/` | tooling             | build and test output                                     |
+| Path | Created by | Contents |
+| --- | --- | --- |
+| `.env` | you | secrets and config (copy from `.env.example`) |
+| `.intentlock/outbox/` | `HybridGate` | per-plan `*.jsonl` + `*.ack` |
+| `apps/demo/.env` | demo `setup` | API keys for the three demo agents, model + GitHub tokens |
+| `apps/demo/sandbox/` | demo seed | files-assistant workspace and fake `.env` |
+| `keys/` | `intentlock keygen` | dev signing keys (PEM) |
+| `coverage/`, `dist/`, `.turbo/` | tooling | build and test output |
 
 ## 7. Scaffolding (Phase 0)
 
@@ -426,7 +427,6 @@ pnpm install && pnpm build && pnpm test
 ```
 
 Choices and why:
-
 - **`--backend none`**: the server is NestJS, which Better-T-Stack doesn't offer; Hono/Express would duplicate it.
 - **`--database none --orm none`**: Prisma lives inside `apps/server` (ARCHITECTURE §5.3), not in a shared `packages/db`, because only the server touches the database.
 - **`--api none --auth none`**: the server's REST API and API-key auth are hand-built to the spec; tRPC/oRPC and Better Auth would add a second API style and a user-auth system v0.1 doesn't need.

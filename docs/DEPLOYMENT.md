@@ -26,13 +26,13 @@ flowchart LR
     approver --> inbox
 ```
 
-| Component   | Artifact                                                                       | Where (v0.1)                 | Scales by                                      |
-| ----------- | ------------------------------------------------------------------------------ | ---------------------------- | ---------------------------------------------- |
-| Server      | Docker image, `apps/server/Dockerfile` (multi-stage, `node:22-slim`, non-root) | Render free web service (§9) | More instances behind the LB (paid tier)       |
-| Inbox       | Docker image or Vercel, Next.js `output: "standalone"`                         | Vercel Hobby (§9)            | More instances (stateless)                     |
-| Database    | Managed Postgres 16                                                            | Neon free (§9)               | Vertical; pooler; read replica for audit reads |
-| SDK clients | npm packages inside the user's app                                             | User's infrastructure        | With the app; one outbox dir per process       |
-| Demo agent  | Runs locally (needs GitHub + model keys)                                       | Not deployed publicly        | —                                              |
+| Component | Artifact | Where (v0.1) | Scales by |
+| --- | --- | --- | --- |
+| Server | Docker image, `apps/server/Dockerfile` (multi-stage, `node:22-slim`, non-root) | Render free web service (§9) | More instances behind the LB (paid tier) |
+| Inbox | Docker image or Vercel, Next.js `output: "standalone"` | Vercel Hobby (§9) | More instances (stateless) |
+| Database | Managed Postgres 16 | Neon free (§9) | Vertical; pooler; read replica for audit reads |
+| SDK clients | npm packages inside the user's app | User's infrastructure | With the app; one outbox dir per process |
+| Demo agent | Runs locally (needs GitHub + model keys) | Not deployed publicly | — |
 
 The v0.1 free hosting choice and its limits are in §9 (ADR-017).
 
@@ -40,21 +40,21 @@ The v0.1 free hosting choice and its limits are in §9 (ADR-017).
 
 All config comes from environment variables, validated with zod at boot (`apps/server/src/config/env.schema.ts`). The server refuses to start on invalid config.
 
-| Variable                | Used by             | Notes                                                                               |
-| ----------------------- | ------------------- | ----------------------------------------------------------------------------------- |
-| `DATABASE_URL`          | server              | Pooled URL in production                                                            |
-| `DIRECT_URL`            | server (migrations) | Direct, non-pooled URL for `prisma migrate deploy`                                  |
-| `SIGNING_KEY`           | server              | Ed25519 PKCS8 PEM; **same value on every instance**; platform secret store only     |
-| `SIGNING_KEY_PREVIOUS`  | server              | Optional; old key still published in JWKS during rotation                           |
-| `API_KEY_PEPPER`        | server              | Optional extra secret for API key hashing                                           |
-| `CORS_ORIGINS`          | server              | Only needed if the inbox is served from another origin (avoid; see §10)             |
-| `ORG_NAME`              | server              | Name of the single organization, used on first boot                                 |
-| `BOOTSTRAP_ADMIN_EMAIL` | server              | First admin, created on first boot; a one-time login token is printed to the logs   |
-| `LICENSE_FILE`          | server              | Optional path to a license JWS; absent = Community edition                          |
-| `PUBLIC_URL`            | server, inbox       | External URL of the single origin (cookies, links)                                  |
-| `INTENTLOCK_DEMO`       | server              | `1` on first boot seeds sample users for a demo install; never set in real installs |
-| `NEXT_PUBLIC_API_URL`   | inbox               | Server base URL                                                                     |
-| `LLM_*`, `GITHUB_TOKEN` | demo, evals         | Local only, never on the server                                                     |
+| Variable | Used by | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | server | Pooled URL in production |
+| `DIRECT_URL` | server (migrations) | Direct, non-pooled URL for `prisma migrate deploy` |
+| `SIGNING_KEY` | server | Ed25519 PKCS8 PEM; **same value on every instance**; platform secret store only |
+| `SIGNING_KEY_PREVIOUS` | server | Optional; old key still published in JWKS during rotation |
+| `API_KEY_PEPPER` | server | Optional extra secret for API key hashing |
+| `CORS_ORIGINS` | server | Only needed if the inbox is served from another origin (avoid; see §10) |
+| `ORG_NAME` | server | Name of the single organization, used on first boot |
+| `BOOTSTRAP_ADMIN_EMAIL` | server | First admin, created on first boot; a one-time login token is printed to the logs |
+| `LICENSE_FILE` | server | Optional path to a license JWS; absent = Community edition |
+| `PUBLIC_URL` | server, inbox | External URL of the single origin (cookies, links) |
+| `INTENTLOCK_DEMO` | server | `1` on first boot seeds sample users for a demo install; never set in real installs |
+| `NEXT_PUBLIC_API_URL` | inbox | Server base URL |
+| `LLM_*`, `GITHUB_TOKEN` | demo, evals | Local only, never on the server |
 
 Key rotation: deploy with the new `SIGNING_KEY` and the old one in `SIGNING_KEY_PREVIOUS`; JWKS publishes both `kid`s; after the max token TTL (≤ 60 min) remove the old one.
 
@@ -78,17 +78,17 @@ flowchart LR
 
 The single biggest scaling decision is already made: in **hybrid mode, allow/block decisions never reach the server**. Server load is proportional to plans signed, holds, and audit batches (one request per ~5 s per active client), not to tool calls.
 
-| Concern                       | Status               | Why it works across instances                                         |
-| ----------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Plan signing                  | ✅ v0.1              | Every instance has the same key; signing is stateless                 |
-| JWKS / verification           | ✅ v0.1              | Same keys everywhere; clients cache JWKS                              |
-| Remote `check`                | ✅ v0.1              | Pure `check()` + DB reads; usage counters updated atomically (§5.1)   |
-| Hold creation, approval, wait | ✅ v0.1              | State in Postgres; long-poll reads the DB, so any instance can answer |
-| Audit batch ingest            | ✅ v0.1              | Idempotent on `(planId, clientSeq)`; retries can land anywhere        |
-| Hold expiry job               | ✅ v0.1              | Idempotent query, safe on every instance (§5.2)                       |
-| Live inbox events (WebSocket) | ⚠️ designed, stretch | Needs cross-instance fan-out (§6.1)                                   |
-| Global audit chain            | ⚠️ designed, stretch | Correct across instances, but serialized (§6.2)                       |
-| Postgres                      | ⚠️ single primary    | Vertical + pooler + read replica (§6.3)                               |
+| Concern | Status | Why it works across instances |
+| --- | --- | --- |
+| Plan signing | ✅ v0.1 | Every instance has the same key; signing is stateless |
+| JWKS / verification | ✅ v0.1 | Same keys everywhere; clients cache JWKS |
+| Remote `check` | ✅ v0.1 | Pure `check()` + DB reads; usage counters updated atomically (§5.1) |
+| Hold creation, approval, wait | ✅ v0.1 | State in Postgres; long-poll reads the DB, so any instance can answer |
+| Audit batch ingest | ✅ v0.1 | Idempotent on `(planId, clientSeq)`; retries can land anywhere |
+| Hold expiry job | ✅ v0.1 | Idempotent query, safe on every instance (§5.2) |
+| Live inbox events (WebSocket) | ⚠️ designed, stretch | Needs cross-instance fan-out (§6.1) |
+| Global audit chain | ⚠️ designed, stretch | Correct across instances, but serialized (§6.2) |
+| Postgres | ⚠️ single primary | Vertical + pooler + read replica (§6.3) |
 
 ## 5. Built in v0.1 (correctness under multiple instances)
 
@@ -184,18 +184,17 @@ We run Intentlock the way a customer team would: one private install, sign-in re
 
 Chosen in ADR-017. None of these need a credit card. Limits change often: re-check before deploying and note the date in the journal.
 
-| Part       | Service                              | Free-tier behaviour to plan for                                                                                                                                  |
-| ---------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server     | **Render** free web service (Docker) | Sleeps after 15 idle minutes; first request then takes ~1 minute. 750 instance hours/month (one always-on instance). 5 GB bandwidth/month. Single instance only. |
-| Database   | **Neon** free Postgres               | Permanent free plan, 1 GB storage per project. Compute suspends after 5 idle minutes (slower first query).                                                       |
-| Inbox      | **Vercel** Hobby                     | Personal / non-commercial use. Cold starts possible.                                                                                                             |
-| Images     | **GHCR**                             | Public images.                                                                                                                                                   |
-| Scale test | **Local** `docker compose`           | Two instances + nginx (§7); numbers come from here, not from the free tier.                                                                                      |
+| Part | Service | Free-tier behaviour to plan for |
+| --- | --- | --- |
+| Server | **Render** free web service (Docker) | Sleeps after 15 idle minutes; first request then takes ~1 minute. 750 instance hours/month (one always-on instance). 5 GB bandwidth/month. Single instance only. |
+| Database | **Neon** free Postgres | Permanent free plan, 1 GB storage per project. Compute suspends after 5 idle minutes (slower first query). |
+| Inbox | **Vercel** Hobby | Personal / non-commercial use. Cold starts possible. |
+| Images | **GHCR** | Public images. |
+| Scale test | **Local** `docker compose` | Two instances + nginx (§7); numbers come from here, not from the free tier. |
 
 **Do not use:** Render free Postgres (expires after 30 days, then deleted), Fly.io (card required, no free tier for new users), Koyeb (free plan closed to new users).
 
 **Setup notes**
-
 - Neon gives a **pooled** and a **direct** connection string. Prisma uses the pooled one at runtime (`DATABASE_URL`) and the direct one for migrations (`DIRECT_URL`, set as `directUrl` in `schema.prisma`).
 - Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Run `prisma migrate deploy` as Render's pre-deploy command (single instance, so no race).
 - Vercel: root directory `apps/inbox`; set `NEXT_PUBLIC_API_URL` to the Render URL.
@@ -226,16 +225,15 @@ flowchart LR
 **One origin.** The inbox and API are served from the same origin through the bundled nginx (`/api/v1/*` → server `/v1/*`, `/events` → server WebSocket, everything else → inbox). Session cookies then work with `SameSite=Lax`, with no CORS, and the browser never talks to the server's port directly.
 
 **Install**
-
 ```bash
 curl -O https://raw.githubusercontent.com/<owner>/intentlock/main/deploy/docker-compose.selfhost.yml
 cp .env.example .env        # set ORG_NAME, BOOTSTRAP_ADMIN_EMAIL, PUBLIC_URL, SIGNING_KEY (intentlock keygen)
 docker compose -f docker-compose.selfhost.yml up -d
 docker compose logs server | grep "login token"     # first admin login
 ```
-
 Then: sign in at `PUBLIC_URL`, run `intentlock login` + `intentlock users add <email> --role approver`, create an API key for each agent app, and (optionally) drop a license file at `LICENSE_FILE`.
 
 **Operator responsibilities** (documented in the README): TLS in front of nginx, Postgres backups, keeping `SIGNING_KEY` secret, upgrading by pulling new image tags (migrations run as a one-off `migrate` service in the compose file before `server` starts).
 
 **Free-hosted instance caveat (§9):** on Vercel + Render, the inbox reaches the API through a Next.js rewrite (`/api/*` → Render), which keeps cookies same-origin. Vercel rewrites don't proxy WebSockets, so the hosted demo relies on the inbox's 10 s polling for new holds. The self-host bundle has live WebSockets.
+

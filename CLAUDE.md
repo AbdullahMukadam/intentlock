@@ -26,7 +26,7 @@ You are building **Intentlock**: a self-hosted, intent-based authorization layer
 ## Engineering rules
 
 - **Fail closed.** A tool runs only on an explicit `allow`. Any error, timeout, missing decision, bad signature or expired token = block.
-- **Never widen a signed plan.** Token refresh re-signs the _same_ plan hash only.
+- **Never widen a signed plan.** Token refresh re-signs the *same* plan hash only.
 - **Audit before acting.** In hybrid mode, a decision is appended (and fsynced) to the outbox before the tool runs or the block is returned. If the append fails, block. If the audit backlog is over its limit, block.
 - **Default deny.** Every route requires a session unless explicitly marked `@Public()` (sign-in, health, JWKS) or `@AgentAuth()` (API-key routes). Nothing in the inbox is visible without signing in. Read endpoints are scoped by role (members see only their own runs). The route-enumeration test must stay green.
 - **Agents own keys and policies.** An API key identifies an agent; the plan's `user` identifies the person. Plan signing snapshots the agent's active policy version. There are no policy files on the server.
@@ -46,17 +46,19 @@ You are building **Intentlock**: a self-hosted, intent-based authorization layer
 - **Tests:** Vitest for unit and integration. Every policy rule type, every decision path and the audit chain verifier must have tests. Unit tests sit next to the code (`*.test.ts`); app integration tests in `test/*.e2e.test.ts`.
 - **Import boundaries:** follow the dependency graph in `docs/STRUCTURE.md` §4. Import packages by name (`@intentlock/core`), never by deep path. Named exports only in packages.
 
-## Commands (fill in as Phase 0 creates them)
+## Commands
 
-Scaffolding (Phase 0): Better-T-Stack for the monorepo, inbox and packages; Nest CLI for the server. Exact commands in `docs/STRUCTURE.md` §7 — check `--help` first, flags change.
+Scaffolded in Phase 0 with Better-T-Stack (monorepo, inbox, packages) and the Nest CLI (server); see `docs/STRUCTURE.md` §7 and ADR-029. Needs Node ≥ 22 and pnpm ≥ 10.26.
 
 ```bash
 pnpm install
 pnpm dev            # turbo: server + inbox + watch builds
-pnpm test           # all packages
-pnpm lint
+pnpm build          # tsup for packages, nest build, next build
+pnpm test           # vitest in every package (turbo builds dependencies first)
+pnpm lint           # eslint incl. import-boundary rules (packages/config/eslint.js)
 pnpm typecheck
-docker compose up -d   # PostgreSQL
+pnpm format         # prettier (docs/ and CLAUDE.md are excluded)
+docker compose up -d   # PostgreSQL 16 (intentlock + intentlock_test databases)
 pnpm --filter @intentlock/server prisma migrate dev
 pnpm --filter @intentlock/evals run eval
 ```
