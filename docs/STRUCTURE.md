@@ -246,14 +246,30 @@ src/
 │   ├── enums/                      # user-role (matches the Prisma Role enum, tested), user-error
 │   ├── schemas/                    # user-fields.schema.ts
 │   └── utils/                      # to-public-user.util.ts
-├── agents/                         # agents CRUD, starter policy on create, maxAgents
-│   ├── utils/                      # create-agent.util.ts (agent + starter policy v1)
-│   └── api-keys/                   # per-agent keys: create (shown once), list, revoke
+├── agents/                         # agents.module/controller/service: CRUD, 24 h counts, DELETE = disable, maxAgents
+│   ├── dto/                        # create-agent, update-agent, agent-id-params
+│   ├── enums/                      # agent-error
+│   ├── schemas/                    # agent-fields.schema.ts (kebab-case name, id)
+│   ├── types/                      # agent-decision-counts.type.ts
+│   ├── utils/                      # create-agent.util.ts (agent + starter policy v1), to-agent-view.util.ts
+│   └── api-keys/                   # api-keys.module/controller/service: create (shown once), list, revoke
+│       ├── dto/                    # create-api-key, api-key-params
+│       ├── enums/                  # api-key-error
 │       ├── guards/                 # api-key.guard.ts (@AgentAuth routes)
-│       └── utils/                  # api-key.util.ts (il_live_ keys, hashing)
-├── license/                        # license.ts (pure verify, COMMUNITY), license.service.ts, GET /v1/license
+│       └── utils/                  # api-key.util.ts (il_live_ keys, hashing), to-api-key-view.util.ts
+├── license/                        # license.module/controller/service: verify at boot + every 24 h, limits, GET /v1/license
+│   ├── constants/                  # community-license, license.constants (DI token, lock id), vendor-public-key
+│   ├── enums/                      # license-edition, license-feature, license-status, licensed-resource, license-error
+│   ├── schemas/                    # license.schema.ts
+│   ├── types/                      # license-check.type.ts
+│   └── utils/                      # verify-license.util.ts (offline JWS verify), to-license-view.util.ts
 ├── keys/                           # signing key load/generate, JWKS controller
-├── policies/                       # PolicySet/Version/Draft store: draft, validate, test (sample + replay), publish (409), rollback, versions
+├── policies/                       # policies.module/controller/service: draft, validate, test (samples + replay), publish (409), rollback, versions
+│   ├── constants/                  # policy.constants.ts (size limits)
+│   ├── dto/                        # save-draft, validate-policy, test-policy, publish-policy, rollback-policy, policy-version-params
+│   ├── enums/                      # policy-error
+│   ├── schemas/                    # policy-fields.schema.ts, check-payload.schema.ts (what replay reads from audit)
+│   └── utils/                      # compile-policy, to-policy-version-view, to-policy-draft-view
 ├── stats/                          # GET /v1/stats/overview (role-scoped aggregates)
 ├── runs/                           # GET /v1/runs, /v1/runs/:planId
 ├── plans/                          # POST /v1/plans, /refresh (agent from key, active policy snapshot, bundle signing)
@@ -265,7 +281,7 @@ src/
 │   ├── batch.service.ts            # /v1/audit/batch ingest, client-chain check, re-run check()
 │   ├── verify.service.ts
 │   ├── audit.controller.ts
-│   ├── enums/                      # audit-kind, audit-origin
+│   ├── enums/                      # audit-kind, audit-origin, audit-verdict
 │   ├── types/                      # audit-input.type.ts
 │   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry)
 ├── events/                         # events.gateway.ts (WebSocket /events)
@@ -276,7 +292,7 @@ test/
 ├── helpers.ts                      # createTestApp, createUser, sessionCookie, verifyAuditChain
 ├── auth.e2e.test.ts                # login, sessions, CSRF, self-approval rules, API key can't approve
 ├── routes.e2e.test.ts              # every route requires auth unless explicitly public / agent-only
-├── agents.e2e.test.ts              # agents, keys, revoke, disable
+├── agents.e2e.test.ts              # agents, keys, revoke, disable; a probe @AgentAuth controller tests the API-key guard
 ├── policies.e2e.test.ts            # draft, test, publish, 409, rollback, version used by new plans
 ├── visibility.e2e.test.ts          # role-scoped stats/runs/audit/holds
 ├── license.e2e.test.ts

@@ -218,3 +218,32 @@ A running log of every work session. **Append a new entry at the bottom** at the
 **Notes for Abdullah**
 - The dev seed no longer takes `--demo`; it always adds approver, member and intern. Run it **before** the first server start: the server bootstraps an empty database itself, and the seed then refuses to run
 - When we deploy behind nginx/Render, Express `trust proxy` must be set, or the per-IP sign-in limit sees one IP for everyone
+
+### 2026-10-12 · Session 7 · Phase 2 — refactors, agents, API keys, policies, licensing
+
+**Done**
+- Validation moved to one global `ZodValidationPipe` with `zodDto(schema)` DTO classes; the route test fails on any `@Body/@Query/@Param` without a schema (ADR-031)
+- Server restructured to the owner's NestJS reference layout: feature subfolders, one concern per file, four single-purpose global guards (ADR-033)
+- String enums for every fixed value set, `HttpStatus` instead of numbers, single-line comments only; rules added to CLAUDE.md (ADR-034)
+- Agents: create (starter policy v1, `maxAgents`), list/get with active key count, policy version and 24 h allow/block/hold counts, update, disable (`DELETE` is a soft disable); all audited
+- API keys: `il_live_` + 32 bytes, shown once, SHA-256 + 12-char prefix stored, list, idempotent revoke, `lastUsedAt` (≤ 1 write/min); the API-key guard is tested through a probe `@AgentAuth()` controller
+- Policy store: get active + draft, versions, one version, draft (saved even if invalid), validate (line/col errors), test (sample calls + audit replay, nothing saved), publish (N+1, 409 on stale base, race-safe), rollback (new version copying an old one); publishes and rollbacks audited
+- `LicenseService`: offline JWS verify at boot and every 24 h, Community fallback for missing / invalid / expired, `hasFeature()`, `GET /v1/license`, `maxUsers` and `maxAgents` enforced (race-safe)
+
+**Problems hit and how they were solved**
+- Shell heredocs with backticks and apostrophes broke repeatedly → larger edits are written as Python scripts in the scratchpad
+- Docker Desktop stopped mid-session, so tests failed with P1001 → restarted it; a reminder that `pnpm test` needs `docker compose up -d`
+- VS Code showed `Argument "url" is missing in data source block "db"` → the Prisma extension was 6.7, which predates Prisma 7 moving the URL to `prisma.config.ts`; the CLI validates the schema fine
+
+**Decisions** (link ADRs)
+- ADR-033: server layout · ADR-034: enums and comments · ADR-035: agents, keys, policies, licensing
+
+**Numbers**
+- server: 61 tests (10 unit, 51 e2e); lint, typecheck, build, format green
+
+**Next**
+- Plans, check, holds and the audit chain (signing key + JWKS, `POST /v1/plans`, `/v1/check`, holds, reports, audit endpoints), then the "expired license changes no decision" test
+
+**Notes for Abdullah**
+- **Vendor private key:** `keys/vendor-private.pem` was generated on this machine and is git-ignored. Move it somewhere safe (password manager or offline storage). If it is lost, regenerate a pair and replace `vendor-public-key.constant.ts`; licenses signed with the old key then stop verifying
+- Update the VS Code Prisma extension to 7.x to clear the false `url` warning
