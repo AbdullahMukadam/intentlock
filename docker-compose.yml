@@ -3,6 +3,8 @@ name: intentlock
 services:
   postgres:
     image: postgres:16
+    mem_limit: 512m
+    cpus: 1
     environment:
       POSTGRES_USER: intentlock
       POSTGRES_PASSWORD: intentlock
