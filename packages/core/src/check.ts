@@ -63,15 +63,15 @@ export function check(bundle: BundleClaims, call: ToolCall, usage: readonly numb
 }
 
 /**
- * Verify the token, then check the call. On allow or hold the matched step's count in `usage`
- * is incremented in the same synchronous section as the check, so concurrent calls cannot
- * overshoot maxCalls.
+ * Verify the token, then check the call against `usageFor(planId)`, the per-step counts for the
+ * verified plan. On allow or hold the matched step's count is incremented in the same synchronous
+ * section as the check, so concurrent calls cannot overshoot maxCalls.
  */
 export async function decide(
   token: string,
   key: VerificationKey,
   call: unknown,
-  usage: number[],
+  usageFor: (planId: string) => number[],
   now: Date,
 ): Promise<Decision> {
   const parsedCall = ToolCall.safeParse(call);
@@ -82,6 +82,7 @@ export async function decide(
   } catch (err) {
     return block(err instanceof TokenExpiredError ? "token_expired" : "invalid_token");
   }
+  const usage = usageFor(bundle.jti);
   const decision = check(bundle, parsedCall.data, usage);
   if (decision.verdict !== "block") usage[decision.planStep] = (usage[decision.planStep] ?? 0) + 1;
   return decision;

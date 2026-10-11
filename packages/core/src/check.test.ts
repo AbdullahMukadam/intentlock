@@ -163,15 +163,19 @@ describe("decide", () => {
     const { publicKey } = await testKeys();
     const token = await signedToken();
     const usage: number[] = [];
-    expect(await decide(token, publicKey, call("github_get_issue"), usage, NOW)).toMatchObject({
+    expect(
+      await decide(token, publicKey, call("github_get_issue"), () => usage, NOW),
+    ).toMatchObject({
       verdict: "allow",
     });
-    expect(await decide(token, publicKey, call("github_post_comment"), usage, NOW)).toMatchObject({
+    expect(
+      await decide(token, publicKey, call("github_post_comment"), () => usage, NOW),
+    ).toMatchObject({
       verdict: "hold",
     });
-    expect(await decide(token, publicKey, call("github_list_repos", {}), usage, NOW)).toMatchObject(
-      { verdict: "block" },
-    );
+    expect(
+      await decide(token, publicKey, call("github_list_repos", {}), () => usage, NOW),
+    ).toMatchObject({ verdict: "block" });
     expect(usage).toEqual([undefined, 1, 1]);
   });
 
@@ -181,7 +185,7 @@ describe("decide", () => {
     const usage: number[] = [];
     const decisions = await Promise.all(
       Array.from({ length: 5 }, () =>
-        decide(token, publicKey, call("github_get_issue"), usage, NOW),
+        decide(token, publicKey, call("github_get_issue"), () => usage, NOW),
       ),
     );
     expect(decisions.filter((d) => d.verdict === "allow")).toHaveLength(2);
@@ -194,19 +198,19 @@ describe("decide", () => {
   test("bad signature → invalid_token; expired → token_expired", async () => {
     const other = await generateSigningKeyPair();
     const token = await signedToken({ ttlSeconds: 60 });
-    expect(await decide(token, other.publicKey, call("github_get_issue"), [], NOW)).toEqual({
+    expect(await decide(token, other.publicKey, call("github_get_issue"), () => [], NOW)).toEqual({
       verdict: "block",
       ruleId: null,
       reason: "invalid_token",
     });
     const later = new Date(NOW.getTime() + 120_000);
     expect(
-      await decide(token, (await testKeys()).publicKey, call("github_get_issue"), [], later),
+      await decide(token, (await testKeys()).publicKey, call("github_get_issue"), () => [], later),
     ).toMatchObject({
       reason: "token_expired",
     });
     expect(
-      await decide("not.a.token", other.publicKey, call("github_get_issue"), [], NOW),
+      await decide("not.a.token", other.publicKey, call("github_get_issue"), () => [], NOW),
     ).toMatchObject({
       reason: "invalid_token",
     });
@@ -220,7 +224,7 @@ describe("decide", () => {
       { tool: 1, args: {}, callId: "c" },
       { tool: "x", args: [], callId: "c" },
     ]) {
-      expect(await decide("irrelevant", publicKey, bad, [], NOW)).toMatchObject({
+      expect(await decide("irrelevant", publicKey, bad, () => [], NOW)).toMatchObject({
         reason: "invalid_call",
       });
     }
