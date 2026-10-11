@@ -73,14 +73,14 @@
 
 - [x] NestJS app scaffold, `pino` logging, zod validation pipe, global exception filter that never leaks stack traces
 - [x] Prisma schema from ARCHITECTURE §5.3 (incl. `Organization`, `orgId` on every table, `User`, `Session`); first migration; org-scoped Prisma helper used by every service; seed script for dev (org, admin, approver, member, API key)
-- [ ] Global default-deny session guard; `@Public()` (sign-in, health, JWKS) and `@AgentAuth()` (API-key routes) decorators; a test that enumerates all routes and fails on any unexpected public route
+- [x] Global default-deny session guard; `@Public()` (sign-in, health, JWKS) and `@AgentAuth()` (API-key routes) decorators; a test that enumerates all routes and fails on any unexpected public route
 - [ ] Agents: create (with starter policy v1), list (with 24 h counts), update, disable; license `maxAgents` enforced
 - [ ] API keys per agent: `il_live_` + random, hash + prefix stored, shown once, `lastUsedAt`, revoke; agent API-key guard resolves `agentId`
 - [ ] Policy store: `PolicySet` / `PolicyVersion` / `PolicyDraft`; endpoints for draft, validate, test (sample calls + replay last N decisions), publish (409 on stale `baseVersion`), rollback, versions; all publishes/rollbacks audited
 - [ ] Role-scoped read endpoints: `/v1/stats/overview`, `/v1/runs`, `/v1/runs/:planId`, filtered `/v1/audit` (+ JSONL export); audit denormalized columns + indexes from ARCHITECTURE §5.3
-- [ ] Bootstrap on empty DB: create org (`ORG_NAME`) + admin (`BOOTSTRAP_ADMIN_EMAIL`), print one-time login token
-- [ ] Auth: `/v1/auth/login|logout`, `/v1/me`, session guard, login rate limit (`@nestjs/throttler`), constant-time compare, CSRF header check, audit auth events
-- [ ] Users endpoints (admin only); disabling a user or re-issuing a token revokes sessions
+- [x] Bootstrap on empty DB: create org (`ORG_NAME`) + admin (`BOOTSTRAP_ADMIN_EMAIL`), print one-time login token
+- [x] Auth: `/v1/auth/login|logout`, `/v1/me`, session guard, login rate limit (`@nestjs/throttler`), constant-time compare, CSRF header check, audit auth events
+- [x] Users endpoints (admin only); disabling a user or re-issuing a token revokes sessions
 - [ ] `LicenseService` (ARCHITECTURE §5.7): offline verify of `LICENSE_FILE` at boot + every 24 h, Community fallback, `maxUsers` enforced on user creation, `hasFeature()`, `GET /v1/license`; tests: none / valid / expired / bad signature / over limit — and a test that an expired license does **not** change any enforcement decision
 - [ ] Signing key load/generate (§5.5); `GET /v1/keys/jwks`
 - [ ] `POST /v1/plans` and `/refresh`: agent from the API key (reject disabled agents), reject unknown/disabled users, snapshot the agent's active policy version; snapshot user policies + role + groups into the bundle (`pol`, `polh`, `role`, `groups`, `org`); refresh keeps the same plan hash (test that a different hash is rejected)

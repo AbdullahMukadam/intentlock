@@ -191,3 +191,30 @@ A running log of every work session. **Append a new entry at the bottom** at the
 
 **Notes for Abdullah**
 - The dev database (`intentlock`) is now seeded; to reseed, drop and recreate it (`pnpm --filter @intentlock/server prisma migrate reset`) and run the seed again
+
+### 2026-10-12 · Session 6 · Phase 2 — sign-in and route protection
+
+**Done**
+- Global default-deny guard: sessions by default, `@Public()`, `@AgentAuth()` (API-key lookup, revoked keys rejected), `@Roles()`, CSRF header on every non-GET non-agent request
+- `test/routes.e2e.test.ts`: enumerates every controller route via Nest discovery, pins the public list (`POST /v1/auth/login` for now) and the API-key list (empty for now), and calls every protected route without credentials expecting 401
+- Auth: `POST /v1/auth/login` (constant-time compare, same 401 for every failure, throttled 5/min per email and 20/min per IP), `POST /v1/auth/logout`, `GET /v1/me`; 12 h sliding sessions; auth events audited
+- `AuditService.append` (advisory lock, global chain, core `hashEntry`, optional caller transaction) and `toAuditEntry()` row mapping. The audit endpoints are still to do
+- Bootstrap on an empty database (org + `BOOTSTRAP_ADMIN_EMAIL` admin, token logged once; `INTENTLOCK_DEMO=1` adds sample users), race-safe across instances
+- Users endpoints (admin only): create (token shown once, 409 on duplicate), list, patch (role, groups, disabled; disabling ends sessions), re-issue token (ends sessions); admins can't demote or disable themselves; all audited. `maxUsers` waits for `LicenseService`
+
+**Problems hit and how they were solved**
+- Prisma transaction clients have no `$extends`, so `orgDb(tx)` is impossible → transactions are opened on the scoped client (`orgDb(...).$transaction`), and the audit chain head is read with raw SQL so it stays global
+- Several logins per test file would hit the per-IP rate limit → tests create sessions directly in the database (`sessionCookie()`), and only the sign-in tests go through `/v1/auth/login`
+
+**Decisions** (link ADRs)
+- ADR-032: guard, CSRF, sessions, sign-in, rate limit, bootstrap, audit transactions
+
+**Numbers**
+- server: 29 tests (6 unit, 23 e2e); lint, typecheck, build, format green
+
+**Next**
+- Agents (create with starter policy, list with 24 h counts, update, disable), API keys, policy store
+
+**Notes for Abdullah**
+- The dev seed no longer takes `--demo`; it always adds approver, member and intern. Run it **before** the first server start: the server bootstraps an empty database itself, and the seed then refuses to run
+- When we deploy behind nginx/Render, Express `trust proxy` must be set, or the per-IP sign-in limit sees one IP for everyone

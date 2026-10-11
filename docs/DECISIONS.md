@@ -250,3 +250,18 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   5. **Integration tests** share the `intentlock_test` database: a Vitest global setup runs `prisma migrate deploy` once, each file truncates every table in `beforeEach`, and e2e files run serially (`fileParallelism: false`).
 - **Alternatives:** Passing `orgId` by hand in every query (easy to forget); Postgres row-level security (needs a per-request `SET`, awkward with a pooler); one database per test file (slow to migrate).
 - **Consequences:** Prisma's generated types still require `orgId` in `create` data, so callers pass it even though the extension overwrites it. Nested creates are not rewritten; they take `orgId` from the same variable.
+
+### ADR-032: Sign-in, sessions and route protection details
+- **Date:** 2026-10-12 · **Status:** Accepted
+- **Context:** ARCHITECTURE §5.6 fixes the model (login tokens, sessions, default deny) but not the mechanics.
+- **Decision:**
+  1. **One global guard** (`common/session.guard.ts`) handles all three cases from route metadata: `@AgentAuth()` → Bearer API key (SHA-256 with `API_KEY_PEPPER`, revoked keys rejected on every agent route, `lastUsedAt` written at most once a minute); `@Public()` → no auth; anything else → session cookie, plus `@Roles(...)`. The decorators live in one file, `common/auth.decorators.ts`, instead of three.
+  2. **CSRF:** every non-GET request that is not an API-key route must carry `X-Intentlock-CSRF` (any value), sign-in included. With `SameSite=Lax` cookies a cross-site page cannot send a custom header without a CORS preflight, which the server never grants.
+  3. **Sessions:** cookie `il_session` = 32 random bytes; the DB stores its SHA-256. 12 h sliding expiry, written at most every 10 minutes. A session is rejected if expired, if the user is disabled, or if its org doesn't match the user's. Disabling a user or re-issuing their token deletes their sessions.
+  4. **Sign-in:** emails are lowercased everywhere. Unknown email, wrong token and disabled user give the same 401 and do the same hashing work. v0.1 looks the email up across the (single) organization. Failed and successful sign-ins are audited.
+  5. **Rate limit:** `@nestjs/throttler` on sign-in only: 5/min per email and 20/min per IP. The store is in memory, so the limit is **per instance** (acceptable: it is not a decision input, and DEPLOYMENT §5.3 only forbids state that another instance needs). Behind a proxy, Express `trust proxy` must be set or every request shares the proxy's IP (deployment phase).
+  6. **Bootstrap** runs on application start inside a transaction holding an advisory lock, so two instances booting together create one organization. The dev seed reuses it (`demo: true`) and then adds an agent and an API key.
+  7. **Audit appends** run inside `orgDb(...).$transaction` (Prisma transaction clients cannot be extended, so the scoped client opens the transaction); the global chain head is read with raw SQL so org scoping never filters it.
+  8. **Lock-out guard:** an admin cannot disable or demote themselves.
+- **Alternatives:** `cookie-parser` (not on the allowed list; parsing one cookie is a few lines); a double-submit CSRF token (unneeded with same-origin + custom header); a Postgres-backed throttler store (more moving parts for a non-decision limit).
+- **Consequences:** The route-enumeration test (`test/routes.e2e.test.ts`) lists every public and API-key route explicitly; adding one means editing that list.
