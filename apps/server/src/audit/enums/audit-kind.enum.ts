@@ -5,4 +5,11 @@ export enum AuditKind {
   USER_CREATED = "user_created",
   USER_UPDATED = "user_updated",
   USER_TOKEN_REISSUED = "user_token_reissued",
+  AGENT_CREATED = "agent_created",
+  AGENT_UPDATED = "agent_updated",
+  API_KEY_CREATED = "api_key_created",
+  API_KEY_REVOKED = "api_key_revoked",
+  POLICY_PUBLISHED = "policy_published",
+  POLICY_ROLLED_BACK = "policy_rolled_back",
+  CHECK = "check",
 }

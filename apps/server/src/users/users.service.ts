@@ -9,6 +9,8 @@ import {
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
 import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
+import { LicensedResource } from "../license/enums/licensed-resource.enum.js";
+import { LicenseService } from "../license/license.service.js";
 import type { SessionUser } from "../common/types/auth.types.js";
 import { newSecret, sha256Hex } from "../common/utils/crypto.util.js";
 import { Prisma, type Role } from "../generated/prisma/client.js";
@@ -23,12 +25,14 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly license: LicenseService,
   ) {}
 
   async create(admin: SessionUser, input: { email: string; role: Role; groups: string[] }) {
     const token = newSecret();
     try {
       const user = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+        await this.license.assertWithinLimit(tx, LicensedResource.USERS);
         const created = await tx.user.create({
           data: { ...input, orgId: admin.orgId, loginTokenHash: sha256Hex(token) },
         });
@@ -92,6 +96,9 @@ export class UsersService {
           ? (target.disabledAt ?? new Date())
           : null;
     const user = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+      if (patch.disabled === false && target.disabledAt) {
+        await this.license.assertWithinLimit(tx, LicensedResource.USERS);
+      }
       const updated = await tx.user.update({
         where: { id: target.id },
         data: { role: patch.role, groups: patch.groups, disabledAt },

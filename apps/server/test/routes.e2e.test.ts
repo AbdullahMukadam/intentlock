@@ -117,7 +117,7 @@ describe("route protection", () => {
 
   it("returns 401 for every non-public route without credentials", async () => {
     for (const r of routes.filter((x) => x.kind !== AuthKind.PUBLIC)) {
-      const url = r.path.replace(/:(\w+)/g, "x");
+      const url = r.path.replace(/:(\w+)/g, "1");
       const res = await request(app.getHttpServer())
         [r.method.toLowerCase() as "get"](url)
         .set(CSRF);

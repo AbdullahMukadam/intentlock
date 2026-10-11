@@ -1,11 +1,11 @@
 import { parsePolicy, policyHash, STARTER_POLICY } from "@intentlock/core";
 
-import type { OrgDb } from "../../org/utils/org-db.util.js";
+import type { OrgTx } from "../../org/utils/org-db.util.js";
 
 export async function createAgent(
-  db: OrgDb,
+  db: Pick<OrgTx, "agent">,
   orgId: string,
-  input: { name: string; description?: string | null; createdBy: string },
+  input: { name: string; description?: string | null | undefined; createdBy: string },
 ) {
   const parsed = parsePolicy(STARTER_POLICY);
   if (!parsed.ok) throw new Error("starter policy does not parse");

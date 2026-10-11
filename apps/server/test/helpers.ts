@@ -1,5 +1,5 @@
-import type { INestApplication } from "@nestjs/common";
-import { Test } from "@nestjs/testing";
+import type { INestApplication, Type } from "@nestjs/common";
+import { Test, type TestingModuleBuilder } from "@nestjs/testing";
 import { verifyChain } from "@intentlock/core";
 
 import { AppModule } from "../src/app.module.js";
@@ -12,8 +12,17 @@ import { UserRole } from "../src/users/enums/user-role.enum.js";
 
 export const CSRF = { "X-Intentlock-CSRF": "1" };
 
-export async function createTestApp(): Promise<INestApplication> {
-  const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
+export async function createTestApp(
+  opts: {
+    controllers?: Type[];
+    override?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
+  } = {},
+): Promise<INestApplication> {
+  const builder = Test.createTestingModule({
+    imports: [AppModule],
+    controllers: opts.controllers ?? [],
+  });
+  const mod = await (opts.override?.(builder) ?? builder).compile();
   const app = configureApp(mod.createNestApplication());
   await app.init();
   return app;
@@ -61,4 +70,9 @@ export async function sessionCookie(prisma: PrismaClient, user: { id: string; or
 export async function verifyAuditChain(prisma: PrismaClient) {
   const rows = await prisma.auditEntry.findMany({ orderBy: { seq: "asc" } });
   return verifyChain(rows.map(toAuditEntry));
+}
+
+export async function signedIn(prisma: PrismaClient, orgId: string, role: Role = UserRole.MEMBER) {
+  const { user } = await createUser(prisma, orgId, role);
+  return { user, cookie: await sessionCookie(prisma, user) };
 }
