@@ -3,9 +3,9 @@ import { Test } from "@nestjs/testing";
 import { verifyChain } from "@intentlock/core";
 
 import { AppModule } from "../src/app.module.js";
-import { toAuditEntry } from "../src/audit/audit.service.js";
-import { SESSION_COOKIE, SESSION_TTL_MS } from "../src/auth/session.js";
-import { newSecret, sha256Hex } from "../src/common/secrets.js";
+import { SESSION_COOKIE, SESSION_TTL_MS } from "../src/auth/constants/session.constants.js";
+import { toAuditEntry } from "../src/audit/utils/to-audit-entry.util.js";
+import { newSecret, sha256Hex } from "../src/common/utils/crypto.util.js";
 import { configureApp } from "../src/configure-app.js";
 import type { PrismaClient, Role } from "../src/generated/prisma/client.js";
 

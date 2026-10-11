@@ -217,21 +217,39 @@ prisma/
 └── seed.ts                         # dev / --demo only: org, admin/approver/member/intern users
 src/
 ├── main.ts
-├── app.module.ts
-├── configure-app.ts                # logger + exception filter; shared by main.ts and the e2e tests
+├── app.module.ts                   # modules + global guards, in order: CsrfGuard → ApiKeyGuard → SessionGuard → RolesGuard
+├── configure-app.ts                # logger, exception filter, global ZodValidationPipe; shared by main.ts and the e2e tests
 ├── generated/prisma/               # Prisma client (git-ignored; `prisma generate` runs on postinstall)
 ├── config/                         # env.schema.ts (zod), config.module.ts
-├── common/                         # zod-validation.pipe.ts, http-exception.filter.ts, logger.ts, secrets.ts, schemas.ts,
-│                                   # session.guard.ts (global, default deny; sessions + API keys + CSRF + roles),
-│                                   # auth.decorators.ts (@Public, @AgentAuth, @Roles, @CurrentUser, @CurrentAgent)
+├── common/                         # cross-cutting, one concern per file (ADR-033)
+│   ├── constants/                  # auth.constants.ts (metadata keys, CSRF header)
+│   ├── decorators/                 # public, agent-auth, roles, current-user, current-agent (*.decorator.ts)
+│   ├── filters/                    # http-exception.filter.ts
+│   ├── guards/                     # csrf.guard.ts, roles.guard.ts
+│   ├── logger/                     # create-logger.util.ts, pino-logger.service.ts
+│   ├── pipes/                      # zod-validation.pipe.ts (global, fail closed)
+│   ├── schemas/                    # shared zod field schemas (email.schema.ts)
+│   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest)
+│   └── utils/                      # crypto.util.ts, zod-dto.util.ts, auth-kind.util.ts
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
-├── keys/                           # signing key load/generate, JWKS controller
-├── org/                            # bootstrap.ts (org + first admin), org.module.ts (runs it on boot), org-db.ts (scoped client)
-├── auth/                           # login/logout/me, session cookie helpers (session.ts), login rate limit
-├── users/                          # users CRUD (admin), roles + groups lookup
-├── agents/                         # agents CRUD, starter policy on create (create-agent.ts), maxAgents
-│   └── api-keys/                   # per-agent keys: create (shown once), list, revoke; agent API-key guard
+├── org/                            # org.module.ts, org-bootstrap.service.ts (runs on boot)
+│   └── utils/                      # bootstrap-org.util.ts (also used by the seed), org-db.util.ts (org-scoped client)
+├── auth/                           # auth.module/controller/service (login, logout, me; login rate limit)
+│   ├── constants/                  # session.constants.ts
+│   ├── dto/                        # login.dto.ts
+│   ├── guards/                     # session.guard.ts (default deny)
+│   └── utils/                      # session-cookie.util.ts
+├── users/                          # users.module/controller/service (admin only)
+│   ├── dto/                        # create-user, update-user, user-email-params (*.dto.ts)
+│   ├── schemas/                    # user-fields.schema.ts
+│   └── utils/                      # to-public-user.util.ts
+├── agents/                         # agents CRUD, starter policy on create, maxAgents
+│   ├── utils/                      # create-agent.util.ts (agent + starter policy v1)
+│   └── api-keys/                   # per-agent keys: create (shown once), list, revoke
+│       ├── guards/                 # api-key.guard.ts (@AgentAuth routes)
+│       └── utils/                  # api-key.util.ts (il_live_ keys, hashing)
 ├── license/                        # license.ts (pure verify, COMMUNITY), license.service.ts, GET /v1/license
+├── keys/                           # signing key load/generate, JWKS controller
 ├── policies/                       # PolicySet/Version/Draft store: draft, validate, test (sample + replay), publish (409), rollback, versions
 ├── stats/                          # GET /v1/stats/overview (role-scoped aggregates)
 ├── runs/                           # GET /v1/runs, /v1/runs/:planId
@@ -243,7 +261,9 @@ src/
 │   ├── audit.service.ts            # serialized chain append
 │   ├── batch.service.ts            # /v1/audit/batch ingest, client-chain check, re-run check()
 │   ├── verify.service.ts
-│   └── audit.controller.ts
+│   ├── audit.controller.ts
+│   ├── types/                      # audit-input.type.ts
+│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry)
 ├── events/                         # events.gateway.ts (WebSocket /events)
 └── health/                         # /health and /health/ready
 test/
@@ -262,7 +282,18 @@ test/
 └── hybrid.e2e.test.ts              # HybridGate + outbox against a real server
 ```
 
-Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts`, and `<feature>.service.test.ts` where unit-testable.
+Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts` (and `<feature>.service.test.ts` where unit-testable) at its root, plus subfolders as needed, one concern per file (ADR-033):
+
+| Subfolder | Holds | File name |
+| --- | --- | --- |
+| `dto/` | one request DTO per file: `class XDto extends zodDto(schema) {}` | `<action>-<thing>.dto.ts` |
+| `schemas/` | zod field schemas shared by several DTOs | `<name>.schema.ts` |
+| `guards/` · `decorators/` · `pipes/` · `filters/` | one per file | `<name>.guard.ts`, `<name>.decorator.ts`, … |
+| `utils/` | pure helpers and mappers | `<name>.util.ts` |
+| `constants/` · `types/` | constants, TypeScript types | `<area>.constants.ts`, `<name>.type(s).ts` |
+| `services/` · `controllers/` | only when a feature has more than one of each | `<name>.service.ts` |
+
+DTOs are never declared inside controllers; services never export mappers or types (those go in `utils/` and `types/`).
 
 ### `apps/inbox` — Next.js App Router
 

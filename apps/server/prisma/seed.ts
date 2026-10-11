@@ -2,12 +2,12 @@
 // Prints the one-time login tokens and the API key. Refuses to run on a non-empty database.
 import { PrismaPg } from "@prisma/adapter-pg";
 
-import { createAgent } from "../src/agents/create-agent.js";
-import { newApiKey } from "../src/common/secrets.js";
+import { newApiKey } from "../src/agents/api-keys/utils/api-key.util.js";
+import { createAgent } from "../src/agents/utils/create-agent.util.js";
 import { loadEnv } from "../src/config/env.schema.js";
 import { PrismaClient } from "../src/generated/prisma/client.js";
-import { bootstrapOrg } from "../src/org/bootstrap.js";
-import { orgDb } from "../src/org/org-db.js";
+import { bootstrapOrg } from "../src/org/utils/bootstrap-org.util.js";
+import { orgDb } from "../src/org/utils/org-db.util.js";
 
 try {
   process.loadEnvFile("../../.env");

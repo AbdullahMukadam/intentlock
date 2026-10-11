@@ -1,4 +1,4 @@
-import type { PrismaClient } from "../generated/prisma/client.js";
+import type { PrismaClient } from "../../generated/prisma/client.js";
 
 const UNSCOPED_MODELS = new Set(["Organization"]);
 const CREATE_OPS = new Set(["create", "createMany", "createManyAndReturn"]);

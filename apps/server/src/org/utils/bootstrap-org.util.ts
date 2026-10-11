@@ -1,5 +1,5 @@
-import { newSecret, sha256Hex } from "../common/secrets.js";
-import type { PrismaClient, Role } from "../generated/prisma/client.js";
+import { newSecret, sha256Hex } from "../../common/utils/crypto.util.js";
+import type { PrismaClient, Role } from "../../generated/prisma/client.js";
 
 // Two instances booting together must not both create an organization.
 const BOOTSTRAP_LOCK_ID = 7_406_212;

@@ -255,7 +255,7 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Date:** 2026-10-12 · **Status:** Accepted
 - **Context:** ARCHITECTURE §5.6 fixes the model (login tokens, sessions, default deny) but not the mechanics.
 - **Decision:**
-  1. **One global guard** (`common/session.guard.ts`) handles all three cases from route metadata: `@AgentAuth()` → Bearer API key (SHA-256 with `API_KEY_PEPPER`, revoked keys rejected on every agent route, `lastUsedAt` written at most once a minute); `@Public()` → no auth; anything else → session cookie, plus `@Roles(...)`. The decorators live in one file, `common/auth.decorators.ts`, instead of three.
+  1. **Four global guards, one job each**, registered in this order in `app.module.ts`: `CsrfGuard` (point 2), `ApiKeyGuard` (`@AgentAuth()` routes: Bearer API key, SHA-256 with `API_KEY_PEPPER`, revoked keys rejected on every agent route, `lastUsedAt` written at most once a minute), `SessionGuard` (the default deny: every route that is neither `@Public()` nor `@AgentAuth()` needs a valid session cookie), `RolesGuard` (`@Roles(...)`). Each decorator has its own file (ADR-033). *Amended the same day: the first version was one combined guard and one decorators file.*
   2. **CSRF:** every non-GET request that is not an API-key route must carry `X-Intentlock-CSRF` (any value), sign-in included. With `SameSite=Lax` cookies a cross-site page cannot send a custom header without a CORS preflight, which the server never grants.
   3. **Sessions:** cookie `il_session` = 32 random bytes; the DB stores its SHA-256. 12 h sliding expiry, written at most every 10 minutes. A session is rejected if expired, if the user is disabled, or if its org doesn't match the user's. Disabling a user or re-issuing their token deletes their sessions.
   4. **Sign-in:** emails are lowercased everywhere. Unknown email, wrong token and disabled user give the same 401 and do the same hashing work. v0.1 looks the email up across the (single) organization. Failed and successful sign-ins are audited.
@@ -265,3 +265,10 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   8. **Lock-out guard:** an admin cannot disable or demote themselves.
 - **Alternatives:** `cookie-parser` (not on the allowed list; parsing one cookie is a few lines); a double-submit CSRF token (unneeded with same-origin + custom header); a Postgres-backed throttler store (more moving parts for a non-decision limit).
 - **Consequences:** The route-enumeration test (`test/routes.e2e.test.ts`) lists every public and API-key route explicitly; adding one means editing that list.
+
+### ADR-033: Server file layout — one concern per file, feature subfolders
+- **Date:** 2026-10-12 · **Status:** Accepted · Amends STRUCTURE.md §3 (`apps/server`)
+- **Context:** The first server chunks grouped several concerns per file (five decorators and the request types in one file, one guard doing CSRF + API keys + sessions + roles, DTOs declared inside controllers, a service class inside a module file). The owner asked for the layout of their reference NestJS project (github.com/AbdullahMukadam/nest-backend-reference) for maintainability.
+- **Decision:** Each feature folder keeps `module`/`controller`/`service` at its root and adds subfolders as needed: `dto/` (one DTO per file, `<action>-<thing>.dto.ts`), `schemas/`, `guards/`, `decorators/`, `utils/` (`*.util.ts`), `constants/`, `types/`; cross-cutting pieces go in `common/` with the same subfolders. Unit tests sit next to the file they test. Table in STRUCTURE.md §3.
+- **Alternatives:** Keep fewer, larger files (fewer imports, but harder to find things and to review as the server grows to ~15 features).
+- **Consequences:** More, smaller files and longer import lists. Global guard order now matters and is fixed in `app.module.ts`; the route-protection tests cover it.

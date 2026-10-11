@@ -1,25 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
-import { z } from "zod";
 
-import { CurrentUser, Roles, type SessionUser } from "../common/auth.decorators.js";
-import { Email } from "../common/schemas.js";
-import { zodDto } from "../common/zod-validation.pipe.js";
+import { CurrentUser } from "../common/decorators/current-user.decorator.js";
+import { Roles } from "../common/decorators/roles.decorator.js";
+import type { SessionUser } from "../common/types/auth.types.js";
+import { CreateUserDto } from "./dto/create-user.dto.js";
+import { UpdateUserDto } from "./dto/update-user.dto.js";
+import { UserEmailParamsDto } from "./dto/user-email-params.dto.js";
 import { UsersService } from "./users.service.js";
-
-const Role = z.enum(["admin", "approver", "member"]);
-const Groups = z.array(z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)).max(50);
-
-class CreateUserBody extends zodDto(
-  z.object({ email: Email, role: Role, groups: Groups.default([]) }),
-) {}
-class UpdateUserBody extends zodDto(
-  z.strictObject({
-    role: Role.optional(),
-    groups: Groups.optional(),
-    disabled: z.boolean().optional(),
-  }),
-) {}
-class EmailParams extends zodDto(z.object({ email: Email })) {}
 
 @Roles("admin")
 @Controller("v1/users")
@@ -27,7 +14,7 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Post()
-  create(@CurrentUser() admin: SessionUser, @Body() body: CreateUserBody) {
+  create(@CurrentUser() admin: SessionUser, @Body() body: CreateUserDto) {
     return this.users.create(admin, body);
   }
 
@@ -39,14 +26,14 @@ export class UsersController {
   @Patch(":email")
   update(
     @CurrentUser() admin: SessionUser,
-    @Param() { email }: EmailParams,
-    @Body() body: UpdateUserBody,
+    @Param() { email }: UserEmailParamsDto,
+    @Body() body: UpdateUserDto,
   ) {
     return this.users.update(admin, email, body);
   }
 
   @Post(":email/token")
-  reissueToken(@CurrentUser() admin: SessionUser, @Param() { email }: EmailParams) {
+  reissueToken(@CurrentUser() admin: SessionUser, @Param() { email }: UserEmailParamsDto) {
     return this.users.reissueToken(admin, email);
   }
 }

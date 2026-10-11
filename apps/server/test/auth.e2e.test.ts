@@ -1,7 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
-import { bootstrapOrg } from "../src/org/bootstrap.js";
+import { bootstrapOrg } from "../src/org/utils/bootstrap-org.util.js";
 import {
   createOrg,
   createTestApp,

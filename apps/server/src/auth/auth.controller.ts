@@ -1,16 +1,14 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { ThrottlerGuard } from "@nestjs/throttler";
 import type { Request, Response } from "express";
-import { z } from "zod";
 
-import { CurrentUser, Public, type SessionUser } from "../common/auth.decorators.js";
-import { Email } from "../common/schemas.js";
-import { zodDto } from "../common/zod-validation.pipe.js";
+import { CurrentUser } from "../common/decorators/current-user.decorator.js";
+import { Public } from "../common/decorators/public.decorator.js";
+import type { SessionUser } from "../common/types/auth.types.js";
 import { ENV, type Env } from "../config/config.module.js";
 import { AuthService } from "./auth.service.js";
-import { clearSessionCookie, setSessionCookie } from "./session.js";
-
-class LoginBody extends zodDto(z.object({ email: Email, token: z.string().min(1).max(200) })) {}
+import { LoginDto } from "./dto/login.dto.js";
+import { clearSessionCookie, setSessionCookie } from "./utils/session-cookie.util.js";
 
 @Controller("v1")
 export class AuthController {
@@ -24,7 +22,7 @@ export class AuthController {
   @Post("auth/login")
   @HttpCode(200)
   async login(
-    @Body() body: LoginBody,
+    @Body() body: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {

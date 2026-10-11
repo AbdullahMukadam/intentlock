@@ -1,9 +1,5 @@
 import type { LoggerService } from "@nestjs/common";
-import { pino, type Logger } from "pino";
-
-export function createLogger(level = process.env["LOG_LEVEL"] ?? "info"): Logger {
-  return pino({ level, base: { service: "intentlock-server" } });
-}
+import type { Logger } from "pino";
 
 /** Routes Nest's own logging through pino. */
 export class PinoLogger implements LoggerService {

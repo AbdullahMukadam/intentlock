@@ -1,5 +1,5 @@
-import { createAgent } from "../src/agents/create-agent.js";
-import { orgDb } from "../src/org/org-db.js";
+import { createAgent } from "../src/agents/utils/create-agent.util.js";
+import { orgDb } from "../src/org/utils/org-db.util.js";
 import { resetDb, testPrisma } from "./setup.js";
 
 const prisma = testPrisma();

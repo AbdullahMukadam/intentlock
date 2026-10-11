@@ -4,23 +4,8 @@ import {
   Injectable,
   type PipeTransform,
 } from "@nestjs/common";
-import type { z } from "zod";
 
-type ZodDtoClass = { schema: z.ZodType };
-
-/**
- * Wraps a zod schema in a class so the global pipe can find it through Nest's parameter metadata:
- * `class LoginBody extends zodDto(LoginSchema) {}` then `@Body() body: LoginBody`.
- */
-export function zodDto<S extends z.ZodType>(schema: S) {
-  return class {
-    static schema = schema;
-  } as unknown as { new (): z.infer<S>; schema: S };
-}
-
-export function hasSchema(metatype: unknown): metatype is ZodDtoClass {
-  return typeof metatype === "function" && "schema" in metatype;
-}
+import { hasSchema } from "../utils/zod-dto.util.js";
 
 /**
  * Global pipe: every `@Body()`, `@Query()` and `@Param()` must be typed with a `zodDto` class.

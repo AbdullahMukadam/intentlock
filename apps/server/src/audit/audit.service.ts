@@ -1,41 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { GENESIS, hashEntry, type AuditEntry, type AuditEntryBody } from "@intentlock/core";
+import { GENESIS, hashEntry, type AuditEntryBody } from "@intentlock/core";
 
-import type { AuditEntry as AuditEntryRow, Prisma } from "../generated/prisma/client.js";
-import { orgDb, type OrgTx } from "../org/org-db.js";
+import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import type { AuditInput } from "./types/audit-input.type.js";
 
 // Arbitrary constant: the one global chain's advisory lock id (DEPLOYMENT §5.4).
 const CHAIN_LOCK_ID = 7_406_211;
-
-export type AuditInput = {
-  kind: string;
-  origin?: "server" | "client";
-  actor?: string | null;
-  user?: string | null;
-  planId?: string | null;
-  agentId?: string | null;
-  tool?: string | null;
-  verdict?: string | null;
-  ruleId?: string | null;
-  policyVersion?: number | null;
-  clientSeq?: number | null;
-  clientAt?: Date | null;
-  clientHash?: string | null;
-  flagged?: string | null;
-  payload?: Prisma.InputJsonValue;
-};
-
-/** A database row in the exact shape core hashes (ADR-030 point 9). */
-export function toAuditEntry(row: AuditEntryRow): AuditEntry {
-  return {
-    ...row,
-    origin: row.origin as AuditEntry["origin"],
-    at: row.at.toISOString(),
-    clientAt: row.clientAt?.toISOString() ?? null,
-    payload: row.payload as AuditEntry["payload"],
-  };
-}
 
 @Injectable()
 export class AuditService {

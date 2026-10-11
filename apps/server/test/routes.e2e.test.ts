@@ -6,8 +6,9 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 
 import { AppModule } from "../src/app.module.js";
-import { AUTH_KIND, type AuthKind } from "../src/common/auth.decorators.js";
-import { hasSchema } from "../src/common/zod-validation.pipe.js";
+import { AUTH_KIND_KEY } from "../src/common/constants/auth.constants.js";
+import type { AuthKind } from "../src/common/types/auth.types.js";
+import { hasSchema } from "../src/common/utils/zod-dto.util.js";
 import { configureApp } from "../src/configure-app.js";
 import { CSRF } from "./helpers.js";
 
@@ -56,7 +57,7 @@ function listRoutes(app: INestApplication): Route[] {
       if (path === undefined) continue;
       const method = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod];
       const full = `/${[base, String(path)].filter((p) => p && p !== "/").join("/")}`;
-      const kind = reflector.getAllAndOverride<AuthKind | undefined>(AUTH_KIND, [
+      const kind = reflector.getAllAndOverride<AuthKind | undefined>(AUTH_KIND_KEY, [
         handler,
         metatype,
       ]);

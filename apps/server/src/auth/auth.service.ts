@@ -1,10 +1,10 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 
 import { AuditService } from "../audit/audit.service.js";
-import { newSecret, safeEqual, sha256Hex } from "../common/secrets.js";
-import { orgDb } from "../org/org-db.js";
+import { newSecret, safeEqual, sha256Hex } from "../common/utils/crypto.util.js";
+import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { SESSION_TTL_MS } from "./session.js";
+import { SESSION_TTL_MS } from "./constants/session.constants.js";
 
 // Compared against when the email is unknown, so both paths do the same work.
 const NO_MATCH_HASH = sha256Hex("no-such-user");

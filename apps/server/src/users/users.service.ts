@@ -6,22 +6,12 @@ import {
 } from "@nestjs/common";
 
 import { AuditService } from "../audit/audit.service.js";
-import type { SessionUser } from "../common/auth.decorators.js";
-import { newSecret, sha256Hex } from "../common/secrets.js";
-import { Prisma, type Role, type User } from "../generated/prisma/client.js";
-import { orgDb } from "../org/org-db.js";
+import type { SessionUser } from "../common/types/auth.types.js";
+import { newSecret, sha256Hex } from "../common/utils/crypto.util.js";
+import { Prisma, type Role } from "../generated/prisma/client.js";
+import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-
-export function publicUser(u: User) {
-  return {
-    id: u.id,
-    email: u.email,
-    role: u.role,
-    groups: u.groups,
-    disabledAt: u.disabledAt,
-    createdAt: u.createdAt,
-  };
-}
+import { toPublicUser } from "./utils/to-public-user.util.js";
 
 @Injectable()
 export class UsersService {
@@ -50,7 +40,7 @@ export class UsersService {
         );
         return created;
       });
-      return { user: publicUser(user), loginToken: token };
+      return { user: toPublicUser(user), loginToken: token };
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
         throw new ConflictException({ statusCode: 409, error: "user_exists" });
@@ -61,7 +51,7 @@ export class UsersService {
 
   async list(orgId: string) {
     const users = await orgDb(this.prisma, orgId).user.findMany({ orderBy: { createdAt: "asc" } });
-    return users.map(publicUser);
+    return users.map(toPublicUser);
   }
 
   async update(
@@ -97,7 +87,7 @@ export class UsersService {
       );
       return updated;
     });
-    return publicUser(user);
+    return toPublicUser(user);
   }
 
   async reissueToken(admin: SessionUser, email: string) {
