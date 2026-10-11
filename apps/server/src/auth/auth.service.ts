@@ -1,12 +1,14 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
 
 import { AuditService } from "../audit/audit.service.js";
+import { AuditKind } from "../audit/enums/audit-kind.enum.js";
 import { newSecret, safeEqual, sha256Hex } from "../common/utils/crypto.util.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SESSION_TTL_MS } from "./constants/session.constants.js";
+import { AuthError } from "./enums/auth-error.enum.js";
 
-// Compared against when the email is unknown, so both paths do the same work.
+// Unknown emails hash against this so both paths take the same time.
 const NO_MATCH_HASH = sha256Hex("no-such-user");
 
 @Injectable()
@@ -16,7 +18,6 @@ export class AuthService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Returns the raw cookie value; only its SHA-256 is stored. */
   async login(email: string, token: string, ip: string | undefined) {
     // v0.1 has one organization, so the email alone identifies the user.
     const user = await this.prisma.user.findFirst({ where: { email } });
@@ -25,10 +26,13 @@ export class AuthService {
       const orgId = user?.orgId ?? (await this.prisma.organization.findFirst())?.id;
       if (orgId) {
         await this.audit.append(orgId, [
-          { kind: "auth_login_failed", payload: { email, ip: ip ?? null } },
+          { kind: AuditKind.AUTH_LOGIN_FAILED, payload: { email, ip: ip ?? null } },
         ]);
       }
-      throw new UnauthorizedException({ statusCode: 401, error: "invalid_credentials" });
+      throw new UnauthorizedException({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        error: AuthError.INVALID_CREDENTIALS,
+      });
     }
 
     const cookie = newSecret();
@@ -41,13 +45,13 @@ export class AuthService {
       },
     });
     await this.audit.append(user.orgId, [
-      { kind: "auth_login", actor: user.id, payload: { email, ip: ip ?? null } },
+      { kind: AuditKind.AUTH_LOGIN, actor: user.id, payload: { email, ip: ip ?? null } },
     ]);
     return { cookie, user: { email: user.email, role: user.role, groups: user.groups } };
   }
 
   async logout(orgId: string, userId: string, sessionId: string) {
     await orgDb(this.prisma, orgId).session.deleteMany({ where: { id: sessionId } });
-    await this.audit.append(orgId, [{ kind: "auth_logout", actor: userId }]);
+    await this.audit.append(orgId, [{ kind: AuditKind.AUTH_LOGOUT, actor: userId }]);
   }
 }

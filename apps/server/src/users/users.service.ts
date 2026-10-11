@@ -1,16 +1,21 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 
 import { AuditService } from "../audit/audit.service.js";
+import { AuditKind } from "../audit/enums/audit-kind.enum.js";
+import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
 import type { SessionUser } from "../common/types/auth.types.js";
 import { newSecret, sha256Hex } from "../common/utils/crypto.util.js";
 import { Prisma, type Role } from "../generated/prisma/client.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { UserError } from "./enums/user-error.enum.js";
+import { UserRole } from "./enums/user-role.enum.js";
 import { toPublicUser } from "./utils/to-public-user.util.js";
 
 @Injectable()
@@ -31,7 +36,7 @@ export class UsersService {
           admin.orgId,
           [
             {
-              kind: "user_created",
+              kind: AuditKind.USER_CREATED,
               actor: admin.id,
               payload: { email: input.email, role: input.role, groups: input.groups },
             },
@@ -42,8 +47,14 @@ export class UsersService {
       });
       return { user: toPublicUser(user), loginToken: token };
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-        throw new ConflictException({ statusCode: 409, error: "user_exists" });
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === PrismaErrorCode.UNIQUE_CONSTRAINT_VIOLATION
+      ) {
+        throw new ConflictException({
+          statusCode: HttpStatus.CONFLICT,
+          error: UserError.USER_EXISTS,
+        });
       }
       throw e;
     }
@@ -65,8 +76,14 @@ export class UsersService {
   ) {
     const target = await this.find(admin.orgId, email);
     // Guard against an admin locking everyone out by demoting or disabling themselves.
-    if (target.id === admin.id && (patch.disabled || (patch.role && patch.role !== "admin"))) {
-      throw new BadRequestException({ statusCode: 400, error: "cannot_demote_or_disable_self" });
+    if (
+      target.id === admin.id &&
+      (patch.disabled || (patch.role && patch.role !== UserRole.ADMIN))
+    ) {
+      throw new BadRequestException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        error: UserError.CANNOT_DEMOTE_OR_DISABLE_SELF,
+      });
     }
     const disabledAt =
       patch.disabled === undefined
@@ -82,7 +99,7 @@ export class UsersService {
       if (patch.disabled) await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
         admin.orgId,
-        [{ kind: "user_updated", actor: admin.id, payload: { email, ...patch } }],
+        [{ kind: AuditKind.USER_UPDATED, actor: admin.id, payload: { email, ...patch } }],
         tx,
       );
       return updated;
@@ -101,7 +118,7 @@ export class UsersService {
       await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
         admin.orgId,
-        [{ kind: "user_token_reissued", actor: admin.id, payload: { email } }],
+        [{ kind: AuditKind.USER_TOKEN_REISSUED, actor: admin.id, payload: { email } }],
         tx,
       );
     });
@@ -110,7 +127,11 @@ export class UsersService {
 
   private async find(orgId: string, email: string) {
     const user = await orgDb(this.prisma, orgId).user.findFirst({ where: { email } });
-    if (!user) throw new NotFoundException({ statusCode: 404, error: "user_not_found" });
+    if (!user)
+      throw new NotFoundException({
+        statusCode: HttpStatus.NOT_FOUND,
+        error: UserError.USER_NOT_FOUND,
+      });
     return user;
   }
 }

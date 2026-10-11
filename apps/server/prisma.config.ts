@@ -1,6 +1,6 @@
 import { defineConfig } from "prisma/config";
 
-// One .env at the repo root (docs/STRUCTURE.md §6). Missing file is fine: CI and hosts set real env vars.
+// Missing root .env is fine: CI and hosts set real env vars.
 try {
   process.loadEnvFile("../../.env");
 } catch {

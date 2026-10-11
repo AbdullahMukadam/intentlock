@@ -8,6 +8,7 @@ import { toAuditEntry } from "../src/audit/utils/to-audit-entry.util.js";
 import { newSecret, sha256Hex } from "../src/common/utils/crypto.util.js";
 import { configureApp } from "../src/configure-app.js";
 import type { PrismaClient, Role } from "../src/generated/prisma/client.js";
+import { UserRole } from "../src/users/enums/user-role.enum.js";
 
 export const CSRF = { "X-Intentlock-CSRF": "1" };
 
@@ -24,11 +25,11 @@ export async function createOrg(prisma: PrismaClient) {
 
 let n = 0;
 
-/** A user with a known login token; emails are unique per call so rate limits don't collide. */
+// Unique emails per call so the per-email login limit never collides across tests.
 export async function createUser(
   prisma: PrismaClient,
   orgId: string,
-  role: Role = "member",
+  role: Role = UserRole.MEMBER,
   groups: string[] = [],
 ) {
   const token = newSecret();
@@ -44,7 +45,6 @@ export async function createUser(
   return { user, token };
 }
 
-/** Session cookie header for a user, created directly in the database (no login, no rate limit). */
 export async function sessionCookie(prisma: PrismaClient, user: { id: string; orgId: string }) {
   const value = newSecret();
   await prisma.session.create({

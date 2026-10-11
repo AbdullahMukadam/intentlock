@@ -1,13 +1,13 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
 
+import { LoggerContext } from "../common/enums/logger-context.enum.js";
 import { ENV, type Env } from "../config/config.module.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { bootstrapOrg } from "./utils/bootstrap-org.util.js";
 
-/** Creates the organization and first admin on an empty database; logs the one-time tokens. */
 @Injectable()
 export class OrgBootstrapService implements OnApplicationBootstrap {
-  private readonly log = new Logger("Bootstrap");
+  private readonly log = new Logger(LoggerContext.BOOTSTRAP);
 
   constructor(
     private readonly prisma: PrismaService,

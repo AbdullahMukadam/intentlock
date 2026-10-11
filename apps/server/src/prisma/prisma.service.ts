@@ -4,7 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { ENV, type Env } from "../config/config.module.js";
 import { PrismaClient } from "../generated/prisma/client.js";
 
-/** Unscoped client. Services use `orgDb(prisma, orgId)` instead; only bootstrap and raw SQL touch this directly. */
+// Unscoped: services go through orgDb(); only bootstrap, guards and raw SQL use this directly.
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(@Inject(ENV) env: Env) {

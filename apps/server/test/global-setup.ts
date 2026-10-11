@@ -1,6 +1,5 @@
 import { execSync } from "node:child_process";
 
-// Runs once before the e2e suite: point everything at the test database and apply migrations.
 export default function setup() {
   try {
     process.loadEnvFile("../../.env");

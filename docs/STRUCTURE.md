@@ -220,10 +220,11 @@ src/
 ├── app.module.ts                   # modules + global guards, in order: CsrfGuard → ApiKeyGuard → SessionGuard → RolesGuard
 ├── configure-app.ts                # logger, exception filter, global ZodValidationPipe; shared by main.ts and the e2e tests
 ├── generated/prisma/               # Prisma client (git-ignored; `prisma generate` runs on postinstall)
-├── config/                         # env.schema.ts (zod), config.module.ts
+├── config/                         # env.schema.ts (zod), config.module.ts, enums/ (node-env, log-level)
 ├── common/                         # cross-cutting, one concern per file (ADR-033)
 │   ├── constants/                  # auth.constants.ts (metadata keys, CSRF header)
 │   ├── decorators/                 # public, agent-auth, roles, current-user, current-agent (*.decorator.ts)
+│   ├── enums/                      # auth-kind, error-code, logger-context, prisma-error-code (*.enum.ts)
 │   ├── filters/                    # http-exception.filter.ts
 │   ├── guards/                     # csrf.guard.ts, roles.guard.ts
 │   ├── logger/                     # create-logger.util.ts, pino-logger.service.ts
@@ -237,10 +238,12 @@ src/
 ├── auth/                           # auth.module/controller/service (login, logout, me; login rate limit)
 │   ├── constants/                  # session.constants.ts
 │   ├── dto/                        # login.dto.ts
+│   ├── enums/                      # auth-error, login-throttler
 │   ├── guards/                     # session.guard.ts (default deny)
 │   └── utils/                      # session-cookie.util.ts
 ├── users/                          # users.module/controller/service (admin only)
 │   ├── dto/                        # create-user, update-user, user-email-params (*.dto.ts)
+│   ├── enums/                      # user-role (matches the Prisma Role enum, tested), user-error
 │   ├── schemas/                    # user-fields.schema.ts
 │   └── utils/                      # to-public-user.util.ts
 ├── agents/                         # agents CRUD, starter policy on create, maxAgents
@@ -262,6 +265,7 @@ src/
 │   ├── batch.service.ts            # /v1/audit/batch ingest, client-chain check, re-run check()
 │   ├── verify.service.ts
 │   ├── audit.controller.ts
+│   ├── enums/                      # audit-kind, audit-origin
 │   ├── types/                      # audit-input.type.ts
 │   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry)
 ├── events/                         # events.gateway.ts (WebSocket /events)
@@ -288,6 +292,7 @@ Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<fe
 | --- | --- | --- |
 | `dto/` | one request DTO per file: `class XDto extends zodDto(schema) {}` | `<action>-<thing>.dto.ts` |
 | `schemas/` | zod field schemas shared by several DTOs | `<name>.schema.ts` |
+| `enums/` | one string `enum` per file for every fixed set of values (CLAUDE.md) | `<name>.enum.ts` |
 | `guards/` · `decorators/` · `pipes/` · `filters/` | one per file | `<name>.guard.ts`, `<name>.decorator.ts`, … |
 | `utils/` | pure helpers and mappers | `<name>.util.ts` |
 | `constants/` · `types/` | constants, TypeScript types | `<area>.constants.ts`, `<name>.type(s).ts` |

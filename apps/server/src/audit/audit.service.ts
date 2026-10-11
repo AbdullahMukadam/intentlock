@@ -3,19 +3,17 @@ import { GENESIS, hashEntry, type AuditEntryBody } from "@intentlock/core";
 
 import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { AuditOrigin } from "./enums/audit-origin.enum.js";
 import type { AuditInput } from "./types/audit-input.type.js";
 
-// Arbitrary constant: the one global chain's advisory lock id (DEPLOYMENT §5.4).
+// Advisory lock id of the single global audit chain (DEPLOYMENT §5.4).
 const CHAIN_LOCK_ID = 7_406_211;
 
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Appends entries to the chain in order. Pass `tx` to make the entries atomic with other writes
-   * (e.g. a hold state change); the advisory lock is then held until that transaction commits.
-   */
+  // Pass tx to append atomically with other writes; the chain lock is held until it commits.
   async append(
     orgId: string,
     entries: AuditInput[],
@@ -41,7 +39,7 @@ export class AuditService {
         orgId,
         at: at.toISOString(),
         kind: e.kind,
-        origin: e.origin ?? "server",
+        origin: e.origin ?? AuditOrigin.SERVER,
         actor: e.actor ?? null,
         user: e.user ?? null,
         planId: e.planId ?? null,

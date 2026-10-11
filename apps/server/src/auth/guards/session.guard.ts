@@ -1,6 +1,7 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  HttpStatus,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -8,6 +9,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import type { Response } from "express";
 
+import { ErrorCode } from "../../common/enums/error-code.enum.js";
 import type { AuthedRequest, SessionUser } from "../../common/types/auth.types.js";
 import { authKindOf } from "../../common/utils/auth-kind.util.js";
 import { sha256Hex } from "../../common/utils/crypto.util.js";
@@ -20,7 +22,7 @@ import {
 } from "../constants/session.constants.js";
 import { readCookie, setSessionCookie } from "../utils/session-cookie.util.js";
 
-/** Default deny (ARCHITECTURE §5.6): every route needs a session unless it is @Public() or @AgentAuth(). */
+// Default deny: every route needs a session unless it is @Public() or @AgentAuth().
 @Injectable()
 export class SessionGuard implements CanActivate {
   constructor(
@@ -64,5 +66,8 @@ export class SessionGuard implements CanActivate {
 }
 
 function unauthorized() {
-  return new UnauthorizedException({ statusCode: 401, error: "unauthorized" });
+  return new UnauthorizedException({
+    statusCode: HttpStatus.UNAUTHORIZED,
+    error: ErrorCode.UNAUTHORIZED,
+  });
 }

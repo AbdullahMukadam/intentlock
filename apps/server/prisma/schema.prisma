@@ -1,6 +1,4 @@
-// ARCHITECTURE §5.3. Every table except Organization carries orgId; services query through the
-// org-scoped client (src/org/org-db.ts). Connection URLs live in prisma.config.ts (CLI) and
-// src/prisma/prisma.service.ts (runtime), as Prisma 7 requires.
+// ARCHITECTURE §5.3; connection URLs live in prisma.config.ts (CLI) and prisma.service.ts (runtime).
 
 generator client {
   provider = "prisma-client"
@@ -76,7 +74,7 @@ model PolicySet {
   draft         PolicyDraft?
 }
 
-// Immutable once written: never update or delete a row (CLAUDE.md).
+// Immutable: never update or delete a row.
 model PolicyVersion {
   id             String    @id @default(cuid())
   orgId          String
@@ -180,7 +178,7 @@ enum HoldStatus {
   EXPIRED
 }
 
-// Every column except hash is hashed (ARCHITECTURE §5.4, core AuditEntryBody); add new columns there too.
+// Every column except hash is hashed; add new columns to core AuditEntryBody too.
 model AuditEntry {
   seq           Int       @id @default(autoincrement())
   orgId         String

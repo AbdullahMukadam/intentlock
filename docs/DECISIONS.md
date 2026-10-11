@@ -272,3 +272,9 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Decision:** Each feature folder keeps `module`/`controller`/`service` at its root and adds subfolders as needed: `dto/` (one DTO per file, `<action>-<thing>.dto.ts`), `schemas/`, `guards/`, `decorators/`, `utils/` (`*.util.ts`), `constants/`, `types/`; cross-cutting pieces go in `common/` with the same subfolders. Unit tests sit next to the file they test. Table in STRUCTURE.md §3.
 - **Alternatives:** Keep fewer, larger files (fewer imports, but harder to find things and to review as the server grows to ~15 features).
 - **Consequences:** More, smaller files and longer import lists. Global guard order now matters and is fixed in `app.module.ts`; the route-protection tests cover it.
+
+### ADR-034: String enums for fixed values; single-line comments only
+- **Date:** 2026-10-12 · **Status:** Accepted · Owner request
+- **Decision:** Every fixed set of values in the server (audit kinds and origins, error codes, roles, auth kinds, logger contexts, throttler names, env values, Prisma error codes) is a TypeScript string `enum` in the owning feature's `enums/` folder (shared ones in `common/enums/`); HTTP statuses use Nest's `HttpStatus`. `UserRole` mirrors the Prisma `Role` enum, and a unit test fails if they drift. Comments are kept only where important and are one line. Rules are in CLAUDE.md.
+- **Alternatives:** Use Prisma's generated `Role` const directly (lowercase keys, and only covers DB enums); string literal unions (no single place to look values up).
+- **Consequences:** Wire values are unchanged, so the API and audit log are unaffected. `packages/core` keeps its zod enums for now; it is a pure, browser-safe package and outside this change.

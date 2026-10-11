@@ -1,17 +1,15 @@
 import {
   type ArgumentMetadata,
   BadRequestException,
+  HttpStatus,
   Injectable,
   type PipeTransform,
 } from "@nestjs/common";
 
+import { ErrorCode } from "../enums/error-code.enum.js";
 import { hasSchema } from "../utils/zod-dto.util.js";
 
-/**
- * Global pipe: every `@Body()`, `@Query()` and `@Param()` must be typed with a `zodDto` class.
- * Fails closed: an argument without a schema is rejected, never passed through unchecked.
- * routes.e2e.test.ts checks every route for this as well.
- */
+// Fails closed: a @Body/@Query/@Param without a zodDto schema is rejected, never passed through.
 @Injectable()
 export class ZodValidationPipe implements PipeTransform {
   transform(value: unknown, { type, metatype }: ArgumentMetadata): unknown {
@@ -20,8 +18,8 @@ export class ZodValidationPipe implements PipeTransform {
     const parsed = metatype.schema.safeParse(value);
     if (parsed.success) return parsed.data;
     throw new BadRequestException({
-      statusCode: 400,
-      error: "validation_failed",
+      statusCode: HttpStatus.BAD_REQUEST,
+      error: ErrorCode.VALIDATION_FAILED,
       issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
     });
   }

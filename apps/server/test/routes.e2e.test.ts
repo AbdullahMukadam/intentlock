@@ -7,13 +7,12 @@ import request from "supertest";
 
 import { AppModule } from "../src/app.module.js";
 import { AUTH_KIND_KEY } from "../src/common/constants/auth.constants.js";
-import type { AuthKind } from "../src/common/types/auth.types.js";
+import { AuthKind } from "../src/common/enums/auth-kind.enum.js";
 import { hasSchema } from "../src/common/utils/zod-dto.util.js";
 import { configureApp } from "../src/configure-app.js";
 import { CSRF } from "./helpers.js";
 
-// The only routes anyone may call without signing in (ARCHITECTURE §5.6). Adding one is a
-// deliberate security decision: update this list in the same change.
+// Adding a public route is a security decision: update this list in the same change.
 const PUBLIC = ["POST /v1/auth/login"];
 const AGENT: string[] = [];
 
@@ -21,7 +20,6 @@ type Route = {
   method: string;
   path: string;
   kind: AuthKind | "session";
-  /** @Body/@Query/@Param arguments not typed with a zodDto class */
   unvalidated: string[];
 };
 
@@ -94,7 +92,7 @@ describe("route protection", () => {
   it("opens only the expected public routes", () => {
     expect(
       routes
-        .filter((r) => r.kind === "public")
+        .filter((r) => r.kind === AuthKind.PUBLIC)
         .map(key)
         .sort(),
     ).toEqual([...PUBLIC].sort());
@@ -103,7 +101,7 @@ describe("route protection", () => {
   it("marks only the expected routes as API-key routes", () => {
     expect(
       routes
-        .filter((r) => r.kind === "agent")
+        .filter((r) => r.kind === AuthKind.AGENT)
         .map(key)
         .sort(),
     ).toEqual([...AGENT].sort());
@@ -118,7 +116,7 @@ describe("route protection", () => {
   });
 
   it("returns 401 for every non-public route without credentials", async () => {
-    for (const r of routes.filter((x) => x.kind !== "public")) {
+    for (const r of routes.filter((x) => x.kind !== AuthKind.PUBLIC)) {
       const url = r.path.replace(/:(\w+)/g, "x");
       const res = await request(app.getHttpServer())
         [r.method.toLowerCase() as "get"](url)

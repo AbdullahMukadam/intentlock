@@ -1,8 +1,16 @@
-import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException } from "@nestjs/common";
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
 import type { Response } from "express";
 import type { Logger } from "pino";
 
-/** Known HTTP errors pass through; anything else is logged and returned as a bare 500 (no stack, no message). */
+import { ErrorCode } from "../enums/error-code.enum.js";
+
+// Unknown errors become a bare 500 so messages and stack traces never leak.
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   constructor(private readonly log: Logger) {}
@@ -18,6 +26,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return;
     }
     this.log.error({ err: exception }, "unhandled error");
-    res.status(500).json({ statusCode: 500, error: "internal_error" });
+    res
+      .status(HttpStatus.INTERNAL_SERVER_ERROR)
+      .json({ statusCode: HttpStatus.INTERNAL_SERVER_ERROR, error: ErrorCode.INTERNAL_ERROR });
   }
 }

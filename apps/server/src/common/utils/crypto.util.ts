@@ -1,6 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
-/** 32 random bytes, base64url (login tokens, session ids, API key bodies; ARCHITECTURE §5.6, §5.8). */
 export function newSecret(): string {
   return randomBytes(32).toString("base64url");
 }

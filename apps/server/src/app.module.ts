@@ -14,8 +14,7 @@ import { UsersModule } from "./users/users.module.js";
 
 @Module({
   imports: [ConfigModule, PrismaModule, AuditModule, OrgModule, AuthModule, UsersModule],
-  // Global guards run in this order. SessionGuard is the default deny: it rejects every route
-  // that is neither @Public() nor @AgentAuth() unless a valid session is present.
+  // Global guards run in this order; SessionGuard is the default deny.
   providers: [
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: ApiKeyGuard },

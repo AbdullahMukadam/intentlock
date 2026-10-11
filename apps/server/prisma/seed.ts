@@ -1,5 +1,4 @@
-// Dev seed: org, admin + sample users (approver, member, intern), one agent with an API key.
-// Prints the one-time login tokens and the API key. Refuses to run on a non-empty database.
+// Dev only: prints one-time secrets and refuses to run on a non-empty database.
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { newApiKey } from "../src/agents/api-keys/utils/api-key.util.js";

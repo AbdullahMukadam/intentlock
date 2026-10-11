@@ -1,9 +1,6 @@
 import type { z } from "zod";
 
-/**
- * Wraps a zod schema in a class so the global ZodValidationPipe can find it through Nest's
- * parameter metadata: `class LoginDto extends zodDto(schema) {}` then `@Body() body: LoginDto`.
- */
+// Gives a zod schema a class so the global pipe can find it through parameter metadata.
 export function zodDto<S extends z.ZodType>(schema: S) {
   return class {
     static schema = schema;

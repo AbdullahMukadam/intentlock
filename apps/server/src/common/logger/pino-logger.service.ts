@@ -1,7 +1,6 @@
 import type { LoggerService } from "@nestjs/common";
 import type { Logger } from "pino";
 
-/** Routes Nest's own logging through pino. */
 export class PinoLogger implements LoggerService {
   constructor(private readonly pino: Logger) {}
 

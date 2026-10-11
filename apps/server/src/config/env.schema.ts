@@ -1,13 +1,15 @@
 import { z } from "zod";
 
+import { LogLevel } from "./enums/log-level.enum.js";
+import { NodeEnv } from "./enums/node-env.enum.js";
+
 const optional = z
   .string()
   .optional()
   .transform((v) => (v ? v : undefined));
 
-// DEPLOYMENT §2. The server refuses to start on invalid config.
 export const Env = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z.enum(NodeEnv).default(NodeEnv.DEVELOPMENT),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().url(),
   SIGNING_KEY: optional,
@@ -22,7 +24,7 @@ export const Env = z.object({
     .enum(["0", "1", ""])
     .default("0")
     .transform((v) => v === "1"),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  LOG_LEVEL: z.enum(LogLevel).default(LogLevel.INFO),
 });
 export type Env = z.infer<typeof Env>;
 

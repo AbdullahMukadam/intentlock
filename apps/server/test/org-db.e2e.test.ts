@@ -1,6 +1,7 @@
 import { createAgent } from "../src/agents/utils/create-agent.util.js";
 import { orgDb } from "../src/org/utils/org-db.util.js";
 import { resetDb, testPrisma } from "./setup.js";
+import { UserRole } from "../src/users/enums/user-role.enum.js";
 
 const prisma = testPrisma();
 
@@ -24,7 +25,7 @@ describe("orgDb", () => {
     expect(await db.user.count()).toBe(1);
     const other = await prisma.user.findFirstOrThrow({ where: { orgId: b } });
     expect(await db.user.findUnique({ where: { id: other.id } })).toBeNull();
-    expect((await db.user.updateMany({ data: { role: "admin" } })).count).toBe(1);
+    expect((await db.user.updateMany({ data: { role: UserRole.ADMIN } })).count).toBe(1);
     expect((await db.user.deleteMany({})).count).toBe(1);
     expect(await prisma.user.count()).toBe(1);
   });

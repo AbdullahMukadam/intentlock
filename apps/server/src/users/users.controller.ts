@@ -6,9 +6,10 @@ import type { SessionUser } from "../common/types/auth.types.js";
 import { CreateUserDto } from "./dto/create-user.dto.js";
 import { UpdateUserDto } from "./dto/update-user.dto.js";
 import { UserEmailParamsDto } from "./dto/user-email-params.dto.js";
+import { UserRole } from "./enums/user-role.enum.js";
 import { UsersService } from "./users.service.js";
 
-@Roles("admin")
+@Roles(UserRole.ADMIN)
 @Controller("v1/users")
 export class UsersController {
   constructor(private readonly users: UsersService) {}

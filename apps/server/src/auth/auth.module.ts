@@ -1,17 +1,24 @@
 import { Module } from "@nestjs/common";
 import { ThrottlerModule } from "@nestjs/throttler";
+
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
+import { LoginThrottler } from "./enums/login-throttler.enum.js";
 
 const MINUTE = 60_000;
 
 @Module({
   imports: [
-    // Only applied to sign-in (@UseGuards(ThrottlerGuard)). In-memory, so the limit is per instance.
+    // In-memory store, so these limits are per instance (ADR-032).
     ThrottlerModule.forRoot([
-      { name: "ip", ttl: MINUTE, limit: 20, getTracker: (req) => String(req["ip"] ?? "unknown") },
       {
-        name: "email",
+        name: LoginThrottler.IP,
+        ttl: MINUTE,
+        limit: 20,
+        getTracker: (req) => String(req["ip"] ?? "unknown"),
+      },
+      {
+        name: LoginThrottler.EMAIL,
         ttl: MINUTE,
         limit: 5,
         getTracker: (req) => {

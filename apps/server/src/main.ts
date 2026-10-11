@@ -4,7 +4,6 @@ import { AppModule } from "./app.module.js";
 import { configureApp } from "./configure-app.js";
 import { loadEnv } from "./config/env.schema.js";
 
-// One .env at the repo root in dev (STRUCTURE §6); hosts set real env vars.
 try {
   process.loadEnvFile("../../.env");
 } catch {

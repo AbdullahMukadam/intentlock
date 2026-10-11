@@ -5,11 +5,7 @@ const CREATE_OPS = new Set(["create", "createMany", "createManyAndReturn"]);
 
 type Args = { where?: object; data?: object | object[]; create?: object };
 
-/**
- * A client whose every model query is pinned to one organization (CLAUDE.md "orgId everywhere"):
- * filters get `orgId` added, creates get it overwritten. Raw SQL (`$queryRaw`) is not covered;
- * add `"orgId" = $n` by hand there.
- */
+// Pins every model query to one org; raw SQL is not covered, so filter orgId by hand there.
 export function orgDb(prisma: PrismaClient, orgId: string) {
   return prisma.$extends({
     query: {
@@ -33,7 +29,6 @@ export function orgDb(prisma: PrismaClient, orgId: string) {
 }
 
 export type OrgDb = ReturnType<typeof orgDb>;
-/** The client inside `orgDb(...).$transaction(async (tx) => ...)`; still org-scoped. */
 export type OrgTx = Parameters<
   Extract<Parameters<OrgDb["$transaction"]>[0], (tx: never) => unknown>
 >[0];

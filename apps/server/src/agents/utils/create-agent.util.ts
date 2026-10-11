@@ -2,7 +2,6 @@ import { parsePolicy, policyHash, STARTER_POLICY } from "@intentlock/core";
 
 import type { OrgDb } from "../../org/utils/org-db.util.js";
 
-/** Agent + PolicySet + v1 = starter policy, so every agent is safe by default (ARCHITECTURE §5.8). */
 export async function createAgent(
   db: OrgDb,
   orgId: string,

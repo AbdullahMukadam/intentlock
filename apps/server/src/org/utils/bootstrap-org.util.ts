@@ -1,5 +1,6 @@
 import { newSecret, sha256Hex } from "../../common/utils/crypto.util.js";
 import type { PrismaClient, Role } from "../../generated/prisma/client.js";
+import { UserRole } from "../../users/enums/user-role.enum.js";
 
 // Two instances booting together must not both create an organization.
 const BOOTSTRAP_LOCK_ID = 7_406_212;
@@ -7,14 +8,9 @@ const BOOTSTRAP_LOCK_ID = 7_406_212;
 export type BootstrapResult = {
   orgId: string;
   adminId: string | null;
-  /** email → one-time login token */
   tokens: Record<string, string>;
 };
 
-/**
- * ARCHITECTURE §5.6: on an empty database create the organization and the first admin.
- * `demo` adds sample users (approver, member, intern). Returns null if an organization exists.
- */
 export async function bootstrapOrg(
   prisma: PrismaClient,
   opts: { orgName: string; adminEmail?: string | undefined; demo: boolean },
@@ -27,12 +23,12 @@ export async function bootstrapOrg(
     const adminEmail = opts.adminEmail?.toLowerCase();
     const domain = adminEmail?.split("@")[1] ?? "example.com";
     const people: { email: string; role: Role; groups: string[] }[] = [
-      ...(adminEmail ? [{ email: adminEmail, role: "admin" as const, groups: [] }] : []),
+      ...(adminEmail ? [{ email: adminEmail, role: UserRole.ADMIN, groups: [] }] : []),
       ...(opts.demo
         ? [
-            { email: `approver@${domain}`, role: "approver" as const, groups: [] },
-            { email: `member@${domain}`, role: "member" as const, groups: [] },
-            { email: `intern@${domain}`, role: "member" as const, groups: ["intern"] },
+            { email: `approver@${domain}`, role: UserRole.APPROVER, groups: [] },
+            { email: `member@${domain}`, role: UserRole.MEMBER, groups: [] },
+            { email: `intern@${domain}`, role: UserRole.MEMBER, groups: ["intern"] },
           ]
         : []),
     ];
@@ -44,7 +40,7 @@ export async function bootstrapOrg(
       const user = await tx.user.create({
         data: { ...p, orgId: org.id, loginTokenHash: sha256Hex(token) },
       });
-      if (p.role === "admin") adminId = user.id;
+      if (p.role === UserRole.ADMIN) adminId = user.id;
       tokens[p.email] = token;
     }
     return { orgId: org.id, adminId, tokens };

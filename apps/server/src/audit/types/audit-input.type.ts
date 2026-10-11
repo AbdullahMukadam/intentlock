@@ -1,9 +1,10 @@
 import type { Prisma } from "../../generated/prisma/client.js";
+import type { AuditKind } from "../enums/audit-kind.enum.js";
+import type { AuditOrigin } from "../enums/audit-origin.enum.js";
 
-/** One entry to append; seq, at, prevHash and hash are filled in by AuditService. */
 export type AuditInput = {
-  kind: string;
-  origin?: "server" | "client";
+  kind: AuditKind;
+  origin?: AuditOrigin;
   actor?: string | null;
   user?: string | null;
   planId?: string | null;
