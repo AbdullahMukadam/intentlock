@@ -17,14 +17,21 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "canonicalize": "^5.1.0",
+    "jose": "^6.2.12",
+    "minimatch": "^10.2.6",
+    "yaml": "^2.9.1",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
     "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",

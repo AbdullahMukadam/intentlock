@@ -132,3 +132,35 @@ A running log of every work session. **Append a new entry at the bottom** at the
 
 **Notes for Abdullah**
 - Docker's CLI isn't on PATH in shells opened before the install; open a new terminal or restart the editor
+
+### 2026-10-12 · Session 4 · Phase 1 — core engine
+
+**Done**
+- `packages/core`: zod schemas (plan, tool call, policy, decision, bundle, audit entry), JCS + SHA-256, Ed25519 keys (PEM, kid, JWK), `signBundle`/`verifyBundle`, `matchStep` + every arg operator, policy matcher/evaluator, `canApprove`, YAML `parsePolicy` with line/col errors, `STARTER_POLICY`, `compareDecisions`, pure `check()`, `decide()`, `hashEntry`/`verifyChain`
+- `packages/sdk`: `Gate` interface, `LocalGate` (in-memory per-plan usage, holds → `hold_requires_server`), `PassThroughGate`, `examples/local.ts`
+
+**Problems hit and how they were solved**
+- `yaml` only fills `linePos` with `prettyErrors`; computed positions from `pos` with a `LineCounter` instead
+- A synchronous throw from `hashEntry` escaped `.rejects` → made it `async`
+- Race: concurrent checks could both pass `maxCalls` across the `await` in token verification → `decide` reserves the slot in the same synchronous block as `check`; covered by a 5-way concurrent test
+- `decide` with one usage array couldn't serve several plans safely (plan id unknown until verified) → takes `usageFor(planId)`
+- A heredoc with a quoted regex broke the shell; wrote those test files with the editor instead
+
+**Decisions** (link ADRs)
+- ADR-030: Phase 1 core semantics (WebCrypto, no clock in `check`, atomic reservation in `decide`, operator details, block reason codes, names)
+
+**Numbers**
+- core: 141 tests, 100 % lines / 99.3 % branches (threshold 90 % lines enforced in `vitest.config.ts`)
+- sdk: 8 tests
+- `pnpm --filter @intentlock/sdk example` output:
+  - `ALLOW in plan, in scope            github_list_issues(acme-demo/public-app)  [allow-in-plan]`
+  - `BLOCK not in plan (injected)       github_create_pull_request(acme-demo/public-app)  [-: not_in_plan]`
+  - `BLOCK in plan, blocked by policy   github_get_file_contents(acme-demo/private-notes)  [no-other-repos: ...]`
+
+**Next**
+- Phase 0 leftovers: npm scope + repo name, push, CI green
+- Phase 2: NestJS scaffold, logging, zod pipe, exception filter
+
+**Notes for Abdullah**
+- Review ADR-030 point 3: a held call uses up one of its step's `maxCalls` even if the approver rejects it
+- Phase 2 should cap regex complexity at plan signing (ReDoS), noted in ADR-030

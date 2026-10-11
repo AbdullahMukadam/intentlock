@@ -80,6 +80,14 @@ export function intentlock(pkg, ...extra) {
     { ignores: ["dist/**", "coverage/**", ".next/**", "next-env.d.ts"] },
     js.configs.recommended,
     tseslint.configs.recommended,
+    {
+      rules: {
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
+        ],
+      },
+    },
     { files: SOURCE, rules: { "no-restricted-imports": restrict(pkg, banned) } },
     // Provider SDKs live only in guard's provider adapters (ARCHITECTURE §7.5 rule 9).
     pkg === "guard"

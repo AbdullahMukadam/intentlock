@@ -158,6 +158,8 @@ rules:
 
 **Missing or wrong-typed arguments (ADR-028):** positive operators (`eq`, `in`, `glob`, `regex`, `lte`, `gte`) match only when the argument is present and has the right type (`glob`/`regex` need a string, `lte`/`gte` a finite number). Negative operators are exact negations: `notGlob` = not `glob`, `notIn` = not `in`, so they **match** when the argument is missing or wrong-typed. Example: `no-other-repos` above blocks `github_list_repos` (no `repo` arg), which is the fail-closed outcome for a block rule. Authors using `notIn`/`notGlob` in an `allow` rule must keep this in mind. Plan step constraints (§3.1) have only positive operators, so a missing pinned arg means the step does not match (`not_in_plan`).
 
+**Operator details (ADR-030):** `eq`/`in` compare JSON values exactly (after JCS, so key order doesn't matter and `"20"` ≠ `20`). `glob` uses minimatch with `*` not crossing `/`, dotfiles matched and a leading `!` treated literally (no negation); `user.email` globs are case-insensitive. `regex` must match the **whole** string (it is wrapped in `^(?:…)$`). Plan step `tool` is an exact name, never a glob.
+
 **Approvers** (hold rules only): `roles` (any user with one of these roles), `emails` (specific users), `self` (the requesting user may approve their own hold; default `false`, which enforces separation of duties). At least one must be non-empty; the policy loader rejects a hold rule nobody could approve.
 
 ### 3.5 Decision
@@ -170,6 +172,8 @@ export type Decision =
   | { verdict: "hold";  ruleId: string; planStep: number; approvers: ApproverSpec; timeoutSeconds: number };
 
 // Returned by Gate.check() (sdk) and POST /v1/check: the server has created the hold row.
+// Block reasons when ruleId is null: invalid_token | token_expired | invalid_call | not_in_plan |
+// call_limit | no_matching_rule | internal_error. LocalGate adds hold_requires_server (with the rule id).
 export type GateDecision =
   | Exclude<Decision, { verdict: "hold" }>
   | (Extract<Decision, { verdict: "hold" }> & { holdId: string });
@@ -198,7 +202,7 @@ flowchart TD
 Rules:
 1. Steps 1–3 (token, plan, limits) run **before** policies; a policy can never allow an off-plan call.
 2. Any thrown error anywhere → `block` with `reason: "internal_error"` and an `error` event.
-3. `check(bundle, call, usage, now)` in core is pure and synchronous: it takes the **already verified** bundle claims, the call, the step usage counts and `now`, and returns a `Decision`. The token step (first box) is done by the caller with `verifyBundle(token, publicKey, now)` (async, `jose`); a verification failure becomes `block / invalid_token` without calling `check()`. Role and groups come from the bundle, so `check()` needs no user lookup. Core also exports `decide(token, publicKey, call, usage, now)`, which chains the two inside the fail-closed wrapper; gates and the server use it. The same function runs on the server (`remote` mode) and in the client (`hybrid` mode), so a decision can always be recomputed and checked later (§5.4).
+3. `check(bundle, call, usage)` in core is pure, synchronous and never throws (any error → `block / internal_error`): it takes the **already verified** bundle claims, the call and the per-step usage counts, and returns a `Decision`. It needs no clock, because time only matters for token expiry. The token step (first box) is `verifyBundle(token, key, now)` (async, `jose`, 30 s leeway); failures become `block / invalid_token` or `block / token_expired`. Role and groups come from the bundle, so `check()` needs no user lookup. Core also exports `decide(token, key, call, usageFor, now)`, which validates the call, verifies the token, looks up the verified plan's usage with `usageFor(planId)`, runs `check()`, and on allow or hold increments that step's count in the same synchronous section, so concurrent calls cannot overshoot `maxCalls`. `LocalGate` and `HybridGate` use `decide`; the server's remote mode uses `verifyBundle` + `check` with atomic SQL counters (DEPLOYMENT §5.1). The same function runs on the server (`remote` mode) and in the client (`hybrid` mode), so a decision can always be recomputed and checked later (§5.4).
 4. In `remote` mode the server supplies usage counts from the DB; in `hybrid` mode the client keeps per-plan usage counts in memory (persisted in the outbox, §6.2).
 
 ## 5. Server (`apps/server`)
@@ -576,7 +580,7 @@ Aggregations are plain SQL (`date_trunc` buckets, `GROUP BY verdict`) for v0.1; 
 
 ```ts
 export interface Gate {
-  signPlan(plan: Plan): Promise<SignedPlan>;            // { planId, token, planHash, policyHash, expiresAt }
+  signPlan(plan: PlanInput): Promise<SignedPlan>;       // { planId, token, planHash, policyVersion, policyHash, expiresAt (ISO) }
   check(token: string, call: ToolCall): Promise<GateDecision>;
   waitForHold(holdId: string, opts: { timeoutMs: number; signal?: AbortSignal }):
     Promise<"approved" | "rejected" | "expired">;
@@ -595,7 +599,7 @@ export class HybridGate implements Gate {
     maxUnackedAgeMs?: number;      // default 60_000
   })
 }
-export class LocalGate implements Gate { constructor(opts: { privateKey: KeyLike; policies: PolicySet; users?: Record<string, string>; now?: () => Date }) }
+export class LocalGate implements Gate { constructor(opts: { privateKey: CryptoKey; policies: PolicySet; users?: Record<string, { role: Role; groups?: string[] }>; now?: () => Date; ttlSeconds?: number }) }
 export class PassThroughGate implements Gate { /* always allow; for the unprotected baseline */ }
 ```
 
