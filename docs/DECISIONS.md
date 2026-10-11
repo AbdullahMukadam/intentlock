@@ -197,7 +197,7 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Consequences:** Support and files agents are cut first if Friday runs late. Live-update shots are recorded against local `docker compose` because the free-hosted inbox falls back to polling.
 
 ### ADR-028: Pre-implementation spec fixes — audit hash coverage, check() signature, hold ids, missing args
-- **Date:** 2026-10-11 · **Status:** Accepted
+- **Date:** 2026-10-11 · **Status:** Accepted · Point 2 refined by ADR-030 (`check` takes no clock; `decide` takes a usage resolver)
 - **Context:** A read-through before Phase 0 found contradictions that Phase 1 code would have had to guess at: the audit hash formula covered only `{seq, at, kind, user, planId, payload}` while §5.3 claimed the denormalized columns were hashed; PLAN and ARCHITECTURE gave different `check()` signatures; the core `Decision` carried a `holdId` that pure code cannot create; `notGlob`/`notIn` on a missing argument was undefined; `StepUsage` and `PolicyDraft` had no `orgId`.
 - **Decision:**
   1. The audit entry hash covers **every `AuditEntry` column except `hash`** (ARCHITECTURE §5.4). A unit test keeps the hashed field list in sync with the schema.
@@ -222,3 +222,19 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   - **Inbox → core** is a runtime dependency (the policy parser runs in the browser, ADR-023); the "types only" label in the STRUCTURE §4 graph was corrected.
 - **Alternatives:** Keep varlock (a second env system next to zod, plus a framework override); root Vitest projects config (duplicates turbo's per-package runs); TypeScript 7 (breaks typescript-eslint).
 - **Consequences:** Prisma 7's runtime client needs a driver adapter (`@prisma/adapter-pg` + `pg`), which is **not** in the allowed dependency list; this needs the owner's approval before Phase 2's first migration. Upgrade TypeScript when typescript-eslint supports 7.
+
+### ADR-030: Phase 1 core semantics
+- **Date:** 2026-10-12 · **Status:** Accepted
+- **Context:** Implementing `packages/core` forced choices the docs left open.
+- **Decision:**
+  1. **Hashing via WebCrypto** (`crypto.subtle`), so core has no `node:` imports and runs in the browser (inbox policy editor). Hash functions are therefore async.
+  2. **`check(bundle, call, usage)` takes no `now`**: only token expiry depends on time, and that is `verifyBundle`'s job. `check` never throws (errors → `internal_error`).
+  3. **`decide(token, key, call, usageFor, now)`** looks up usage for the *verified* plan id and increments the matched step on allow or hold in the same synchronous section as the check, so concurrent calls in one process cannot overshoot `maxCalls`. A held call uses up a slot even if it is later rejected (conservative).
+  4. **Step selection:** a call uses the first matching plan step that still has capacity; `call_limit` only when every matching step is exhausted.
+  5. **Operators:** `regex` is a full match (`^(?:…)$`, `u` flag); `glob` is minimatch with `dot: true`, `nonegate: true`; `eq`/`in` compare JCS strings (exact JSON equality, no type coercion); `user.email` globs are case-insensitive; approver emails compare case-insensitively.
+  6. **Block reasons** are fixed codes when no rule decided (`invalid_token`, `token_expired`, `invalid_call`, `not_in_plan`, `call_limit`, `no_matching_rule`, `internal_error`); a policy block carries the rule id and the rule's `reason` (default `Blocked by rule <id>`). `token_expired` is separate so the guard knows to refresh (§7.5 rule 6).
+  7. **Policy defaults:** `default` may only be `block`; hold `timeoutSeconds` defaults to 300 (max 86 400); rule ids must be kebab-case and unique; unknown keys anywhere are errors (strict schemas). YAML is parsed with unique keys and at most 50 alias expansions.
+  8. **Names:** `signBundle` / `verifyBundle` (STRUCTURE §3) instead of PLAN's `signPlan` / `verifyToken`; `signBundle` computes `ph` and `polh` itself, and `verifyBundle` recomputes both and checks `sub` = `plan.user`.
+  9. **Audit hash** covers exactly the strict `AuditEntryBody` zod schema (all columns except `hash`), so field-list drift is impossible inside core; unknown fields are rejected rather than silently left unhashed. The server must map rows to that exact shape (Phase 2 tests this against Prisma).
+- **Alternatives:** `node:crypto` (sync, but not browser-safe); passing a plain usage array to `decide` (the plan id isn't trusted before verification); partial-match regex (an allow rule could match a value that merely contains the pattern).
+- **Consequences:** Regexes come from server-signed plans and admin-written policies, not from tool output, but a pathological pattern could still be slow (ReDoS); the server should reject overly complex patterns at plan signing (Phase 2). Deleting the newest audit entries is not detectable from the chain alone (anchoring is stretch, DEPLOYMENT §6.2).

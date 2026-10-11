@@ -49,21 +49,21 @@
 
 ## Phase 1 · Core engine (Mon 12) — `packages/core`, `packages/sdk` (LocalGate)
 
-- [ ] Zod schemas: `Plan`, `PlanStep`, `ArgConstraint`, `ToolCall`, `Decision`, `PolicySet`, `AuditEntry`
-- [ ] `canonicalize(plan)` (RFC 8785) + `planHash()`; tests: key order and whitespace don't change hash, any value change does
-- [ ] Key utilities: generate Ed25519 keypair, import/export PEM, `kid` thumbprint
-- [ ] `signPlan(plan, key, now, ttl)` → JWS; `verifyToken(token, publicKey, now)` with 30 s leeway; tests: valid, expired, tampered payload, wrong key, wrong `alg`
-- [ ] Plan matcher: `matchStep(plan, call)` for every `ArgConstraint` kind; tests per kind + no-match
-- [ ] Policy YAML parser (`yaml` + zod) returning errors with line, column, path and message (the inbox editor shows them inline); works in Node and the browser
-- [ ] `STARTER_POLICY` constant (default block + allow in-plan) and a pure `compareDecisions(oldPolicy, newPolicy, calls)` used by the dry-run test (server, inbox, CLI)
-- [ ] Policy evaluator: ordered rules, first match wins, `except`, `inPlan`, user email/role/group, default block; tests for every match field
-- [ ] Approver spec: loader rejects hold rules with no possible approver; `canApprove(spec, approver, requester)` with separation of duties (requester only if `self: true`); tests
-- [ ] Pure `check(bundle, call, usage, now)` (verified bundle claims in, `Decision` out) implementing ARCHITECTURE §4 exactly; tests for every branch of the decision diagram, incl. missing/wrong-typed args for every operator (ADR-028)
-- [ ] `decide(token, publicKey, call, usage, now)`: `verifyBundle` → `check` inside the fail-closed wrapper; any throw → `block / internal_error`, bad token → `block / invalid_token`; test with a policy that throws
-- [ ] Audit hashing: `hashEntry(prevHash, entry)` over every column except `hash` (ARCHITECTURE §5.4), `verifyChain(entries)` returns first broken seq; tests: intact, edited payload, edited denormalized column (e.g. `verdict`), edited `flagged`, deleted row, reordered rows
-- [ ] `packages/sdk`: `Gate` interface, `LocalGate` (in-memory usage counts, holds → block), `PassThroughGate`
-- [ ] Coverage report for core ≥ 90 % lines
-- [ ] Journal entry
+- [x] Zod schemas: `Plan`, `PlanStep`, `ArgConstraint`, `ToolCall`, `Decision`, `PolicySet`, `AuditEntry`
+- [x] `canonicalize(plan)` (RFC 8785) + `planHash()`; tests: key order and whitespace don't change hash, any value change does
+- [x] Key utilities: generate Ed25519 keypair, import/export PEM, `kid` thumbprint
+- [x] `signBundle(input, { privateKey, kid, now, ttlSeconds })` → JWS; `verifyBundle(token, key, now)` with 30 s leeway; tests: valid, expired, tampered payload, wrong key, wrong `alg`
+- [x] Plan matcher: `matchStep(plan, call)` for every `ArgConstraint` kind; tests per kind + no-match
+- [x] Policy YAML parser (`yaml` + zod) returning errors with line, column, path and message (the inbox editor shows them inline); works in Node and the browser
+- [x] `STARTER_POLICY` constant (default block + allow in-plan) and a pure `compareDecisions(oldPolicy, newPolicy, calls)` used by the dry-run test (server, inbox, CLI)
+- [x] Policy evaluator: ordered rules, first match wins, `except`, `inPlan`, user email/role/group, default block; tests for every match field
+- [x] Approver spec: loader rejects hold rules with no possible approver; `canApprove(spec, approver, requester)` with separation of duties (requester only if `self: true`); tests
+- [x] Pure `check(bundle, call, usage)` (verified bundle claims in, `Decision` out) implementing ARCHITECTURE §4 exactly; tests for every branch of the decision diagram, incl. missing/wrong-typed args for every operator (ADR-028)
+- [x] `decide(token, key, call, usageFor, now)`: `verifyBundle` → `check` inside the fail-closed wrapper; any throw → `block / internal_error`, bad token → `block / invalid_token`; test with a policy that throws
+- [x] Audit hashing: `hashEntry(prevHash, entry)` over every column except `hash` (ARCHITECTURE §5.4), `verifyChain(entries)` returns first broken seq; tests: intact, edited payload, edited denormalized column (e.g. `verdict`), edited `flagged`, deleted row, reordered rows
+- [x] `packages/sdk`: `Gate` interface, `LocalGate` (in-memory usage counts, holds → block), `PassThroughGate`
+- [x] Coverage report for core ≥ 90 % lines
+- [x] Journal entry
 
 **Acceptance:** `pnpm --filter @intentlock/core test` green with ≥ 90 % coverage; a script in `packages/sdk/examples/local.ts` signs a plan and shows allow / block (not in plan) / block (policy) decisions.
 
