@@ -1,4 +1,4 @@
-import { cn } from "@intentgate/ui/lib/utils";
+import { cn } from "@intentlock/ui/lib/utils";
 import * as React from "react";
 
 function MessageGroup({ className, ...props }: React.ComponentProps<"div">) {

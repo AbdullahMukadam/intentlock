@@ -1,0 +1,11 @@
+// Intentlock data model. Models from docs/ARCHITECTURE.md §5.3 are added in Phase 2.
+// Migrations run as a release step, never on boot (docs/DEPLOYMENT.md §3).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

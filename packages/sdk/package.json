@@ -1,0 +1,35 @@
+{
+  "name": "@intentlock/sdk",
+  "version": "0.0.0",
+  "description": "Gates: HybridGate (local decisions + audit outbox), HttpGate, LocalGate, PassThroughGate.",
+  "private": false,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@intentlock/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@intentlock/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

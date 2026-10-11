@@ -1,28 +1,25 @@
 {
-  "name": "intentgate",
+  "name": "intentlock",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "check-types": "turbo run check-types",
-    "dev:web": "turbo run dev -F web --",
-    "env:generate": "varlock codegen --path ./apps/web/",
-    "postinstall": "varlock codegen --path ./apps/web/"
-  },
-  "dependencies": {
-    "zod": "catalog:"
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@intentgate/config": "workspace:*",
+    "@intentlock/config": "workspace:*",
     "@types/node": "catalog:",
-    "turbo": "^2.10.12",
-    "typescript": "catalog:",
-    "varlock": "catalog:"
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.7",
+    "typescript": "catalog:"
   },
   "packageManager": "pnpm@10.34.6"
 }

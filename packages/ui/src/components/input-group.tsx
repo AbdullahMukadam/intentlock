@@ -1,9 +1,9 @@
 "use client";
 
-import { Button } from "@intentgate/ui/components/button";
-import { Input } from "@intentgate/ui/components/input";
-import { Textarea } from "@intentgate/ui/components/textarea";
-import { cn } from "@intentgate/ui/lib/utils";
+import { Button } from "@intentlock/ui/components/button";
+import { Input } from "@intentlock/ui/components/input";
+import { Textarea } from "@intentlock/ui/components/textarea";
+import { cn } from "@intentlock/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 

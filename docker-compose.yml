@@ -1,0 +1,22 @@
+# Local development: PostgreSQL 16 (dev + test databases).
+# Mailpit for the support-assistant demo is added in Phase 5.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: intentlock
+      POSTGRES_PASSWORD: intentlock
+      POSTGRES_DB: intentlock
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intentlock"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

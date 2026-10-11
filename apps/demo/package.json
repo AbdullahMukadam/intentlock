@@ -1,0 +1,25 @@
+{
+  "name": "@intentlock/demo",
+  "version": "0.0.0",
+  "description": "Intentlock demo agents (GitHub, support, files), setup + seed scripts, split-screen runner.",
+  "private": true,
+  "license": "Elastic-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@intentlock/guard": "workspace:*",
+    "@intentlock/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@intentlock/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

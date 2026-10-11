@@ -1,0 +1,8 @@
+# docs are hand-formatted; don't let the formatter rewrite them
+docs/
+CLAUDE.md
+pnpm-lock.yaml
+**/dist/
+**/.next/
+**/coverage/
+apps/server/prisma/migrations/

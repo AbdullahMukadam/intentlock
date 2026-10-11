@@ -1,0 +1,36 @@
+{
+  "name": "@intentlock/evals",
+  "version": "0.0.0",
+  "description": "Prompt-injection scenario suite and metrics runner for Intentlock.",
+  "private": true,
+  "license": "Elastic-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@intentlock/guard": "workspace:*",
+    "@intentlock/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@intentlock/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

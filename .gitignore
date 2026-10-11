@@ -9,13 +9,13 @@ build
 *.tsbuildinfo
 
 # Generated files
-apps/web/src/routeTree.gen.ts
+apps/inbox/src/routeTree.gen.ts
 local.db
 local.db-*
 
 # Environment variables
-.env
-.env*.local
+.env*
+!.env.example
 
 # IDEs and editors
 .vscode/*
@@ -56,3 +56,11 @@ coverage
 .cache
 tmp
 temp
+
+# Intentlock runtime files and secrets
+.next
+.intentlock/
+keys/
+*.pem
+apps/demo/sandbox/
+apps/server/generated/

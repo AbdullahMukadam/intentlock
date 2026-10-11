@@ -12,11 +12,11 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@intentgate/ui/components",
-    "utils": "@intentgate/ui/lib/utils",
-    "hooks": "@intentgate/ui/hooks",
-    "lib": "@intentgate/ui/lib",
-    "ui": "@intentgate/ui/components"
+    "components": "@intentlock/ui/components",
+    "utils": "@intentlock/ui/lib/utils",
+    "hooks": "@intentlock/ui/hooks",
+    "lib": "@intentlock/ui/lib",
+    "ui": "@intentlock/ui/components"
   },
   "menuColor": "default",
   "menuAccent": "subtle",
