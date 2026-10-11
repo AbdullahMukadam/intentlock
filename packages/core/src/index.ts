@@ -1,1 +1,54 @@
-export {};
+export { GENESIS, hashEntry } from "./audit/hash-entry.js";
+export { verifyChain, type ChainBreak, type ChainResult } from "./audit/verify-chain.js";
+export { jcs, planHash, policyHash, sha256Base64url } from "./canonical.js";
+export { block, check, decide } from "./check.js";
+export {
+  CLOCK_LEEWAY_SECONDS,
+  DEFAULT_TTL_SECONDS,
+  MAX_TTL_SECONDS,
+  signBundle,
+  verifyBundle,
+  type BundleInput,
+  type SignOptions,
+  type VerificationKey,
+} from "./crypto/bundle-token.js";
+export {
+  exportPrivateKeyPem,
+  exportPublicKeyPem,
+  generateSigningKeyPair,
+  importPrivateKeyPem,
+  importPublicKeyPem,
+  keyId,
+  publicJwk,
+  publicKeyFromPrivate,
+  SIGNING_ALG,
+  type SigningKeyPair,
+} from "./crypto/keys.js";
+export { IntentlockError, InvalidTokenError, TokenExpiredError } from "./errors.js";
+export { globMatch, matchArg, matchStep } from "./plan/match-step.js";
+export { canApprove, type Approver } from "./policy/approvers.js";
+export {
+  compareDecisions,
+  type Comparison,
+  type ComparisonResult,
+  type PolicyOutcome,
+  type PolicyVerdict,
+  type SampleCall,
+} from "./policy/compare.js";
+export { evaluatePolicy } from "./policy/evaluate.js";
+export { matches, type MatchContext, type PolicyUser } from "./policy/match.js";
+export { parsePolicy, type PolicyError, type PolicyParseResult } from "./policy/parse.js";
+export { STARTER_POLICY } from "./policy/starter.js";
+export { AuditEntry, AuditEntryBody } from "./schemas/audit.js";
+export { BundleClaims } from "./schemas/bundle.js";
+export { BlockReason, Decision, type GateDecision, type HoldDecision } from "./schemas/decision.js";
+export {
+  ArgCondition,
+  ArgConstraint,
+  Plan,
+  PlanStep,
+  TOOL_NAME,
+  type PlanInput,
+} from "./schemas/plan.js";
+export { ApproverSpec, Match, PolicySet, Role, Rule } from "./schemas/policy.js";
+export { ToolCall } from "./schemas/tool-call.js";
