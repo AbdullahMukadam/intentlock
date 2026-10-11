@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "postinstall": "prisma generate",
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",
@@ -22,8 +24,10 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "pg": "^8.23.1",
+    "pino": "^10.4.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
@@ -36,6 +40,7 @@
     "eslint": "catalog:",
     "prisma": "^7.10.0",
     "supertest": "^7.0.0",
+    "tsx": "^4.23.15",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

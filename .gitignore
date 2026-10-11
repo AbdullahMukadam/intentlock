@@ -63,4 +63,4 @@ temp
 keys/
 *.pem
 apps/demo/sandbox/
-apps/server/generated/
+apps/server/src/generated/

@@ -11,6 +11,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    seed: "tsx prisma/seed.ts",
   },
   // The CLI (migrate) uses the direct, non-pooled URL; the app connects with DATABASE_URL at runtime.
   datasource: {

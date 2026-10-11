@@ -1,8 +1,211 @@
+// ARCHITECTURE §5.3. Every table except Organization carries orgId; services query through the
+// org-scoped client (src/org/org-db.ts). Connection URLs live in prisma.config.ts (CLI) and
+// src/prisma/prisma.service.ts (runtime), as Prisma 7 requires.
+
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+}
+
+model Agent {
+  id          String     @id @default(cuid())
+  orgId       String
+  name        String
+  description String?
+  disabledAt  DateTime?
+  createdBy   String
+  createdAt   DateTime   @default(now())
+  apiKeys     ApiKey[]
+  policy      PolicySet?
+
+  @@unique([orgId, name])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  orgId      String
+  agentId    String
+  agent      Agent     @relation(fields: [agentId], references: [id])
+  name       String
+  prefix     String
+  hash       String    @unique
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([agentId])
+}
+
+model User {
+  id             String    @id @default(cuid())
+  orgId          String
+  email          String
+  role           Role      @default(member)
+  groups         String[]  @default([])
+  loginTokenHash String?
+  disabledAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([orgId, email])
+}
+
+enum Role {
+  admin
+  approver
+  member
+}
+
+model PolicySet {
+  id            String          @id @default(cuid())
+  orgId         String
+  agentId       String          @unique
+  agent         Agent           @relation(fields: [agentId], references: [id])
+  activeVersion Int
+  versions      PolicyVersion[]
+  draft         PolicyDraft?
+}
+
+// Immutable once written: never update or delete a row (CLAUDE.md).
+model PolicyVersion {
+  id             String    @id @default(cuid())
+  orgId          String
+  policySetId    String
+  policySet      PolicySet @relation(fields: [policySetId], references: [id])
+  version        Int
+  source         String
+  compiled       Json
+  hash           String
+  message        String
+  authorId       String
+  rolledBackFrom Int?
+  createdAt      DateTime  @default(now())
+
+  @@unique([policySetId, version])
+}
+
+model PolicyDraft {
+  policySetId String    @id
+  orgId       String
+  policySet   PolicySet @relation(fields: [policySetId], references: [id])
+  source      String
+  baseVersion Int
+  updatedBy   String
+  updatedAt   DateTime  @updatedAt
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie value
+  orgId     String
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Plan {
+  id            String      @id // ULID = token jti
+  orgId         String
+  agentId       String
+  policyVersion Int
+  planHash      String
+  user          String
+  goal          String
+  body          Json
+  status        PlanStatus  @default(ACTIVE)
+  expiresAt     DateTime
+  createdAt     DateTime    @default(now())
+  usage         StepUsage[]
+  holds         Hold[]
+
+  @@index([orgId, agentId, createdAt])
+  @@index([orgId, user, createdAt])
+}
+
+enum PlanStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+model StepUsage {
+  orgId  String
+  planId String
+  step   Int
+  calls  Int    @default(0)
+  ran    Int    @default(0)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@id([planId, step])
+}
+
+model Hold {
+  id         String     @id @default(cuid())
+  orgId      String
+  planId     String
+  callId     String
+  tool       String
+  args       Json
+  user       String
+  ruleId     String
+  approvers  Json // ApproverSpec
+  status     HoldStatus @default(PENDING)
+  resolvedBy String? // userId of the signed-in approver
+  note       String?
+  expiresAt  DateTime
+  createdAt  DateTime   @default(now())
+  resolvedAt DateTime?
+  agentId    String
+  plan       Plan       @relation(fields: [planId], references: [id])
+
+  @@index([orgId, status, expiresAt])
+  @@index([planId])
+}
+
+enum HoldStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+// Every column except hash is hashed (ARCHITECTURE §5.4, core AuditEntryBody); add new columns there too.
+model AuditEntry {
+  seq           Int       @id @default(autoincrement())
+  orgId         String
+  at            DateTime  @default(now())
+  kind          String
+  origin        String    @default("server")
+  actor         String?
+  user          String?
+  planId        String?
+  agentId       String?
+  tool          String?
+  verdict       String?
+  ruleId        String?
+  policyVersion Int?
+  clientSeq     Int?
+  clientAt      DateTime?
+  clientHash    String?
+  flagged       String?
+  payload       Json
+  prevHash      String
+  hash          String    @unique
+
+  @@unique([planId, clientSeq])
+  @@index([orgId, at])
+  @@index([orgId, agentId, at])
+  @@index([orgId, verdict, at])
+  @@index([orgId, user, at])
 }
