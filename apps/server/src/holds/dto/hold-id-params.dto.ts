@@ -1,0 +1,5 @@
+import { z } from "zod";
+
+import { zodDto } from "../../common/utils/zod-dto.util.js";
+
+export class HoldIdParamsDto extends zodDto(z.object({ id: z.string().min(1).max(64) })) {}

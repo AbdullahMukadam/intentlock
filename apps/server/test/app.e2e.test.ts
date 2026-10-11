@@ -16,6 +16,11 @@ describe("app", () => {
 
   afterAll(() => app.close());
 
+  it("reports liveness and readiness without auth", async () => {
+    await request(app.getHttpServer()).get("/health").expect(200, { ok: true });
+    await request(app.getHttpServer()).get("/health/ready").expect(200, { ok: true });
+  });
+
   it("boots and answers unknown routes with a JSON 404", async () => {
     const res = await request(app.getHttpServer()).get("/nope").expect(404);
     expect(res.body).toMatchObject({ statusCode: 404 });

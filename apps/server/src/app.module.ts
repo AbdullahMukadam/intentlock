@@ -9,11 +9,17 @@ import { SessionGuard } from "./auth/guards/session.guard.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { CsrfGuard } from "./common/guards/csrf.guard.js";
 import { RolesGuard } from "./common/guards/roles.guard.js";
+import { CheckModule } from "./check/check.module.js";
 import { ConfigModule } from "./config/config.module.js";
+import { HealthModule } from "./health/health.module.js";
+import { HoldsModule } from "./holds/holds.module.js";
+import { KeysModule } from "./keys/keys.module.js";
 import { LicenseModule } from "./license/license.module.js";
 import { OrgModule } from "./org/org.module.js";
+import { PlansModule } from "./plans/plans.module.js";
 import { PoliciesModule } from "./policies/policies.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
+import { ReportsModule } from "./reports/reports.module.js";
 import { UsersModule } from "./users/users.module.js";
 
 @Module({
@@ -28,6 +34,12 @@ import { UsersModule } from "./users/users.module.js";
     AgentsModule,
     ApiKeysModule,
     PoliciesModule,
+    KeysModule,
+    PlansModule,
+    HoldsModule,
+    CheckModule,
+    ReportsModule,
+    HealthModule,
   ],
   // Global guards run in this order; SessionGuard is the default deny.
   providers: [

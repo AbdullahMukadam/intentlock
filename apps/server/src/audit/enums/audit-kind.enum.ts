@@ -11,5 +11,9 @@ export enum AuditKind {
   API_KEY_REVOKED = "api_key_revoked",
   POLICY_PUBLISHED = "policy_published",
   POLICY_ROLLED_BACK = "policy_rolled_back",
+  PLAN_SIGNED = "plan_signed",
+  PLAN_REFRESHED = "plan_refreshed",
   CHECK = "check",
+  HOLD_RESOLVED = "hold_resolved",
+  REPORT = "report",
 }

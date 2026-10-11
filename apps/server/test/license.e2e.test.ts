@@ -14,7 +14,15 @@ import { LicenseFeature } from "../src/license/enums/license-feature.enum.js";
 import { LicenseStatus } from "../src/license/enums/license-status.enum.js";
 import { LicenseService } from "../src/license/license.service.js";
 import { UserRole } from "../src/users/enums/user-role.enum.js";
-import { createOrg, createTestApp, CSRF, signedIn } from "./helpers.js";
+import {
+  call,
+  createAgentWithKey,
+  createOrg,
+  createTestApp,
+  CSRF,
+  planFor,
+  signedIn,
+} from "./helpers.js";
 import { resetDb, testPrisma } from "./setup.js";
 
 const prisma = testPrisma();
@@ -165,5 +173,43 @@ describe("license limits", () => {
   it("a valid license raises the limit", async () => {
     await useLicense({ ...TEAM, exp: inOneYear() });
     for (const name of ["a1", "a2", "a3", "a4"]) await createAgent(name).expect(201);
+  });
+});
+
+describe("license never changes enforcement", () => {
+  it("an expired license yields exactly the same decisions as a valid one", async () => {
+    const bot = await createAgentWithKey(prisma, orgId);
+    const calls = [
+      call("github_list_issues", { repo: "acme/app" }),
+      call("github_list_issues", { repo: "acme/private" }),
+      call("github_create_pull_request"),
+    ];
+    const decide = async () => {
+      const plan = await http()
+        .post("/v1/plans")
+        .set(bot.auth)
+        .send({
+          plan: planFor(admin.user.email, [
+            { tool: "github_list_issues", args: { repo: { eq: "acme/app" } } },
+          ]),
+        })
+        .expect(201);
+      const out = [];
+      for (const c of calls) {
+        const res = await http()
+          .post("/v1/check")
+          .set(bot.auth)
+          .send({ token: plan.body.token, call: c })
+          .expect(200);
+        out.push(res.body);
+      }
+      return out;
+    };
+    await useLicense({ ...TEAM, exp: inOneYear() });
+    const valid = await decide();
+    await useLicense({ ...TEAM, exp: Math.floor(Date.now() / 1000) - 1 });
+    const expired = await decide();
+    expect(expired).toEqual(valid);
+    expect(valid.map((d) => d.verdict)).toEqual(["allow", "block", "block"]);
   });
 });
