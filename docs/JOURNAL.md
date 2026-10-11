@@ -247,3 +247,32 @@ A running log of every work session. **Append a new entry at the bottom** at the
 **Notes for Abdullah**
 - **Vendor private key:** `keys/vendor-private.pem` was generated on this machine and is git-ignored. Move it somewhere safe (password manager or offline storage). If it is lost, regenerate a pair and replace `vendor-public-key.constant.ts`; licenses signed with the old key then stop verifying
 - Update the VS Code Prisma extension to 7.x to clear the false `url` warning
+
+### 2026-10-12 · Session 8 · Phase 2 — plans, check, holds, audit chain
+
+**Done**
+- Signing key load/generate, `GET /v1/keys/jwks` (public)
+- `POST /v1/plans` (agent from key, enabled agent, active user, policy + role + groups snapshot, ULID plan id, ReDoS heuristic) and `/refresh` (stored plan re-signed with the current policy; different hash → 409)
+- `POST /v1/check`: verify → core `check()` → atomic counter → hold row → audit entry, one transaction
+- Holds: hybrid create (server must agree), role-filtered list with `canApprove`, approve/reject (session only, separation of duties), long-poll wait (≤ 25 s, 1 s DB polling), expiry job (idempotent across instances), shutdown drain
+- `POST /v1/report`: `ran` counts once per call, plan completion on required steps
+- Audit: `GET /v1/audit` (member-scoped, filters, text search, cursor pages, JSONL export), `GET /v1/audit/verify`
+- `/health`, `/health/ready`; LicenseService finished with the "expired license changes no decision" test
+
+**Problems hit and how they were solved**
+- A long-poll test never sent its request: supertest only dispatches when awaited → start it with `.then()` before approving
+- Test assumed an admin may approve any hold; the spec says only if the hold's approver spec allows it → fixed the test, recorded in ADR-036
+
+**Decisions** (link ADRs)
+- ADR-036: plans, check, holds, reports, audit read paths
+
+**Numbers**
+- server: 92 tests (12 unit, 80 e2e); lint, typecheck, build, format green
+- 10 concurrent checks on a `maxCalls: 3` step → exactly 3 allowed; 50 concurrent checks → contiguous seqs 1–51 and a valid chain
+- Built server against the dev DB: `/health/ready` ok, JWKS served, unauthenticated `/v1/check` → 401
+
+**Next**
+- Role-scoped stats and runs, `POST /v1/audit/batch`, WebSocket `/events`, then `HttpGate` / `HybridGate` and the outbox
+
+**Notes for Abdullah**
+- In production `SIGNING_KEY` is now mandatory (the server refuses to boot without it); `intentlock keygen` arrives with the CLI task, until then a dev boot logs a generated key you can copy

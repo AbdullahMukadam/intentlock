@@ -81,15 +81,15 @@
 - [x] Bootstrap on empty DB: create org (`ORG_NAME`) + admin (`BOOTSTRAP_ADMIN_EMAIL`), print one-time login token
 - [x] Auth: `/v1/auth/login|logout`, `/v1/me`, session guard, login rate limit (`@nestjs/throttler`), constant-time compare, CSRF header check, audit auth events
 - [x] Users endpoints (admin only); disabling a user or re-issuing a token revokes sessions
-- [ ] `LicenseService` (ARCHITECTURE §5.7): offline verify of `LICENSE_FILE` at boot + every 24 h, Community fallback, `maxUsers` enforced on user creation, `hasFeature()`, `GET /v1/license`; tests: none / valid / expired / bad signature / over limit — and a test that an expired license does **not** change any enforcement decision
-- [ ] Signing key load/generate (§5.5); `GET /v1/keys/jwks`
-- [ ] `POST /v1/plans` and `/refresh`: agent from the API key (reject disabled agents), reject unknown/disabled users, snapshot the agent's active policy version; snapshot user policies + role + groups into the bundle (`pol`, `polh`, `role`, `groups`, `org`); refresh keeps the same plan hash (test that a different hash is rejected)
-- [ ] `POST /v1/check`: wraps core `check`, reads usage + roles, writes audit, creates holds
-- [ ] Holds: `POST /v1/holds` (server re-runs `check()`, creates hold only if it agrees), list (filtered by who may approve / own), approve/reject (session only, `canApprove`), long-poll wait (≤ 25 s), expiry job
-- [ ] `POST /v1/report`: usage + plan completion
-- [ ] Multi-instance safety (DEPLOYMENT §5): atomic conditional counter updates, idempotent hold expiry + `status = 'PENDING'` guards on approve/reject, advisory lock on chain append, no shared in-memory state
-- [ ] `/health` and `/health/ready` (DB + signing key); graceful shutdown that drains long-polls
-- [ ] Audit service: serialized append (transaction / row lock), `GET /v1/audit` paginated, `GET /v1/audit/verify`
+- [x] `LicenseService` (ARCHITECTURE §5.7): offline verify of `LICENSE_FILE` at boot + every 24 h, Community fallback, `maxUsers` enforced on user creation, `hasFeature()`, `GET /v1/license`; tests: none / valid / expired / bad signature / over limit — and a test that an expired license does **not** change any enforcement decision
+- [x] Signing key load/generate (§5.5); `GET /v1/keys/jwks`
+- [x] `POST /v1/plans` and `/refresh`: agent from the API key (reject disabled agents), reject unknown/disabled users, snapshot the agent's active policy version; snapshot user policies + role + groups into the bundle (`pol`, `polh`, `role`, `groups`, `org`); refresh keeps the same plan hash (test that a different hash is rejected)
+- [x] `POST /v1/check`: wraps core `check`, reads usage + roles, writes audit, creates holds
+- [x] Holds: `POST /v1/holds` (server re-runs `check()`, creates hold only if it agrees), list (filtered by who may approve / own), approve/reject (session only, `canApprove`), long-poll wait (≤ 25 s), expiry job
+- [x] `POST /v1/report`: usage + plan completion
+- [x] Multi-instance safety (DEPLOYMENT §5): atomic conditional counter updates, idempotent hold expiry + `status = 'PENDING'` guards on approve/reject, advisory lock on chain append, no shared in-memory state
+- [x] `/health` and `/health/ready` (DB + signing key); graceful shutdown that drains long-polls
+- [x] Audit service: serialized append (transaction / row lock), `GET /v1/audit` paginated, `GET /v1/audit/verify`
 - [ ] `POST /v1/audit/batch`: idempotent on `(planId, clientSeq)`, client-chain + gap check, server re-run of `check()` with `flagged` on mismatch
 - [ ] WebSocket gateway `/events`: session required at handshake; `hold.created`, `hold.resolved`, `decision`, filtered per user role
 - [ ] `HttpGate` in `packages/sdk`: keep-alive, timeouts, network error → block; hold wait loop with `AbortSignal`

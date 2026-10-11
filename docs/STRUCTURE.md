@@ -231,7 +231,7 @@ src/
 │   ├── pipes/                      # zod-validation.pipe.ts (global, fail closed)
 │   ├── schemas/                    # shared zod field schemas (email.schema.ts)
 │   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest)
-│   └── utils/                      # crypto.util.ts, zod-dto.util.ts, auth-kind.util.ts
+│   └── utils/                      # crypto, zod-dto, auth-kind, ulid, to-json, decision (isHold/isBlock) (*.util.ts)
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
 ├── org/                            # org.module.ts, org-bootstrap.service.ts (runs on boot)
 │   └── utils/                      # bootstrap-org.util.ts (also used by the seed), org-db.util.ts (org-scoped client)
@@ -263,7 +263,9 @@ src/
 │   ├── schemas/                    # license.schema.ts
 │   ├── types/                      # license-check.type.ts
 │   └── utils/                      # verify-license.util.ts (offline JWS verify), to-license-view.util.ts
-├── keys/                           # signing key load/generate, JWKS controller
+├── keys/                           # keys.module/controller/service: SIGNING_KEY load (dev: generate), JWKS, verifyForAgent()
+│   ├── types/                      # verified-bundle.type.ts
+│   └── utils/                      # normalize-pem.util.ts
 ├── policies/                       # policies.module/controller/service: draft, validate, test (samples + replay), publish (409), rollback, versions
 │   ├── constants/                  # policy.constants.ts (size limits)
 │   ├── dto/                        # save-draft, validate-policy, test-policy, publish-policy, rollback-policy, policy-version-params
@@ -272,20 +274,29 @@ src/
 │   └── utils/                      # compile-policy, to-policy-version-view, to-policy-draft-view
 ├── stats/                          # GET /v1/stats/overview (role-scoped aggregates)
 ├── runs/                           # GET /v1/runs, /v1/runs/:planId
-├── plans/                          # POST /v1/plans, /refresh (agent from key, active policy snapshot, bundle signing)
-├── check/                          # POST /v1/check (remote mode)
-├── holds/                          # create, list (filtered), approve/reject (session + canApprove), long-poll wait, expiry job
-├── reports/                        # POST /v1/report
+├── plans/                          # plans.module/controller/service: POST /v1/plans, /refresh (stored plan, current policy)
+│   ├── constants/ · enums/ · schemas/ · dto/   # plan.constants, plan-error, plan-fields (PlanSchema, TokenSchema), sign/refresh/params DTOs
+│   └── utils/                      # unsafe-regexes.util.ts (ReDoS heuristic at signing)
+├── check/                          # check.module/controller/service: POST /v1/check (verify → check() → atomic counter → hold → audit, one tx)
+│   ├── dto/                        # check-call.dto.ts
+│   └── utils/                      # to-check-audit.util.ts (check payload contract)
+├── holds/                          # holds.module/controller/service: create (hybrid), list, approve/reject, long-poll wait, expiry job
+│   ├── constants/ · enums/ · dto/ · types/   # hold.constants, hold-state + hold-error, create/wait/list/resolve DTOs, new-hold.type
+│   └── utils/                      # hold-state.util.ts (DB ↔ API status), to-hold-view.util.ts
+├── reports/                        # reports.module/controller/service: POST /v1/report (ran counts, plan completion)
+│   ├── enums/ · schemas/ · dto/    # report-outcome, report-error, checked-call.schema, report.dto
 ├── audit/
 │   ├── audit.service.ts            # serialized chain append
+│   ├── audit-query.service.ts      # role-scoped list, cursor pagination, JSONL export
 │   ├── batch.service.ts            # /v1/audit/batch ingest, client-chain check, re-run check()
-│   ├── verify.service.ts
+│   ├── verify.service.ts           # walks the global chain in batches
 │   ├── audit.controller.ts
-│   ├── enums/                      # audit-kind, audit-origin, audit-verdict
+│   ├── constants/ · dto/           # audit.constants, audit-query.dto
+│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format
 │   ├── types/                      # audit-input.type.ts
 │   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry)
 ├── events/                         # events.gateway.ts (WebSocket /events)
-└── health/                         # /health and /health/ready
+└── health/                         # health.module/controller: /health, /health/ready (DB + signing key)
 test/
 ├── global-setup.ts                 # once per run: point at TEST_DATABASE_URL, `prisma migrate deploy`
 ├── setup.ts                        # test Prisma client, resetDb() (e2e files run serially)
@@ -296,9 +307,9 @@ test/
 ├── policies.e2e.test.ts            # draft, test, publish, 409, rollback, version used by new plans
 ├── visibility.e2e.test.ts          # role-scoped stats/runs/audit/holds
 ├── license.e2e.test.ts
-├── plans.e2e.test.ts
-├── holds.e2e.test.ts
-├── audit.e2e.test.ts
+├── plans.e2e.test.ts               # signing, snapshots, refresh, JWKS
+├── check.e2e.test.ts               # check, report, maxCalls under concurrency, chain under load, audit list/export/verify
+├── holds.e2e.test.ts               # approve/reject/wait/expiry/visibility, hybrid create, shutdown drain
 └── hybrid.e2e.test.ts              # HybridGate + outbox against a real server
 ```
 
