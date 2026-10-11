@@ -164,3 +164,30 @@ A running log of every work session. **Append a new entry at the bottom** at the
 **Notes for Abdullah**
 - Review ADR-030 point 3: a held call uses up one of its step's `maxCalls` even if the approver rejects it
 - Phase 2 should cap regex complexity at plan signing (ReDoS), noted in ADR-030
+
+### 2026-10-12 · Session 5 · Phase 2 — server scaffold and Prisma schema
+
+**Done**
+- NestJS scaffold: zod-validated env (`config/env.schema.ts`), pino logger behind a Nest `LoggerService`, `ZodValidationPipe`, global exception filter (bare 500, no stack or message); Nest hello-world removed
+- Prisma schema from ARCHITECTURE §5.3 (+ indexes on `Plan`, `Hold`, `Session`, `ApiKey`), first migration `init`, client generated into `src/generated/prisma` on `postinstall`
+- `orgDb(prisma, orgId)` org-scoped client extension; `createAgent()` (agent + policy set + starter policy v1), shared by the seed and the agents service to come
+- `prisma/seed.ts` (`pnpm --filter @intentlock/server seed [--demo]`): org, admin/approver/member (+ intern), `github-assistant` agent with an API key; prints the secrets once and refuses to run on a non-empty database
+- Test harness: global setup migrates `intentlock_test`, `resetDb()` truncates, e2e files run serially
+
+**Problems hit and how they were solved**
+- `prisma migrate dev` in Prisma 7 no longer runs `generate` → `postinstall: prisma generate`
+- Generated client outside `src/` would not compile under `tsconfig.build.json`'s `rootDir: src` → moved the generator output into `src/generated/prisma`
+- Docker Desktop wasn't running → started it; `docker compose up -d --wait` healthy
+
+**Decisions** (link ADRs)
+- ADR-031: org scoping via a Prisma extension, generated client location, logging, validation, test database
+
+**Numbers**
+- server: 10 tests (6 unit, 4 e2e against Postgres); lint, typecheck, build, format green
+- `node dist/main.js` boots and answers an unknown route with a JSON 404; logs are pino JSON
+
+**Next**
+- Global default-deny session guard, `@Public()` / `@AgentAuth()`, route-enumeration test (then sign-in)
+
+**Notes for Abdullah**
+- The dev database (`intentlock`) is now seeded; to reseed, drop and recreate it (`pnpm --filter @intentlock/server prisma migrate reset`) and run the seed again

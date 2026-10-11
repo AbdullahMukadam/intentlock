@@ -71,8 +71,8 @@
 
 ## Phase 2 · Server + gates (Tue 13) — `apps/server`, `HttpGate`, `HybridGate`
 
-- [ ] NestJS app scaffold, `pino` logging, zod validation pipe, global exception filter that never leaks stack traces
-- [ ] Prisma schema from ARCHITECTURE §5.3 (incl. `Organization`, `orgId` on every table, `User`, `Session`); first migration; org-scoped Prisma helper used by every service; seed script for dev (org, admin, approver, member, API key)
+- [x] NestJS app scaffold, `pino` logging, zod validation pipe, global exception filter that never leaks stack traces
+- [x] Prisma schema from ARCHITECTURE §5.3 (incl. `Organization`, `orgId` on every table, `User`, `Session`); first migration; org-scoped Prisma helper used by every service; seed script for dev (org, admin, approver, member, API key)
 - [ ] Global default-deny session guard; `@Public()` (sign-in, health, JWKS) and `@AgentAuth()` (API-key routes) decorators; a test that enumerates all routes and fails on any unexpected public route
 - [ ] Agents: create (with starter policy v1), list (with 24 h counts), update, disable; license `maxAgents` enforced
 - [ ] API keys per agent: `il_live_` + random, hash + prefix stored, shown once, `lastUsedAt`, revoke; agent API-key guard resolves `agentId`

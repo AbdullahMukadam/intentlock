@@ -218,15 +218,17 @@ prisma/
 src/
 ├── main.ts
 ├── app.module.ts
+├── configure-app.ts                # logger + exception filter; shared by main.ts and the e2e tests
+├── generated/prisma/               # Prisma client (git-ignored; `prisma generate` runs on postinstall)
 ├── config/                         # env.schema.ts (zod), config.module.ts
-├── common/                         # zod-validation.pipe.ts, http-exception.filter.ts, logger.ts,
+├── common/                         # zod-validation.pipe.ts, http-exception.filter.ts, logger.ts, secrets.ts,
 │                                   # session.guard.ts (global, default deny), public.decorator.ts, agent-auth.decorator.ts, role.decorator.ts
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
 ├── keys/                           # signing key load/generate, JWKS controller
-├── org/                            # default org bootstrap + org-scoped Prisma helper
+├── org/                            # default org bootstrap + org-scoped Prisma helper (org-db.ts)
 ├── auth/                           # login/logout/me, session guard, CSRF check, rate limit, bootstrap admin
 ├── users/                          # users CRUD (admin), roles + groups lookup
-├── agents/                         # agents CRUD, starter policy on create, maxAgents
+├── agents/                         # agents CRUD, starter policy on create (create-agent.ts), maxAgents
 │   └── api-keys/                   # per-agent keys: create (shown once), list, revoke; agent API-key guard
 ├── license/                        # license.ts (pure verify, COMMUNITY), license.service.ts, GET /v1/license
 ├── policies/                       # PolicySet/Version/Draft store: draft, validate, test (sample + replay), publish (409), rollback, versions
@@ -244,7 +246,8 @@ src/
 ├── events/                         # events.gateway.ts (WebSocket /events)
 └── health/                         # /health and /health/ready
 test/
-├── setup.ts                        # test database, app bootstrap
+├── global-setup.ts                 # once per run: point at TEST_DATABASE_URL, `prisma migrate deploy`
+├── setup.ts                        # test Prisma client, resetDb() (e2e files run serially)
 ├── auth.e2e.test.ts                # login, sessions, CSRF, self-approval rules, API key can't approve
 ├── routes.e2e.test.ts              # every route requires auth unless explicitly public / agent-only
 ├── agents.e2e.test.ts              # agents, keys, revoke, disable

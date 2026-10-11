@@ -238,3 +238,15 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   9. **Audit hash** covers exactly the strict `AuditEntryBody` zod schema (all columns except `hash`), so field-list drift is impossible inside core; unknown fields are rejected rather than silently left unhashed. The server must map rows to that exact shape (Phase 2 tests this against Prisma).
 - **Alternatives:** `node:crypto` (sync, but not browser-safe); passing a plain usage array to `decide` (the plan id isn't trusted before verification); partial-match regex (an allow rule could match a value that merely contains the pattern).
 - **Consequences:** Regexes come from server-signed plans and admin-written policies, not from tool output, but a pathological pattern could still be slow (ReDoS); the server should reject overly complex patterns at plan signing (Phase 2). Deleting the newest audit entries is not detectable from the chain alone (anchoring is stretch, DEPLOYMENT §6.2).
+
+### ADR-031: Phase 2 server groundwork — org scoping, generated client location, test database
+- **Date:** 2026-10-12 · **Status:** Accepted
+- **Context:** The server scaffold needed choices ARCHITECTURE leaves open.
+- **Decision:**
+  1. **Org scoping is a Prisma client extension** (`src/org/org-db.ts`, `orgDb(prisma, orgId)`): every model operation gets `orgId` added to its `where`; creates (and the `create` half of an upsert) get `orgId` **overwritten**, so a wrong value from a caller cannot write into another org. `Organization` is unscoped. Raw SQL is not covered and must filter `orgId` by hand. The `orgId` comes from the request's session or API key, never from a body, so the server keeps no org state in memory.
+  2. **Prisma client is generated into `apps/server/src/generated/prisma`** (git-ignored, `prisma generate` on `postinstall`), so `nest build` compiles it with the rest of `src/` and `dist/` stays self-contained.
+  3. **Logging:** plain `pino` behind a small Nest `LoggerService` adapter (no `nestjs-pino`, which is not on the allowed list). The global exception filter passes `HttpException`s through and turns everything else into `{ statusCode: 500, error: "internal_error" }` with no message or stack.
+  4. **Validation:** a `ZodValidationPipe(schema)` per parameter; failures are 400 `{ error: "validation_failed", issues: [{ path, message }] }`.
+  5. **Integration tests** share the `intentlock_test` database: a Vitest global setup runs `prisma migrate deploy` once, each file truncates every table in `beforeEach`, and e2e files run serially (`fileParallelism: false`).
+- **Alternatives:** Passing `orgId` by hand in every query (easy to forget); Postgres row-level security (needs a per-request `SET`, awkward with a pooler); one database per test file (slow to migrate).
+- **Consequences:** Prisma's generated types still require `orgId` in `create` data, so callers pass it even though the extension overwrites it. Nested creates are not rewritten; they take `orgId` from the same variable.
