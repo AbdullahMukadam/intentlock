@@ -1,4 +1,4 @@
-import { Plan, planHash, type GateDecision, type PlanInput } from "@intentlock/core";
+import { type GateDecision, Plan, planHash, type PlanInput, Verdict } from "@intentlock/core";
 
 import type { Gate, HoldOutcome, SignedPlan } from "./gate.js";
 
@@ -17,7 +17,7 @@ export class PassThroughGate implements Gate {
   }
 
   async check(): Promise<GateDecision> {
-    return { verdict: "allow", ruleId: "passthrough", planStep: -1 };
+    return { verdict: Verdict.ALLOW, ruleId: "passthrough", planStep: -1 };
   }
 
   async waitForHold(): Promise<HoldOutcome> {

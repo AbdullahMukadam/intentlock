@@ -34,7 +34,7 @@ intentlock/
 ├── README.md
 ├── LICENSE                         # Elastic License 2.0 (everything except the MIT packages)
 ├── scripts/
-│   ├── issue-license.ts            # vendor-only license issuer (not published; private key never in repo)
+│   ├── issue-license.ts            # vendor-only license issuer (`pnpm issue-license`); validates with the server's LicenseSchema
 │   └── create-test-db.sql          # run by the postgres container on first start: creates intentlock_test
 ├── package.json                    # root scripts only (turbo), devDeps for tooling
 ├── pnpm-workspace.yaml             # apps/*, packages/*
@@ -72,6 +72,9 @@ Unit tests sit **next to the code** as `*.test.ts`. App integration tests live i
 ```
 src/
 ├── index.ts
+├── api/
+│   └── endpoints.ts                # API_ENDPOINTS (every server route) + apiPath()
+├── enums/                          # verdict, block-reason, client-block-reason, client-entry-kind, report-outcome (*.enum.ts)
 ├── schemas/
 │   ├── plan.ts                     # Plan, PlanStep, ArgConstraint
 │   ├── tool-call.ts                # ToolCall
@@ -93,7 +96,7 @@ src/
 ├── audit/
 │   ├── hash-entry.ts               # server chain hashing
 │   ├── verify-chain.ts             # first broken seq
-│   └── client-chain.ts             # outbox localHash + gap detection
+│   └── client-chain.ts             # hashClientEntry(), chainClientEntry() (outbox local hash chain)
 └── errors.ts
 ```
 
@@ -103,20 +106,19 @@ src/
 src/
 ├── index.ts
 ├── gate.ts                         # Gate interface, SignedPlan, shared types
-├── errors.ts                       # GateUnavailableError, TokenExpiredError, ...
+├── errors.ts                       # GateUnavailableError (fail closed), HttpError
+├── enums/                          # hold-status, http-method
 ├── http/
-│   ├── client.ts                   # fetch wrapper: base URL, API key, keep-alive, timeouts
-│   └── http-gate.ts                # remote mode
+│   ├── client.ts                   # fetch wrapper: base URL, API key, keep-alive, timeouts, injectable fetch
+│   ├── http-gate.ts                # remote mode
+│   └── wait-for-hold.ts            # long-poll loop shared by both gates
 ├── hybrid/
-│   ├── hybrid-gate.ts              # local verify + check(), holds via server
-│   ├── jwks-cache.ts
-│   └── usage-counter.ts            # per-plan call counts
+│   ├── hybrid-gate.ts              # local verify + decide(), per-plan usage, holds via server, backpressure, crash recovery
+│   └── jwks-cache.ts               # jose remote JWKS set (prefetched at start, refetch on unknown kid)
 ├── outbox/
-│   ├── file-outbox.ts              # append + fsync + local hash chain, .ack file
-│   ├── memory-outbox.ts            # serverless fallback
-│   ├── worker.ts                   # timer, batching, backoff + jitter
-│   ├── recovery.ts                 # upload leftovers on startup
-│   └── backpressure.ts             # audit_backlog limits
+│   ├── memory-outbox.ts            # in-memory outbox + the shared per-plan state; serverless fallback
+│   ├── file-outbox.ts              # extends it: <planId>.jsonl append + fsync, .ack (atomic rename), .done, recover()
+│   └── worker.ts                   # timer (unref), batches ≤ maxBatch with de-duplicated tokens, backoff + jitter, drain()
 ├── local-gate.ts
 ├── passthrough-gate.ts
 └── shutdown.ts                     # SIGTERM/SIGINT → close()
@@ -158,7 +160,15 @@ test/fixtures/                      # hand-written / recorded Messages API respo
 
 ```
 src/
-├── index.ts                        # commander setup, bin: "intentlock"
+├── index.ts                        # exports buildProgram() and run() (for tests)
+├── bin.ts                          # the `intentlock` binary: real fetch, home dir, stdin prompt
+├── program.ts                      # commander setup, CliError → exit code 1
+├── errors.ts                       # CliError
+├── api/                            # api-client.ts (session cookie + CSRF header), session-api.ts, resolve-agent.ts (name → id)
+├── session/session-store.ts        # ~/.intentlock/session.json (0600)
+├── constants/ · enums/ · types/    # cli.constants, http-method, cli-context.type (injectable fetch/home/print/prompt)
+├── utils/columns.util.ts           # aligned table output
+├── testing/fake-context.ts         # fake fetch router + captured output for tests
 └── commands/
     ├── audit-verify.ts             # verify an exported JSONL chain offline
     ├── login.ts                    # store a session for the CLI
@@ -166,7 +176,7 @@ src/
     ├── agents.ts                   # agents create | list | disable (admin)
     ├── keys.ts                     # keys create | list | revoke --agent <name> (admin)
     ├── policy.ts                   # policy pull | test | push --agent <name>
-    ├── keygen.ts                   # create an Ed25519 keypair (PEM)
+    ├── keygen.ts                   # create an Ed25519 signing key (PEM, UTF-8, 0600)
     └── policy-validate.ts          # lint a policy YAML file
 ```
 
@@ -217,47 +227,125 @@ prisma/
 └── seed.ts                         # dev / --demo only: org, admin/approver/member/intern users
 src/
 ├── main.ts
-├── app.module.ts
-├── config/                         # env.schema.ts (zod), config.module.ts
-├── common/                         # zod-validation.pipe.ts, http-exception.filter.ts, logger.ts,
-│                                   # session.guard.ts (global, default deny), public.decorator.ts, agent-auth.decorator.ts, role.decorator.ts
+├── app.module.ts                   # modules + global guards, in order: CsrfGuard → ApiKeyGuard → SessionGuard → RolesGuard
+├── configure-app.ts                # logger, exception filter, global ZodValidationPipe; shared by main.ts and the e2e tests
+├── generated/prisma/               # Prisma client (git-ignored; `prisma generate` runs on postinstall)
+├── config/                         # env.schema.ts (zod), config.module.ts, enums/ (node-env, log-level)
+├── common/                         # cross-cutting, one concern per file (ADR-033)
+│   ├── constants/                  # auth.constants.ts (metadata keys, CSRF header)
+│   ├── decorators/                 # public, agent-auth, roles, current-user, current-agent (*.decorator.ts)
+│   ├── enums/                      # auth-kind, error-code, logger-context, prisma-error-code (*.enum.ts)
+│   ├── filters/                    # http-exception.filter.ts
+│   ├── guards/                     # csrf.guard.ts, roles.guard.ts
+│   ├── logger/                     # create-logger.util.ts, pino-logger.service.ts
+│   ├── pipes/                      # zod-validation.pipe.ts (global, fail closed)
+│   ├── schemas/                    # shared zod field schemas (email.schema.ts)
+│   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest), verdict-counts.type.ts
+│   └── utils/                      # crypto, zod-dto, auth-kind, ulid, to-json, decision (isHold/isBlock), verdict-counts (*.util.ts)
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
-├── keys/                           # signing key load/generate, JWKS controller
-├── org/                            # default org bootstrap + org-scoped Prisma helper
-├── auth/                           # login/logout/me, session guard, CSRF check, rate limit, bootstrap admin
-├── users/                          # users CRUD (admin), roles + groups lookup
-├── agents/                         # agents CRUD, starter policy on create, maxAgents
-│   └── api-keys/                   # per-agent keys: create (shown once), list, revoke; agent API-key guard
-├── license/                        # license.ts (pure verify, COMMUNITY), license.service.ts, GET /v1/license
-├── policies/                       # PolicySet/Version/Draft store: draft, validate, test (sample + replay), publish (409), rollback, versions
-├── stats/                          # GET /v1/stats/overview (role-scoped aggregates)
-├── runs/                           # GET /v1/runs, /v1/runs/:planId
-├── plans/                          # POST /v1/plans, /refresh (agent from key, active policy snapshot, bundle signing)
-├── check/                          # POST /v1/check (remote mode)
-├── holds/                          # create, list (filtered), approve/reject (session + canApprove), long-poll wait, expiry job
-├── reports/                        # POST /v1/report
+├── org/                            # org.module.ts, org-bootstrap.service.ts (runs on boot)
+│   └── utils/                      # bootstrap-org.util.ts (also used by the seed), org-db.util.ts (org-scoped client)
+├── auth/                           # auth.module/controller/service (login, logout, me; login rate limit)
+│   ├── sessions.service.ts         # the one session check, shared by SessionGuard and the WebSocket handshake
+│   ├── constants/                  # session.constants.ts
+│   ├── types/                      # resolved-session.type.ts
+│   ├── dto/                        # login.dto.ts
+│   ├── enums/                      # auth-error, login-throttler
+│   ├── guards/                     # session.guard.ts (default deny)
+│   └── utils/                      # session-cookie.util.ts
+├── users/                          # users.module/controller/service (admin only)
+│   ├── dto/                        # create-user, update-user, user-email-params (*.dto.ts)
+│   ├── enums/                      # user-role (matches the Prisma Role enum, tested), user-error
+│   ├── schemas/                    # user-fields.schema.ts
+│   └── utils/                      # to-public-user.util.ts
+├── agents/                         # agents.module/controller/service: CRUD, 24 h counts, DELETE = disable, maxAgents
+│   ├── dto/                        # create-agent, update-agent, agent-id-params
+│   ├── enums/                      # agent-error
+│   ├── schemas/                    # agent-fields.schema.ts (kebab-case name, id)
+│   ├── utils/                      # create-agent.util.ts (agent + starter policy v1), to-agent-view.util.ts
+│   └── api-keys/                   # api-keys.module/controller/service: create (shown once), list, revoke
+│       ├── dto/                    # create-api-key, api-key-params
+│       ├── enums/                  # api-key-error
+│       ├── guards/                 # api-key.guard.ts (@AgentAuth routes)
+│       └── utils/                  # api-key.util.ts (il_live_ keys, hashing), to-api-key-view.util.ts
+├── license/                        # license.module/controller/service: verify at boot + every 24 h, limits, GET /v1/license
+│   ├── constants/                  # community-license, license.constants (DI token, lock id), vendor-public-key
+│   ├── enums/                      # license-edition, license-feature, license-status, licensed-resource, license-error
+│   ├── schemas/                    # license.schema.ts
+│   ├── types/                      # license-check.type.ts
+│   └── utils/                      # verify-license.util.ts (offline JWS verify), to-license-view.util.ts
+├── keys/                           # keys.module/controller/service: SIGNING_KEY load (dev: generate), JWKS, verifyForAgent()
+│   ├── types/                      # verified-bundle.type.ts
+│   └── utils/                      # normalize-pem.util.ts
+├── policies/                       # policies.module/controller/service: draft, validate, test (samples + replay), publish (409), rollback, versions
+│   ├── constants/                  # policy.constants.ts (size limits)
+│   ├── dto/                        # save-draft, validate-policy, test-policy, publish-policy, rollback-policy, policy-version-params
+│   ├── enums/                      # policy-error
+│   ├── schemas/                    # policy-fields.schema.ts, check-payload.schema.ts (what replay reads from audit)
+│   └── utils/                      # compile-policy, to-policy-version-view, to-policy-draft-view
+├── stats/                          # stats.module/controller/service: GET /v1/stats/overview (raw SQL aggregates, role-scoped)
+│   ├── constants/ · dto/ · enums/  # stats.constants, overview-query.dto, stats-bucket + stats-error
+├── runs/                           # runs.module/controller/service: GET /v1/runs, /v1/runs/:planId (members: own only)
+│   ├── constants/ · dto/ · enums/  # runs.constants, list-runs-query + run-params, run-status + run-error
+│   ├── schemas/                    # run-entry-payload.schema.ts
+│   └── utils/                      # run-status.util.ts (expired is derived from expiresAt)
+├── plans/                          # plans.module/controller/service: POST /v1/plans, /refresh (stored plan, current policy)
+│   ├── constants/ · enums/ · schemas/ · dto/   # plan.constants, plan-error, plan-fields (PlanSchema, TokenSchema), sign/refresh/params DTOs
+│   └── utils/                      # unsafe-regexes.util.ts (ReDoS heuristic at signing)
+├── check/                          # check.module/controller/service: POST /v1/check (verify → check() → atomic counter → hold → audit, one tx)
+│   ├── dto/                        # check-call.dto.ts
+│   └── utils/                      # to-check-audit.util.ts (check payload contract)
+├── holds/                          # holds.module/controller/service: create (hybrid), list, approve/reject, long-poll wait, expiry job
+│   ├── constants/ · enums/ · dto/ · types/   # hold.constants, hold-state + hold-error, create/wait/list/resolve DTOs, new-hold.type
+│   └── utils/                      # hold-state.util.ts (DB ↔ API status), to-hold-view.util.ts
+├── reports/                        # reports.module/controller/service: POST /v1/report (ran counts, plan completion)
+│   ├── enums/ · schemas/ · dto/    # report-error, checked-call.schema, report.dto (ReportOutcome comes from core)
+│   └── utils/                      # plan-progress.util.ts (findCheckedCall, recordRun, updateCompletion; shared with batch ingest)
 ├── audit/
 │   ├── audit.service.ts            # serialized chain append
-│   ├── batch.service.ts            # /v1/audit/batch ingest, client-chain check, re-run check()
-│   ├── verify.service.ts
-│   └── audit.controller.ts
-├── events/                         # events.gateway.ts (WebSocket /events)
-└── health/                         # /health and /health/ready
+│   ├── audit-query.service.ts      # role-scoped list, cursor pagination, JSONL export
+│   ├── batch.service.ts            # /v1/audit/batch ingest under the chain lock: chain check, re-run check(), flags
+│   ├── verify.service.ts           # walks the global chain in batches
+│   ├── audit.controller.ts
+│   ├── constants/ · dto/           # audit.constants, audit-query.dto, audit-batch.dto (tokens + tokenRef)
+│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format, audit-flag, audit-error, batch-reject-reason
+│   ├── types/                      # audit-input.type.ts
+│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry), decisions-agree.util.ts (looser-than-policy test)
+├── events/                         # events.module, events.gateway.ts (WebSocket /events, session checked in handshake middleware),
+│   │                               # events.service.ts (per-socket viewer, filtered publish, session recheck every 60 s)
+│   ├── constants/ · enums/ · types/   # events.constants, event-name, event-audience.type
+│   └── utils/                      # can-see-event.util.ts
+└── health/                         # health.module/controller: /health, /health/ready (DB + signing key)
 test/
-├── setup.ts                        # test database, app bootstrap
+├── global-setup.ts                 # once per run: point at TEST_DATABASE_URL, `prisma migrate deploy`
+├── setup.ts                        # test Prisma client, resetDb() (e2e files run serially)
+├── helpers.ts                      # createTestApp, createUser, sessionCookie, verifyAuditChain
 ├── auth.e2e.test.ts                # login, sessions, CSRF, self-approval rules, API key can't approve
 ├── routes.e2e.test.ts              # every route requires auth unless explicitly public / agent-only
-├── agents.e2e.test.ts              # agents, keys, revoke, disable
+├── agents.e2e.test.ts              # agents, keys, revoke, disable; a probe @AgentAuth controller tests the API-key guard
 ├── policies.e2e.test.ts            # draft, test, publish, 409, rollback, version used by new plans
-├── visibility.e2e.test.ts          # role-scoped stats/runs/audit/holds
+├── visibility.e2e.test.ts          # role-scoped runs and stats
+├── events.e2e.test.ts              # WebSocket handshake auth, per-role filtering, disabled-user drop
 ├── license.e2e.test.ts
-├── plans.e2e.test.ts
-├── holds.e2e.test.ts
-├── audit.e2e.test.ts
+├── plans.e2e.test.ts               # signing, snapshots, refresh, JWKS
+├── check.e2e.test.ts               # check, report, maxCalls under concurrency, chain under load, audit list/export/verify
+├── holds.e2e.test.ts               # approve/reject/wait/expiry/visibility, hybrid create, shutdown drain
 └── hybrid.e2e.test.ts              # HybridGate + outbox against a real server
 ```
 
-Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts`, and `<feature>.service.test.ts` where unit-testable.
+Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts` (and `<feature>.service.test.ts` where unit-testable) at its root, plus subfolders as needed, one concern per file (ADR-033):
+
+| Subfolder | Holds | File name |
+| --- | --- | --- |
+| `dto/` | one request DTO per file: `class XDto extends zodDto(schema) {}` | `<action>-<thing>.dto.ts` |
+| `schemas/` | zod field schemas shared by several DTOs | `<name>.schema.ts` |
+| `enums/` | one string `enum` per file for every fixed set of values (CLAUDE.md) | `<name>.enum.ts` |
+| `guards/` · `decorators/` · `pipes/` · `filters/` | one per file | `<name>.guard.ts`, `<name>.decorator.ts`, … |
+| `utils/` | pure helpers and mappers | `<name>.util.ts` |
+| `constants/` · `types/` | constants, TypeScript types | `<area>.constants.ts`, `<name>.type(s).ts` |
+| `services/` · `controllers/` | only when a feature has more than one of each | `<name>.service.ts` |
+
+DTOs are never declared inside controllers; services never export mappers or types (those go in `utils/` and `types/`).
 
 ### `apps/inbox` — Next.js App Router
 
@@ -350,6 +438,7 @@ flowchart BT
 - Provider SDKs (`openai`, `@anthropic-ai/sdk`) appear only in `guard/src/provider/` and `packages/anthropic`.
 - Apps never import another app.
 - Import from a package's root (`@intentlock/core`), never from `@intentlock/core/src/...`.
+- One exception: `apps/server/test/**` may import `@intentlock/sdk` (dev dependency) so integration tests drive the server through the real gates; server code still may not (ADR-038).
 - Enforced by the eslint preset in `packages/config` with `no-restricted-imports` per package, plus each package's `dependencies` list.
 
 ## 5. Naming and code conventions

@@ -1,0 +1,37 @@
+import { API_ENDPOINTS } from "@intentlock/core";
+import type { Command } from "commander";
+
+import { readResponse } from "../api/api-client.js";
+import { CSRF_HEADER, SESSION_COOKIE } from "../constants/cli.constants.js";
+import { HttpMethod } from "../enums/http-method.enum.js";
+import { CliError } from "../errors.js";
+import { saveSession } from "../session/session-store.js";
+import type { CliContext } from "../types/cli-context.type.js";
+
+export function registerLogin(program: Command, ctx: CliContext) {
+  program
+    .command("login")
+    .description(
+      "Sign in with your email and personal login token; the session is stored for later commands",
+    )
+    .requiredOption("--url <url>", "Intentlock server URL")
+    .requiredOption("--email <email>")
+    .option("--token <token>", "login token (prompted when omitted)")
+    .action(async (opts: { url: string; email: string; token?: string }) => {
+      const token = opts.token ?? (await ctx.prompt("Login token: "));
+      const url = opts.url.replace(/\/+$/, "");
+      const res = await ctx.fetch(url + API_ENDPOINTS.AUTH_LOGIN, {
+        method: HttpMethod.POST,
+        headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
+        body: JSON.stringify({ email: opts.email, token }),
+      });
+      const { user } = await readResponse<{ user: { email: string; role: string } }>(res);
+      const cookie = res.headers
+        .getSetCookie()
+        .map((c) => c.split(";")[0] ?? "")
+        .find((c) => c.startsWith(`${SESSION_COOKIE}=`));
+      if (!cookie) throw new CliError("The server did not return a session cookie");
+      await saveSession(ctx.home, { url, email: user.email, cookie });
+      ctx.print(`Signed in as ${user.email} (${user.role})`);
+    });
+}

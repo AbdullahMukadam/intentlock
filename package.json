@@ -12,12 +12,14 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "issue-license": "tsx scripts/issue-license.ts"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
     "@types/node": "catalog:",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "turbo": "^2.11.7",
     "typescript": "catalog:"
   },

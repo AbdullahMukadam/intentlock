@@ -1,8 +1,17 @@
 import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module.js";
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+import { AppModule } from "./app.module.js";
+import { configureApp } from "./configure-app.js";
+import { loadEnv } from "./config/env.schema.js";
+
+try {
+  process.loadEnvFile("../../.env");
+} catch {
+  // no .env file
 }
-await bootstrap();
+
+const env = loadEnv();
+const app = await NestFactory.create(AppModule, { bufferLogs: true });
+configureApp(app);
+app.enableShutdownHooks();
+await app.listen(env.PORT);

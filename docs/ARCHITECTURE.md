@@ -173,7 +173,8 @@ export type Decision =
 
 // Returned by Gate.check() (sdk) and POST /v1/check: the server has created the hold row.
 // Block reasons when ruleId is null: invalid_token | token_expired | invalid_call | not_in_plan |
-// call_limit | no_matching_rule | internal_error. LocalGate adds hold_requires_server (with the rule id).
+// call_limit | no_matching_rule | internal_error (core `BlockReason` enum). Clients may add stricter blocks of
+// their own (core `ClientBlockReason`): server_unavailable, audit_write_failed, audit_backlog, hold_requires_server.
 export type GateDecision =
   | Exclude<Decision, { verdict: "hold" }>
   | (Extract<Decision, { verdict: "hold" }> & { holdId: string });
@@ -246,12 +247,12 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/holds/:id/approve` · `/reject` | `{ note? }` → `Hold` | Auth: **session only**. Approver = signed-in user, must satisfy the hold's `ApproverSpec`; audited |
 | POST | `/v1/report` | `{ token, callId, outcome: ok\|error }` → `{ planStatus }` | Advances usage + completion |
 | GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=` | → paginated entries; `?format=jsonl` exports | Auth: session (scoped by role) |
-| POST | `/v1/audit/batch` | `{ planId, entries: ClientEntry[] }` → `{ ackedThrough: clientSeq, rejected: [...] }` | `hybrid` mode. Idempotent on `(planId, clientSeq)`; checks the client chain for gaps; re-runs `check()` per entry and flags mismatches |
+| POST | `/v1/audit/batch` | `{ planId, tokens: string[], entries: (ClientEntry without token, with tokenRef)[] }` → `{ ackedThrough: clientSeq, rejected: { clientSeq, reason }[] }` | `hybrid` mode. ≤ 100 entries; each entry points at a de-duplicated token. Idempotent on `(planId, clientSeq)`; checks the client chain for gaps and edits; re-runs `check()` per entry and flags looser-than-policy decisions |
 | GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged }` | Recomputes chain; lists flagged client entries |
 | GET | `/v1/keys/jwks` | → JWKS | Auth: none (public keys by design) |
 | GET | `/health`, `/health/ready` | → `{ ok }` | Auth: none |
 
-Every endpoint not marked "Auth: none" or "Auth: API key" requires a session (§5.6). The agent endpoints (`/v1/plans*`, `/v1/check`, `/v1/holds` create + wait, `/v1/report`, `/v1/audit/batch`) take an API key.
+All paths are defined once in `API_ENDPOINTS` (`@intentlock/core`); the server's controllers and every client build their routes from it. Every endpoint not marked "Auth: none" or "Auth: API key" requires a session (§5.6). The agent endpoints (`/v1/plans*`, `/v1/check`, `/v1/holds` create + wait, `/v1/report`, `/v1/audit/batch`) take an API key.
 
 Server instances are stateless and can be scaled horizontally; multi-instance rules (atomic counters, idempotent expiry, chain locking) are in `DEPLOYMENT.md` §5.
 
@@ -458,10 +459,11 @@ entry_1.prevHash = "GENESIS"
 - `verify` walks from seq 1, recomputes each hash, and returns the first mismatch. Hashing lives in `core` so the CLI can verify an exported JSONL file offline.
 - Tamper demo: edit one row's payload in psql → verify reports that `seq`.
 
-**Client entries (hybrid mode).** Batched client decisions are appended to the same server chain, so there is still one tamper-evident log. On ingest the server:
-1. Verifies the client chain: each entry's `prevLocalHash` must match the previous entry for that plan, and `clientSeq` must be contiguous. A gap is recorded as a `client_gap` entry and flagged.
-2. Re-runs `check()` for each entry with the same signed bundle and the recorded usage count. If the server's verdict differs from the client's, the entry is stored with `flagged: "decision_mismatch"` (evidence of a buggy or tampered client).
-3. At plan end, the client's `report` includes the total number of decisions, so a truncated tail is also detectable.
+**Client entries (hybrid mode).** Batched client decisions are appended to the same server chain, so there is still one tamper-evident log. Every entry is stored (never dropped), flagged when suspect. On ingest the server (holding the chain lock, ADR-038):
+1. Verifies the client chain: each entry's `prevLocalHash` must match the previous entry for that plan and its `localHash` must recompute; otherwise `flagged: "chain_break"` (an edited line). A missing `clientSeq` range is recorded as a `client_gap` entry with `flagged: "gap"` (a deleted line).
+2. Re-runs `check()` for each check entry with the entry's own signed bundle (verified at `clientAt`) and its recorded per-step `usage`. A client decision **looser** than the server's (allow where the policy says hold or block, or an allow/hold citing another rule) is stored with `flagged: "decision_mismatch"`. A stricter client (offline, could not verify, its own blocks) is not flagged, since it can never let a tool run.
+3. Every `report` carries the number of decisions so far; fewer stored client checks than that means a truncated tail (`flagged: "truncated"`). A report whose token does not verify is `flagged: "invalid_token"`.
+4. A resent entry whose hash differs from the stored one is returned in `rejected` (`conflicts_with_stored`), never overwritten.
 
 ### 5.5 Keys
 
@@ -584,7 +586,7 @@ export interface Gate {
   check(token: string, call: ToolCall): Promise<GateDecision>;
   waitForHold(holdId: string, opts: { timeoutMs: number; signal?: AbortSignal }):
     Promise<"approved" | "rejected" | "expired">;
-  report(token: string, callId: string, outcome: "ok" | "error"): Promise<void>;
+  report(token: string, callId: string, outcome: ReportOutcome): Promise<void>;
   close(): Promise<void>;                               // flush outbox, stop worker
 }
 
@@ -637,14 +639,18 @@ The outbox is a local, append-only file per plan, drained by a background worker
 **File format** — `.intentlock/outbox/<planId>.jsonl`, one JSON object per line:
 
 ```ts
-type ClientEntry = {
+type ClientEntry = {             // core ClientEntry (zod), chained with chainClientEntry()
   planId: string;
   clientSeq: number;            // 1, 2, 3 … per plan, contiguous
   clientAt: string;             // ISO time of the decision
-  kind: "check" | "report";
+  kind: ClientEntryKind;        // check | report
+  token: string;                // the bundle the decision was made against (refreshes change it)
   call?: ToolCall;
-  decision?: Decision;
-  usageAtDecision?: number;     // so the server can re-run check() exactly
+  decision?: GateDecision;      // as returned to the guard, incl. holdId
+  usage?: number[];             // per-step counts before this call, so the server re-runs check() exactly
+  callId?: string;              // report entries
+  outcome?: ReportOutcome;      // report entries
+  decisionCount?: number;       // report entries: check entries so far (truncation check)
   prevLocalHash: string;        // previous entry's localHash, "GENESIS" for seq 1
   localHash: string;            // sha256(prevLocalHash + "|" + jcs(entry without localHash))
 };

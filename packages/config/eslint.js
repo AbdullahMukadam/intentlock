@@ -89,6 +89,17 @@ export function intentlock(pkg, ...extra) {
       },
     },
     { files: SOURCE, rules: { "no-restricted-imports": restrict(pkg, banned) } },
+    pkg === "server"
+      ? {
+          files: ["test/**"],
+          rules: {
+            "no-restricted-imports": restrict(
+              pkg,
+              banned.filter((b) => b !== "@intentlock/sdk"),
+            ),
+          },
+        }
+      : {},
     // Provider SDKs live only in guard's provider adapters (ARCHITECTURE §7.5 rule 9).
     pkg === "guard"
       ? {

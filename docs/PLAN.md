@@ -71,38 +71,38 @@
 
 ## Phase 2 · Server + gates (Tue 13) — `apps/server`, `HttpGate`, `HybridGate`
 
-- [ ] NestJS app scaffold, `pino` logging, zod validation pipe, global exception filter that never leaks stack traces
-- [ ] Prisma schema from ARCHITECTURE §5.3 (incl. `Organization`, `orgId` on every table, `User`, `Session`); first migration; org-scoped Prisma helper used by every service; seed script for dev (org, admin, approver, member, API key)
-- [ ] Global default-deny session guard; `@Public()` (sign-in, health, JWKS) and `@AgentAuth()` (API-key routes) decorators; a test that enumerates all routes and fails on any unexpected public route
-- [ ] Agents: create (with starter policy v1), list (with 24 h counts), update, disable; license `maxAgents` enforced
-- [ ] API keys per agent: `il_live_` + random, hash + prefix stored, shown once, `lastUsedAt`, revoke; agent API-key guard resolves `agentId`
-- [ ] Policy store: `PolicySet` / `PolicyVersion` / `PolicyDraft`; endpoints for draft, validate, test (sample calls + replay last N decisions), publish (409 on stale `baseVersion`), rollback, versions; all publishes/rollbacks audited
-- [ ] Role-scoped read endpoints: `/v1/stats/overview`, `/v1/runs`, `/v1/runs/:planId`, filtered `/v1/audit` (+ JSONL export); audit denormalized columns + indexes from ARCHITECTURE §5.3
-- [ ] Bootstrap on empty DB: create org (`ORG_NAME`) + admin (`BOOTSTRAP_ADMIN_EMAIL`), print one-time login token
-- [ ] Auth: `/v1/auth/login|logout`, `/v1/me`, session guard, login rate limit (`@nestjs/throttler`), constant-time compare, CSRF header check, audit auth events
-- [ ] Users endpoints (admin only); disabling a user or re-issuing a token revokes sessions
-- [ ] `LicenseService` (ARCHITECTURE §5.7): offline verify of `LICENSE_FILE` at boot + every 24 h, Community fallback, `maxUsers` enforced on user creation, `hasFeature()`, `GET /v1/license`; tests: none / valid / expired / bad signature / over limit — and a test that an expired license does **not** change any enforcement decision
-- [ ] Signing key load/generate (§5.5); `GET /v1/keys/jwks`
-- [ ] `POST /v1/plans` and `/refresh`: agent from the API key (reject disabled agents), reject unknown/disabled users, snapshot the agent's active policy version; snapshot user policies + role + groups into the bundle (`pol`, `polh`, `role`, `groups`, `org`); refresh keeps the same plan hash (test that a different hash is rejected)
-- [ ] `POST /v1/check`: wraps core `check`, reads usage + roles, writes audit, creates holds
-- [ ] Holds: `POST /v1/holds` (server re-runs `check()`, creates hold only if it agrees), list (filtered by who may approve / own), approve/reject (session only, `canApprove`), long-poll wait (≤ 25 s), expiry job
-- [ ] `POST /v1/report`: usage + plan completion
-- [ ] Multi-instance safety (DEPLOYMENT §5): atomic conditional counter updates, idempotent hold expiry + `status = 'PENDING'` guards on approve/reject, advisory lock on chain append, no shared in-memory state
-- [ ] `/health` and `/health/ready` (DB + signing key); graceful shutdown that drains long-polls
-- [ ] Audit service: serialized append (transaction / row lock), `GET /v1/audit` paginated, `GET /v1/audit/verify`
-- [ ] `POST /v1/audit/batch`: idempotent on `(planId, clientSeq)`, client-chain + gap check, server re-run of `check()` with `flagged` on mismatch
-- [ ] WebSocket gateway `/events`: session required at handshake; `hold.created`, `hold.resolved`, `decision`, filtered per user role
-- [ ] `HttpGate` in `packages/sdk`: keep-alive, timeouts, network error → block; hold wait loop with `AbortSignal`
-- [ ] `HybridGate`: JWKS cache, local verify + `check()`, per-plan usage counts, holds via server
-- [ ] Outbox: per-plan JSONL file with local hash chain, append + fsync before acting, `.ack` file (ARCHITECTURE §6.2)
-- [ ] Background worker: timer (`unref`), batches of ≤ 100, exponential backoff + jitter, startup recovery of leftover files, delete when plan complete + acked
-- [ ] Backpressure: `audit_backlog` block when unacked > `maxUnacked` or older than `maxUnackedAgeMs`
-- [ ] `close()` + SIGTERM/SIGINT flush with timeout
-- [ ] Integration tests (Vitest + test DB): plan → check allow → report; off-plan block; hold → approve → wait returns approved; hold timeout; API key cannot approve; requester cannot self-approve unless `self: true`; disabled user's session rejected; every non-public route returns 401 without a session; member cannot read another member's runs; publish with stale `baseVersion` → 409; revoked key and disabled agent cannot sign plans; new plan after publish uses the new version, running bundle keeps the old; tamper a row → verify fails at that seq; 50 concurrent checks keep a valid chain
-- [ ] HybridGate tests: decisions match remote mode for the same inputs; server down → allow/block continue, then `audit_backlog` after the limit; kill the process mid-run → restart uploads leftovers with no duplicates; edited outbox line → server flags it; forged verdict → `decision_mismatch`; dropped middle entry → `client_gap`
-- [ ] `packages/cli`: `intentlock audit verify --file export.jsonl`, `keygen`, `policy validate` (offline, uses core); `login`, `users add|list|disable|token`, `agents create|list|disable`, `keys create|list|revoke --agent`, `policy pull|test|push --agent` (call the API with the stored session)
-- [ ] `scripts/issue-license.ts` (repo root, not published): issue a license JWS from a vendor key file; document in the journal how to generate the vendor keypair (private key never committed)
-- [ ] Journal entry
+- [x] NestJS app scaffold, `pino` logging, zod validation pipe, global exception filter that never leaks stack traces
+- [x] Prisma schema from ARCHITECTURE §5.3 (incl. `Organization`, `orgId` on every table, `User`, `Session`); first migration; org-scoped Prisma helper used by every service; seed script for dev (org, admin, approver, member, API key)
+- [x] Global default-deny session guard; `@Public()` (sign-in, health, JWKS) and `@AgentAuth()` (API-key routes) decorators; a test that enumerates all routes and fails on any unexpected public route
+- [x] Agents: create (with starter policy v1), list (with 24 h counts), update, disable; license `maxAgents` enforced
+- [x] API keys per agent: `il_live_` + random, hash + prefix stored, shown once, `lastUsedAt`, revoke; agent API-key guard resolves `agentId`
+- [x] Policy store: `PolicySet` / `PolicyVersion` / `PolicyDraft`; endpoints for draft, validate, test (sample calls + replay last N decisions), publish (409 on stale `baseVersion`), rollback, versions; all publishes/rollbacks audited
+- [x] Role-scoped read endpoints: `/v1/stats/overview`, `/v1/runs`, `/v1/runs/:planId`, filtered `/v1/audit` (+ JSONL export); audit denormalized columns + indexes from ARCHITECTURE §5.3
+- [x] Bootstrap on empty DB: create org (`ORG_NAME`) + admin (`BOOTSTRAP_ADMIN_EMAIL`), print one-time login token
+- [x] Auth: `/v1/auth/login|logout`, `/v1/me`, session guard, login rate limit (`@nestjs/throttler`), constant-time compare, CSRF header check, audit auth events
+- [x] Users endpoints (admin only); disabling a user or re-issuing a token revokes sessions
+- [x] `LicenseService` (ARCHITECTURE §5.7): offline verify of `LICENSE_FILE` at boot + every 24 h, Community fallback, `maxUsers` enforced on user creation, `hasFeature()`, `GET /v1/license`; tests: none / valid / expired / bad signature / over limit — and a test that an expired license does **not** change any enforcement decision
+- [x] Signing key load/generate (§5.5); `GET /v1/keys/jwks`
+- [x] `POST /v1/plans` and `/refresh`: agent from the API key (reject disabled agents), reject unknown/disabled users, snapshot the agent's active policy version; snapshot user policies + role + groups into the bundle (`pol`, `polh`, `role`, `groups`, `org`); refresh keeps the same plan hash (test that a different hash is rejected)
+- [x] `POST /v1/check`: wraps core `check`, reads usage + roles, writes audit, creates holds
+- [x] Holds: `POST /v1/holds` (server re-runs `check()`, creates hold only if it agrees), list (filtered by who may approve / own), approve/reject (session only, `canApprove`), long-poll wait (≤ 25 s), expiry job
+- [x] `POST /v1/report`: usage + plan completion
+- [x] Multi-instance safety (DEPLOYMENT §5): atomic conditional counter updates, idempotent hold expiry + `status = 'PENDING'` guards on approve/reject, advisory lock on chain append, no shared in-memory state
+- [x] `/health` and `/health/ready` (DB + signing key); graceful shutdown that drains long-polls
+- [x] Audit service: serialized append (transaction / row lock), `GET /v1/audit` paginated, `GET /v1/audit/verify`
+- [x] `POST /v1/audit/batch`: idempotent on `(planId, clientSeq)`, client-chain + gap check, server re-run of `check()` with `flagged` on mismatch
+- [x] WebSocket gateway `/events`: session required at handshake; `hold.created`, `hold.resolved`, `decision`, filtered per user role
+- [x] `HttpGate` in `packages/sdk`: keep-alive, timeouts, network error → block; hold wait loop with `AbortSignal`
+- [x] `HybridGate`: JWKS cache, local verify + `check()`, per-plan usage counts, holds via server
+- [x] Outbox: per-plan JSONL file with local hash chain, append + fsync before acting, `.ack` file (ARCHITECTURE §6.2)
+- [x] Background worker: timer (`unref`), batches of ≤ 100, exponential backoff + jitter, startup recovery of leftover files, delete when plan complete + acked
+- [x] Backpressure: `audit_backlog` block when unacked > `maxUnacked` or older than `maxUnackedAgeMs`
+- [x] `close()` + SIGTERM/SIGINT flush with timeout
+- [x] Integration tests (Vitest + test DB): plan → check allow → report; off-plan block; hold → approve → wait returns approved; hold timeout; API key cannot approve; requester cannot self-approve unless `self: true`; disabled user's session rejected; every non-public route returns 401 without a session; member cannot read another member's runs; publish with stale `baseVersion` → 409; revoked key and disabled agent cannot sign plans; new plan after publish uses the new version, running bundle keeps the old; tamper a row → verify fails at that seq; 50 concurrent checks keep a valid chain
+- [x] HybridGate tests: decisions match remote mode for the same inputs; server down → allow/block continue, then `audit_backlog` after the limit; kill the process mid-run → restart uploads leftovers with no duplicates; edited outbox line → server flags it; forged verdict → `decision_mismatch`; dropped middle entry → `client_gap`
+- [x] `packages/cli`: `intentlock audit verify --file export.jsonl`, `keygen`, `policy validate` (offline, uses core); `login`, `users add|list|disable|token`, `agents create|list|disable`, `keys create|list|revoke --agent`, `policy pull|test|push --agent` (call the API with the stored session)
+- [x] `scripts/issue-license.ts` (repo root, not published): issue a license JWS from a vendor key file; document in the journal how to generate the vendor keypair (private key never committed)
+- [x] Journal entry
 
 **Acceptance:** all integration tests green; `curl` walkthrough in the journal shows sign → check → hold → approve → verify; a HybridGate run with the server stopped mid-way recovers and the audit chain verifies.
 

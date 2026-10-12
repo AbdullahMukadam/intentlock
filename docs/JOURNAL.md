@@ -164,3 +164,280 @@ A running log of every work session. **Append a new entry at the bottom** at the
 **Notes for Abdullah**
 - Review ADR-030 point 3: a held call uses up one of its step's `maxCalls` even if the approver rejects it
 - Phase 2 should cap regex complexity at plan signing (ReDoS), noted in ADR-030
+
+### 2026-10-12 · Session 5 · Phase 2 — server scaffold and Prisma schema
+
+**Done**
+- NestJS scaffold: zod-validated env (`config/env.schema.ts`), pino logger behind a Nest `LoggerService`, `ZodValidationPipe`, global exception filter (bare 500, no stack or message); Nest hello-world removed
+- Prisma schema from ARCHITECTURE §5.3 (+ indexes on `Plan`, `Hold`, `Session`, `ApiKey`), first migration `init`, client generated into `src/generated/prisma` on `postinstall`
+- `orgDb(prisma, orgId)` org-scoped client extension; `createAgent()` (agent + policy set + starter policy v1), shared by the seed and the agents service to come
+- `prisma/seed.ts` (`pnpm --filter @intentlock/server seed [--demo]`): org, admin/approver/member (+ intern), `github-assistant` agent with an API key; prints the secrets once and refuses to run on a non-empty database
+- Test harness: global setup migrates `intentlock_test`, `resetDb()` truncates, e2e files run serially
+
+**Problems hit and how they were solved**
+- `prisma migrate dev` in Prisma 7 no longer runs `generate` → `postinstall: prisma generate`
+- Generated client outside `src/` would not compile under `tsconfig.build.json`'s `rootDir: src` → moved the generator output into `src/generated/prisma`
+- Docker Desktop wasn't running → started it; `docker compose up -d --wait` healthy
+
+**Decisions** (link ADRs)
+- ADR-031: org scoping via a Prisma extension, generated client location, logging, validation, test database
+
+**Numbers**
+- server: 10 tests (6 unit, 4 e2e against Postgres); lint, typecheck, build, format green
+- `node dist/main.js` boots and answers an unknown route with a JSON 404; logs are pino JSON
+
+**Next**
+- Global default-deny session guard, `@Public()` / `@AgentAuth()`, route-enumeration test (then sign-in)
+
+**Notes for Abdullah**
+- The dev database (`intentlock`) is now seeded; to reseed, drop and recreate it (`pnpm --filter @intentlock/server prisma migrate reset`) and run the seed again
+
+### 2026-10-12 · Session 6 · Phase 2 — sign-in and route protection
+
+**Done**
+- Global default-deny guard: sessions by default, `@Public()`, `@AgentAuth()` (API-key lookup, revoked keys rejected), `@Roles()`, CSRF header on every non-GET non-agent request
+- `test/routes.e2e.test.ts`: enumerates every controller route via Nest discovery, pins the public list (`POST /v1/auth/login` for now) and the API-key list (empty for now), and calls every protected route without credentials expecting 401
+- Auth: `POST /v1/auth/login` (constant-time compare, same 401 for every failure, throttled 5/min per email and 20/min per IP), `POST /v1/auth/logout`, `GET /v1/me`; 12 h sliding sessions; auth events audited
+- `AuditService.append` (advisory lock, global chain, core `hashEntry`, optional caller transaction) and `toAuditEntry()` row mapping. The audit endpoints are still to do
+- Bootstrap on an empty database (org + `BOOTSTRAP_ADMIN_EMAIL` admin, token logged once; `INTENTLOCK_DEMO=1` adds sample users), race-safe across instances
+- Users endpoints (admin only): create (token shown once, 409 on duplicate), list, patch (role, groups, disabled; disabling ends sessions), re-issue token (ends sessions); admins can't demote or disable themselves; all audited. `maxUsers` waits for `LicenseService`
+
+**Problems hit and how they were solved**
+- Prisma transaction clients have no `$extends`, so `orgDb(tx)` is impossible → transactions are opened on the scoped client (`orgDb(...).$transaction`), and the audit chain head is read with raw SQL so it stays global
+- Several logins per test file would hit the per-IP rate limit → tests create sessions directly in the database (`sessionCookie()`), and only the sign-in tests go through `/v1/auth/login`
+
+**Decisions** (link ADRs)
+- ADR-032: guard, CSRF, sessions, sign-in, rate limit, bootstrap, audit transactions
+
+**Numbers**
+- server: 29 tests (6 unit, 23 e2e); lint, typecheck, build, format green
+
+**Next**
+- Agents (create with starter policy, list with 24 h counts, update, disable), API keys, policy store
+
+**Notes for Abdullah**
+- The dev seed no longer takes `--demo`; it always adds approver, member and intern. Run it **before** the first server start: the server bootstraps an empty database itself, and the seed then refuses to run
+- When we deploy behind nginx/Render, Express `trust proxy` must be set, or the per-IP sign-in limit sees one IP for everyone
+
+### 2026-10-12 · Session 7 · Phase 2 — refactors, agents, API keys, policies, licensing
+
+**Done**
+- Validation moved to one global `ZodValidationPipe` with `zodDto(schema)` DTO classes; the route test fails on any `@Body/@Query/@Param` without a schema (ADR-031)
+- Server restructured to the owner's NestJS reference layout: feature subfolders, one concern per file, four single-purpose global guards (ADR-033)
+- String enums for every fixed value set, `HttpStatus` instead of numbers, single-line comments only; rules added to CLAUDE.md (ADR-034)
+- Agents: create (starter policy v1, `maxAgents`), list/get with active key count, policy version and 24 h allow/block/hold counts, update, disable (`DELETE` is a soft disable); all audited
+- API keys: `il_live_` + 32 bytes, shown once, SHA-256 + 12-char prefix stored, list, idempotent revoke, `lastUsedAt` (≤ 1 write/min); the API-key guard is tested through a probe `@AgentAuth()` controller
+- Policy store: get active + draft, versions, one version, draft (saved even if invalid), validate (line/col errors), test (sample calls + audit replay, nothing saved), publish (N+1, 409 on stale base, race-safe), rollback (new version copying an old one); publishes and rollbacks audited
+- `LicenseService`: offline JWS verify at boot and every 24 h, Community fallback for missing / invalid / expired, `hasFeature()`, `GET /v1/license`, `maxUsers` and `maxAgents` enforced (race-safe)
+
+**Problems hit and how they were solved**
+- Shell heredocs with backticks and apostrophes broke repeatedly → larger edits are written as Python scripts in the scratchpad
+- Docker Desktop stopped mid-session, so tests failed with P1001 → restarted it; a reminder that `pnpm test` needs `docker compose up -d`
+- VS Code showed `Argument "url" is missing in data source block "db"` → the Prisma extension was 6.7, which predates Prisma 7 moving the URL to `prisma.config.ts`; the CLI validates the schema fine
+
+**Decisions** (link ADRs)
+- ADR-033: server layout · ADR-034: enums and comments · ADR-035: agents, keys, policies, licensing
+
+**Numbers**
+- server: 61 tests (10 unit, 51 e2e); lint, typecheck, build, format green
+
+**Next**
+- Plans, check, holds and the audit chain (signing key + JWKS, `POST /v1/plans`, `/v1/check`, holds, reports, audit endpoints), then the "expired license changes no decision" test
+
+**Notes for Abdullah**
+- **Vendor private key:** `keys/vendor-private.pem` was generated on this machine and is git-ignored. Move it somewhere safe (password manager or offline storage). If it is lost, regenerate a pair and replace `vendor-public-key.constant.ts`; licenses signed with the old key then stop verifying
+- Update the VS Code Prisma extension to 7.x to clear the false `url` warning
+
+### 2026-10-12 · Session 8 · Phase 2 — plans, check, holds, audit chain
+
+**Done**
+- Signing key load/generate, `GET /v1/keys/jwks` (public)
+- `POST /v1/plans` (agent from key, enabled agent, active user, policy + role + groups snapshot, ULID plan id, ReDoS heuristic) and `/refresh` (stored plan re-signed with the current policy; different hash → 409)
+- `POST /v1/check`: verify → core `check()` → atomic counter → hold row → audit entry, one transaction
+- Holds: hybrid create (server must agree), role-filtered list with `canApprove`, approve/reject (session only, separation of duties), long-poll wait (≤ 25 s, 1 s DB polling), expiry job (idempotent across instances), shutdown drain
+- `POST /v1/report`: `ran` counts once per call, plan completion on required steps
+- Audit: `GET /v1/audit` (member-scoped, filters, text search, cursor pages, JSONL export), `GET /v1/audit/verify`
+- `/health`, `/health/ready`; LicenseService finished with the "expired license changes no decision" test
+
+**Problems hit and how they were solved**
+- A long-poll test never sent its request: supertest only dispatches when awaited → start it with `.then()` before approving
+- Test assumed an admin may approve any hold; the spec says only if the hold's approver spec allows it → fixed the test, recorded in ADR-036
+
+**Decisions** (link ADRs)
+- ADR-036: plans, check, holds, reports, audit read paths
+
+**Numbers**
+- server: 92 tests (12 unit, 80 e2e); lint, typecheck, build, format green
+- 10 concurrent checks on a `maxCalls: 3` step → exactly 3 allowed; 50 concurrent checks → contiguous seqs 1–51 and a valid chain
+- Built server against the dev DB: `/health/ready` ok, JWKS served, unauthenticated `/v1/check` → 401
+
+**Next**
+- Role-scoped stats and runs, `POST /v1/audit/batch`, WebSocket `/events`, then `HttpGate` / `HybridGate` and the outbox
+
+**Notes for Abdullah**
+- In production `SIGNING_KEY` is now mandatory (the server refuses to boot without it); `intentlock keygen` arrives with the CLI task, until then a dev boot logs a generated key you can copy
+
+### 2026-10-12 · Session 9 · Phase 2 — runs, stats, live events
+
+**Done**
+- `GET /v1/runs` (role-scoped, counts, cursor, status filter) and `GET /v1/runs/:planId` (ordered decisions, holds, reports, timing)
+- `GET /v1/stats/overview`: verdicts over time, totals, top blocked tools and rules, pending holds, median time-to-approve, flagged count, audit lag
+- WebSocket `/events` with handshake auth, origin check, per-role filtering, 60 s session recheck; `decision`, `hold.created`, `hold.resolved` emitted after commit
+- `SessionsService` extracted so HTTP and WebSocket share one session check; verdict tallying shared by agents and runs
+
+**Problems hit and how they were solved**
+- `SIGNING_KEY` in `.env` held only the PEM's first line (unquoted multi-line value), and `keys/signing-key.pem` was UTF-16 (PowerShell `>` redirect) → converted the file to UTF-8 and rewrote the entry as a double-quoted value; the server now loads it (kid `9a4FWXxG`)
+- Docker Desktop was down again after the overnight restart → restarted
+- Socket auth in `handleConnection` left a moment where an unauthenticated socket was connected → moved to Socket.IO handshake middleware
+
+**Decisions** (link ADRs)
+- ADR-037: runs, stats, live events
+
+**Numbers**
+- server: 102 tests (14 unit, 88 e2e); lint, typecheck, build, format green
+
+**Next**
+- Core `ClientEntry` + local hash chain, `POST /v1/audit/batch`, then `HttpGate`, `HybridGate`, outbox, worker, backpressure, shutdown
+
+**Notes for Abdullah**
+- When writing PEM files from PowerShell, use `Out-File -Encoding ascii` (or Git Bash); `>` writes UTF-16, which key parsers reject
+
+### 2026-10-12 · Session 10 · Phase 2 — hybrid mode, shared enums, API_ENDPOINTS
+
+**Done**
+- Core: `ClientEntry` + `chainClientEntry()` / `hashClientEntry()`, `GateDecision` schema, shared enums (`Verdict`, `BlockReason`, `ClientBlockReason`, `ClientEntryKind`, `ReportOutcome`), `API_ENDPOINTS` + `apiPath()`
+- Server: `POST /v1/audit/batch` (token de-duplication, chain check, re-run `check()`, gap/edit/forgery/truncation flags, idempotent); report bookkeeping shared between `/v1/report` and batch ingest; every controller on `API_ENDPOINTS`
+- SDK: `HttpClient`, `HttpGate`, `HybridGate`, `MemoryOutbox` / `FileOutbox`, `OutboxWorker`, SIGTERM/SIGINT flush; `jose` remote JWKS
+- Integration tests through the real SDK gates: remote plan/check/report, hold approve + expiry, hybrid = remote decisions, outage → keeps deciding → `audit_backlog` → recovers, crash → restart uploads exactly once (also with a lost ack), edited line / forged verdict / dropped line all flagged and the server chain still verifies
+
+**Problems hit and how they were solved**
+- Hybrid client blocked everything as `invalid_token` when the server went down before its first check (JWKS never fetched) → prefetch the JWKS in `start()`; the server's mismatch rule flagged those safe blocks → flag only looser-than-policy decisions (ADR-038)
+- The SDK's string literals (`"block"`, `"check"`, `"ok"`) slipped past the server-only enum rule → shared core enums (ADR-039)
+- First run of the new e2e file timed out in `beforeAll` (cold transform of the freshly built SDK) → e2e `hookTimeout` 30 s
+- `apps/server/test` could not import the SDK under the import-boundary lint → test-only exception (ADR-038)
+
+**Decisions** (link ADRs)
+- ADR-038: hybrid wire format, ingest rules, SDK gates · ADR-039: shared enums and `API_ENDPOINTS`
+
+**Numbers**
+- core 147, sdk 23, server 112 tests; whole monorepo lint, typecheck, test, build, format green
+
+**Next**
+- `packages/cli` (audit verify, keygen, policy validate, then the API commands) and `scripts/issue-license.ts`, then the Phase 2 acceptance walkthrough (curl sign → check → hold → approve → verify; HybridGate run with the server stopped mid-way)
+
+**Notes for Abdullah**
+- Phase 3 will need a `refresh` method on the `Gate` interface (guard rule 6); that is a public SDK API change, so I will ask before adding it
+
+### 2026-10-12 · Session 11 · Phase 2 — CLI, license issuer, acceptance
+
+**Done**
+- `packages/cli`: `audit verify --file`, `keygen`, `policy validate` (offline); `login`, `users add|list|disable|token`, `agents create|list|disable`, `keys create|list|revoke --agent`, `policy pull|test|push --agent` (stored session)
+- `scripts/issue-license.ts` (`pnpm issue-license`), verified end to end against the server's `verifyLicense` and the vendor public key that ships in the server
+- Removed every code comment added in sessions 10–11; CLAUDE.md now says: no code comments
+- Phase 2 acceptance: curl walkthrough and a HybridGate run with the server killed mid-way (below)
+
+**Acceptance: curl walkthrough** (fresh database, server on :3100, secrets masked)
+
+```text
+$ intentlock login --url http://localhost:3100 --email admin@acme-demo.dev --token <from server log>
+Signed in as admin@acme-demo.dev (admin)
+
+$ intentlock users add approver@acme-demo.dev --role approver
+Added approver@acme-demo.dev (approver)
+Login token (shown once): …
+
+$ intentlock users add alice@acme-demo.dev --role member
+Added alice@acme-demo.dev (member)
+Login token (shown once): …
+
+$ intentlock agents create github-assistant
+Created github-assistant (cmv5bgw490004z0vt0rd04bi4) with the starter policy as v1
+
+$ intentlock keys create --agent github-assistant --name walkthrough
+Key cmv5bgxl00007z0vtw3civbnx (il_live_7Ilh…) for github-assistant
+INTENTLOCK_API_KEY=il_live_…
+Shown once: store it in the agent app's secrets now.
+
+$ intentlock policy push --agent github-assistant -m Hold public comments policy.yaml
+Published github-assistant v2 (was v1)
+
+$ curl -X POST http://localhost:3100/v1/plans # agent signs a plan for alice
+{"planId":"01M4R6FB0PBB7K858T0BVE3RVC","token":"…","planHash":"xziXTccduGEtpNJeCHO0osjHOsWzgj-f-wSjIdx6ogk","policyVersion":2,"policyHash":"0E8KgKyajZFjDfYO_6EXHNHJe3NyXHLRq4NVm7R62B4","expiresAt":"2026-10-12T14:12:43.062Z"}
+
+$ curl -X POST http://localhost:3100/v1/check # in plan, in scope
+{"verdict":"allow","ruleId":"allow-in-plan","planStep":0}
+
+$ curl -X POST http://localhost:3100/v1/check # off plan (the injected PR)
+{"verdict":"block","ruleId":null,"reason":"not_in_plan"}
+
+$ curl -X POST http://localhost:3100/v1/check # public comment → hold
+{"verdict":"hold","ruleId":"hold-public-comments","planStep":1,"approvers":{"roles":["approver"],"emails":[],"self":false},"timeoutSeconds":300,"holdId":"cmv5bh2ml0009z0vtnd79b4jz"}
+
+$ curl -X POST http://localhost:3100/v1/holds/cmv5bh2ml0009z0vtnd79b4jz/approve # with the API key → refused
+401
+
+$ curl -X POST http://localhost:3100/v1/auth/login # approver signs in
+{"user":{"email":"approver@acme-demo.dev","role":"approver","groups":[]}}
+
+$ curl -X POST http://localhost:3100/v1/holds/cmv5bh2ml0009z0vtnd79b4jz/approve # approver approves
+approved
+
+$ curl http://localhost:3100/v1/holds/cmv5bh2ml0009z0vtnd79b4jz/wait?timeout=5 # the waiting agent sees the decision
+{"status":"approved"}
+
+$ curl -X POST http://localhost:3100/v1/report # agent reports the run
+{"planStatus":"active"}
+
+$ curl http://localhost:3100/v1/audit/verify
+{"ok":true,"count":13,"flagged":[]}
+
+$ curl http://localhost:3100/v1/audit?format=jsonl > export.jsonl && intentlock audit verify --file export.jsonl
+lines: 13
+ok: 13 entries, chain intact
+```
+
+**Acceptance: HybridGate with the server stopped mid-way**
+
+```text
+13:58:15 signed plan 01M4R6GAV85ANMEJ60EAY37MH9 policy v2
+13:58:16 check h1 github_list_issues(acme-demo/public-app) → allow allow-in-plan
+13:58:16 check h2 github_list_issues(acme-demo/private-notes) → block not_in_plan
+13:58:18 STOP_SERVER
+13:58:23 check h3 github_list_issues(acme-demo/public-app) → allow allow-in-plan
+13:58:23 check h4 github_create_pull_request(acme-demo/public-app) → block not_in_plan
+13:58:23 check h5 github_list_issues(acme-demo/public-app) → allow allow-in-plan
+13:58:23 upload failed: POST /v1/audit/batch failed
+13:58:24 upload failed: POST /v1/audit/batch failed
+13:58:25 START_SERVER
+13:58:26 upload failed: POST /v1/audit/batch failed
+13:58:30 upload failed: POST /v1/audit/batch failed
+13:58:35 upload failed: POST /v1/audit/batch failed
+13:58:46 upload failed: POST /v1/audit/batch failed
+13:58:51 closed: outbox drained
+```
+
+After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":19,"flagged":[]}`; the five client entries are stored once each as `clientSeq` 1–5 (allow, block, allow, block, allow), none flagged; the run shows allow 3 / block 2. The outbox files stay on disk because that plan has no required steps, so it never completes; files are deleted only for completed, fully acked plans (ADR-038).
+
+**Vendor keypair (for licenses), never committed**
+- Generate: `node packages/cli/dist/bin.js keygen --out keys/vendor` (or `pnpm --filter @intentlock/cli build` first), then rename `keys/vendor/signing-key.pem` → `keys/vendor-private.pem`; `keys/` and `*.pem` are git-ignored
+- Put the public half (`signing-key.pub.pem`) into `apps/server/src/license/constants/vendor-public-key.constant.ts` and release the server
+- Issue: `pnpm issue-license --key keys/vendor-private.pem --licensee "Acme" --edition team --expires 2027-10-12 --max-users 25 --max-agents 10 --features multi_instance,audit_export --out acme.license`
+- The pair in use today was generated on 2026-10-12 (ADR-035)
+
+**Problems hit and how they were solved**
+- `scripts/` has no package of its own → the script runs with root `tsx` and imports the server's schema by relative path, which also resolves the server's `zod`
+- Docker Desktop was down again; on the first run after a cold Postgres start the bootstrap race test took 11 s (10 s limit) and failed once, then passed on every rerun (full server suite 115/115). If it recurs in CI, raise that test's timeout
+
+**Decisions** (link ADRs)
+- ADR-040: CLI and license issuer
+
+**Numbers**
+- core 147, sdk 23, cli 13, server 115 tests; whole monorepo lint, typecheck, test, build, format green
+
+**Next**
+- Phase 3: neutral provider types + `LLMProvider`, `FakeProvider`, OpenAI-compatible adapter, guard loop, Anthropic adapter
+
+**Notes for Abdullah**
+- Phase 3 needs a `refresh(planId, token)` method on the SDK `Gate` interface (guard rule 6) — a public API change I will ask about first
+- Phase 3 also needs a free model option: a Gemini or Groq API key, or Ollama with a tool-calling model
+- Phase 0 leftovers still open: npm scope + repo name, CI green on GitHub
