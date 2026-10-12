@@ -2,16 +2,15 @@ import { ConflictException, HttpStatus, Injectable, NotFoundException } from "@n
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
-import { AuditVerdict } from "../audit/enums/audit-verdict.enum.js";
 import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
 import type { SessionUser } from "../common/types/auth.types.js";
+import { emptyVerdictCounts, tallyVerdicts } from "../common/utils/verdict-counts.util.js";
 import { Prisma } from "../generated/prisma/client.js";
 import { LicensedResource } from "../license/enums/licensed-resource.enum.js";
 import { LicenseService } from "../license/license.service.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AgentError } from "./enums/agent-error.enum.js";
-import type { AgentDecisionCounts } from "./types/agent-decision-counts.type.js";
 import { createAgent } from "./utils/create-agent.util.js";
 import { toAgentView } from "./utils/to-agent-view.util.js";
 
@@ -62,7 +61,7 @@ export class AgentsService {
       orgId,
       agents.map((a) => a.id),
     );
-    return agents.map((a) => toAgentView(a, counts.get(a.id) ?? emptyCounts()));
+    return agents.map((a) => toAgentView(a, counts.get(a.id) ?? emptyVerdictCounts()));
   }
 
   async get(orgId: string, id: string) {
@@ -72,7 +71,7 @@ export class AgentsService {
     });
     if (!agent) throw notFound();
     const counts = await this.decisionCounts(orgId, [id]);
-    return toAgentView(agent, counts.get(id) ?? emptyCounts());
+    return toAgentView(agent, counts.get(id) ?? emptyVerdictCounts());
   }
 
   async findOrThrow(orgId: string, id: string) {
@@ -126,16 +125,7 @@ export class AgentsService {
       },
       _count: { _all: true },
     });
-    const counts = new Map<string, AgentDecisionCounts>();
-    for (const row of rows) {
-      if (!row.agentId) continue;
-      const c = counts.get(row.agentId) ?? emptyCounts();
-      if (row.verdict === AuditVerdict.ALLOW) c.allow += row._count._all;
-      if (row.verdict === AuditVerdict.BLOCK) c.block += row._count._all;
-      if (row.verdict === AuditVerdict.HOLD) c.hold += row._count._all;
-      counts.set(row.agentId, c);
-    }
-    return counts;
+    return tallyVerdicts(rows, (r) => r.agentId);
   }
 
   private async unique<T>(write: () => Promise<T>): Promise<T> {
@@ -154,10 +144,6 @@ export class AgentsService {
       throw e;
     }
   }
-}
-
-function emptyCounts(): AgentDecisionCounts {
-  return { allow: 0, block: 0, hold: 0 };
 }
 
 function notFound() {

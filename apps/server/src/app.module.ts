@@ -20,6 +20,9 @@ import { PlansModule } from "./plans/plans.module.js";
 import { PoliciesModule } from "./policies/policies.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
+import { RunsModule } from "./runs/runs.module.js";
+import { StatsModule } from "./stats/stats.module.js";
+import { EventsModule } from "./events/events.module.js";
 import { UsersModule } from "./users/users.module.js";
 
 @Module({
@@ -40,6 +43,9 @@ import { UsersModule } from "./users/users.module.js";
     CheckModule,
     ReportsModule,
     HealthModule,
+    RunsModule,
+    StatsModule,
+    EventsModule,
   ],
   // Global guards run in this order; SessionGuard is the default deny.
   providers: [

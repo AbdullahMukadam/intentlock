@@ -1,9 +1,9 @@
 import type { Agent } from "../../generated/prisma/client.js";
-import type { AgentDecisionCounts } from "../types/agent-decision-counts.type.js";
+import type { VerdictCounts } from "../../common/types/verdict-counts.type.js";
 
 export function toAgentView(
   agent: Agent & { policy: { activeVersion: number } | null; _count: { apiKeys: number } },
-  last24h: AgentDecisionCounts,
+  last24h: VerdictCounts,
 ) {
   return {
     id: agent.id,

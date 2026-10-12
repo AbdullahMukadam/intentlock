@@ -3,6 +3,7 @@ import { ThrottlerModule } from "@nestjs/throttler";
 
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
+import { SessionsService } from "./sessions.service.js";
 import { LoginThrottler } from "./enums/login-throttler.enum.js";
 
 const MINUTE = 60_000;
@@ -29,6 +30,7 @@ const MINUTE = 60_000;
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, SessionsService],
+  exports: [SessionsService],
 })
 export class AuthModule {}

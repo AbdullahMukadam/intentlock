@@ -2,13 +2,18 @@ import type { Request, Response } from "express";
 
 import { SESSION_COOKIE, SESSION_TTL_MS } from "../constants/session.constants.js";
 
-export function readCookie(req: Request, name: string): string | undefined {
-  for (const part of (req.headers.cookie ?? "").split(";")) {
+export function parseCookie(header: string | undefined, name: string): string | undefined {
+  for (const part of (header ?? "").split(";")) {
     const eq = part.indexOf("=");
-    if (eq > 0 && part.slice(0, eq).trim() === name)
+    if (eq > 0 && part.slice(0, eq).trim() === name) {
       return decodeURIComponent(part.slice(eq + 1).trim());
+    }
   }
   return undefined;
+}
+
+export function readCookie(req: Request, name: string): string | undefined {
+  return parseCookie(req.headers.cookie, name);
 }
 
 export function setSessionCookie(res: Response, value: string, secure: boolean) {

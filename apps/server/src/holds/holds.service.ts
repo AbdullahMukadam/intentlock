@@ -17,6 +17,8 @@ import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
 import { AuditVerdict } from "../audit/enums/audit-verdict.enum.js";
 import { LoggerContext } from "../common/enums/logger-context.enum.js";
+import { EventName } from "../events/enums/event-name.enum.js";
+import { EventsService } from "../events/events.service.js";
 import type { AgentCaller, SessionUser } from "../common/types/auth.types.js";
 import { isHold } from "../common/utils/decision.util.js";
 import { toJson } from "../common/utils/to-json.util.js";
@@ -32,7 +34,10 @@ import type { NewHold } from "./types/new-hold.type.js";
 import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
 import { toHoldView } from "./utils/to-hold-view.util.js";
 
-type ExpiredRow = Pick<Hold, "id" | "planId" | "agentId" | "user" | "tool" | "ruleId">;
+type ExpiredRow = Pick<
+  Hold,
+  "id" | "planId" | "agentId" | "user" | "tool" | "ruleId" | "approvers"
+>;
 
 @Injectable()
 export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
@@ -44,6 +49,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly keys: KeysService,
+    private readonly events: EventsService,
   ) {}
 
   onModuleInit() {
@@ -199,6 +205,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
       );
       return tx.hold.findFirstOrThrow({ where: { id: holdId } });
     });
+    this.announceResolved(resolved);
     return toHoldView(resolved);
   }
 
@@ -211,29 +218,63 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
 
   // Idempotent across instances: a hold leaves PENDING once, and only returned rows are audited.
   async expireDue(orgId: string): Promise<number> {
-    return orgDb(this.prisma, orgId).$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<ExpiredRow[]>`
+    return orgDb(this.prisma, orgId)
+      .$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<ExpiredRow[]>`
         UPDATE "Hold" SET status = ${HoldStatus.EXPIRED}::"HoldStatus", "resolvedAt" = now()
         WHERE "orgId" = ${orgId} AND status = ${HoldStatus.PENDING}::"HoldStatus" AND "expiresAt" <= now()
-        RETURNING id, "planId", "agentId", "user", tool, "ruleId"`;
-      if (rows.length > 0) {
-        await this.audit.append(
-          orgId,
-          rows.map((h) => ({
-            kind: AuditKind.HOLD_RESOLVED,
-            user: h.user,
-            planId: h.planId,
-            agentId: h.agentId,
-            tool: h.tool,
-            verdict: AuditVerdict.EXPIRED,
-            ruleId: h.ruleId,
-            payload: { holdId: h.id },
-          })),
-          tx,
-        );
-      }
-      return rows.length;
-    });
+        RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
+        if (rows.length > 0) {
+          await this.audit.append(
+            orgId,
+            rows.map((h) => ({
+              kind: AuditKind.HOLD_RESOLVED,
+              user: h.user,
+              planId: h.planId,
+              agentId: h.agentId,
+              tool: h.tool,
+              verdict: AuditVerdict.EXPIRED,
+              ruleId: h.ruleId,
+              payload: { holdId: h.id },
+            })),
+            tx,
+          );
+        }
+        return rows;
+      })
+      .then((rows) => {
+        for (const row of rows)
+          this.announceResolved({ ...row, orgId, status: HoldStatus.EXPIRED });
+        return rows.length;
+      });
+  }
+
+  announceCreated(hold: Hold) {
+    this.events.publish(
+      EventName.HOLD_CREATED,
+      {
+        holdId: hold.id,
+        planId: hold.planId,
+        agentId: hold.agentId,
+        tool: hold.tool,
+        user: hold.user,
+        ruleId: hold.ruleId,
+      },
+      { orgId: hold.orgId, user: hold.user, approvers: this.spec(hold.approvers) },
+    );
+  }
+
+  private announceResolved(hold: Pick<Hold, "id" | "orgId" | "user" | "status" | "approvers">) {
+    this.events.publish(
+      EventName.HOLD_RESOLVED,
+      { holdId: hold.id, status: toHoldState(hold.status) },
+      { orgId: hold.orgId, user: hold.user, approvers: this.spec(hold.approvers) },
+    );
+  }
+
+  private spec(approvers: unknown) {
+    const parsed = ApproverSpec.safeParse(approvers);
+    return parsed.success ? parsed.data : undefined;
   }
 
   private mayApprove(user: SessionUser, hold: Hold): boolean {
