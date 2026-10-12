@@ -276,3 +276,28 @@ A running log of every work session. **Append a new entry at the bottom** at the
 
 **Notes for Abdullah**
 - In production `SIGNING_KEY` is now mandatory (the server refuses to boot without it); `intentlock keygen` arrives with the CLI task, until then a dev boot logs a generated key you can copy
+
+### 2026-10-12 · Session 9 · Phase 2 — runs, stats, live events
+
+**Done**
+- `GET /v1/runs` (role-scoped, counts, cursor, status filter) and `GET /v1/runs/:planId` (ordered decisions, holds, reports, timing)
+- `GET /v1/stats/overview`: verdicts over time, totals, top blocked tools and rules, pending holds, median time-to-approve, flagged count, audit lag
+- WebSocket `/events` with handshake auth, origin check, per-role filtering, 60 s session recheck; `decision`, `hold.created`, `hold.resolved` emitted after commit
+- `SessionsService` extracted so HTTP and WebSocket share one session check; verdict tallying shared by agents and runs
+
+**Problems hit and how they were solved**
+- `SIGNING_KEY` in `.env` held only the PEM's first line (unquoted multi-line value), and `keys/signing-key.pem` was UTF-16 (PowerShell `>` redirect) → converted the file to UTF-8 and rewrote the entry as a double-quoted value; the server now loads it (kid `9a4FWXxG`)
+- Docker Desktop was down again after the overnight restart → restarted
+- Socket auth in `handleConnection` left a moment where an unauthenticated socket was connected → moved to Socket.IO handshake middleware
+
+**Decisions** (link ADRs)
+- ADR-037: runs, stats, live events
+
+**Numbers**
+- server: 102 tests (14 unit, 88 e2e); lint, typecheck, build, format green
+
+**Next**
+- Core `ClientEntry` + local hash chain, `POST /v1/audit/batch`, then `HttpGate`, `HybridGate`, outbox, worker, backpressure, shutdown
+
+**Notes for Abdullah**
+- When writing PEM files from PowerShell, use `Out-File -Encoding ascii` (or Git Bash); `>` writes UTF-16, which key parsers reject

@@ -77,7 +77,7 @@
 - [x] Agents: create (with starter policy v1), list (with 24 h counts), update, disable; license `maxAgents` enforced
 - [x] API keys per agent: `il_live_` + random, hash + prefix stored, shown once, `lastUsedAt`, revoke; agent API-key guard resolves `agentId`
 - [x] Policy store: `PolicySet` / `PolicyVersion` / `PolicyDraft`; endpoints for draft, validate, test (sample calls + replay last N decisions), publish (409 on stale `baseVersion`), rollback, versions; all publishes/rollbacks audited
-- [ ] Role-scoped read endpoints: `/v1/stats/overview`, `/v1/runs`, `/v1/runs/:planId`, filtered `/v1/audit` (+ JSONL export); audit denormalized columns + indexes from ARCHITECTURE §5.3
+- [x] Role-scoped read endpoints: `/v1/stats/overview`, `/v1/runs`, `/v1/runs/:planId`, filtered `/v1/audit` (+ JSONL export); audit denormalized columns + indexes from ARCHITECTURE §5.3
 - [x] Bootstrap on empty DB: create org (`ORG_NAME`) + admin (`BOOTSTRAP_ADMIN_EMAIL`), print one-time login token
 - [x] Auth: `/v1/auth/login|logout`, `/v1/me`, session guard, login rate limit (`@nestjs/throttler`), constant-time compare, CSRF header check, audit auth events
 - [x] Users endpoints (admin only); disabling a user or re-issuing a token revokes sessions
@@ -91,7 +91,7 @@
 - [x] `/health` and `/health/ready` (DB + signing key); graceful shutdown that drains long-polls
 - [x] Audit service: serialized append (transaction / row lock), `GET /v1/audit` paginated, `GET /v1/audit/verify`
 - [ ] `POST /v1/audit/batch`: idempotent on `(planId, clientSeq)`, client-chain + gap check, server re-run of `check()` with `flagged` on mismatch
-- [ ] WebSocket gateway `/events`: session required at handshake; `hold.created`, `hold.resolved`, `decision`, filtered per user role
+- [x] WebSocket gateway `/events`: session required at handshake; `hold.created`, `hold.resolved`, `decision`, filtered per user role
 - [ ] `HttpGate` in `packages/sdk`: keep-alive, timeouts, network error → block; hold wait loop with `AbortSignal`
 - [ ] `HybridGate`: JWKS cache, local verify + `check()`, per-plan usage counts, holds via server
 - [ ] Outbox: per-plan JSONL file with local hash chain, append + fsync before acting, `.ack` file (ARCHITECTURE §6.2)

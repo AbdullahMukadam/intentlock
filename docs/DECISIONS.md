@@ -303,3 +303,13 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   7. **Reports** find the call through its `check` audit entry (`payload.call.callId`), increment `ran` for that step once per `callId`, and mark the plan `COMPLETED` when every required step has run. Plans with no required steps stay `ACTIVE`.
   8. **Audit reads:** members only see entries whose `user` is them, whatever `user` filter they send. Cursor pagination on `seq`. `format=jsonl` streams oldest-first in batches; an unfiltered admin export verifies offline with core `verifyChain`. `GET /v1/audit/verify` walks the global chain in batches of 1 000 and lists up to 100 flagged entries.
 - **Consequences:** Report idempotency is read-then-write (a `ponytail:` note marks it). `/v1/audit/batch`, stats and runs come in the next chunk.
+
+### ADR-037: Runs, stats and live events
+- **Date:** 2026-10-12 · **Status:** Accepted · `socket.io-client` added as a server **dev** dependency (tests only)
+- **Decision:**
+  1. **Runs:** a run is a `Plan` row; list is newest first with cursor on the ULID id, decision counts from `check` audit entries, and status `expired` derived from `expiresAt` (no job flips rows). Detail returns the plan, agent, ordered decisions (call args, verdict, rule, reason, hold id), holds, reports and timing. Members get 404 for someone else's run, not 403, so run ids do not leak.
+  2. **Stats overview:** raw SQL (`date_trunc`, `GROUP BY`, `percentile_cont`) with `orgId` and the member scope filtered by hand. Default range 24 h, max 90 days; hourly buckets up to 48 h, daily beyond. Audit lag is measured on client entries (`at - clientAt`) and is `null` until hybrid batches exist.
+  3. **One session check:** `SessionsService` validates sessions for both `SessionGuard` and the WebSocket handshake.
+  4. **WebSocket `/events`:** Socket.IO namespace; the session cookie is checked in handshake middleware (unauthenticated sockets never connect), and a browser `Origin` must be `PUBLIC_URL` or listed in `CORS_ORIGINS`. Events: `decision`, `hold.created`, `hold.resolved`, with small payloads, emitted after the transaction commits. Members get their own events plus holds they may approve; admins and approvers get everything in their org. Sessions are re-checked every 60 s and sockets of disabled users or ended sessions are dropped.
+  5. **Single-instance fan-out** for now (`ponytail:` note in `events.service.ts`); cross-instance delivery stays the DEPLOYMENT §6.1 design, and the inbox polls holds every 10 s anyway.
+- **Consequences:** a few seconds of event loss on reconnect is acceptable because every view can reload from REST.

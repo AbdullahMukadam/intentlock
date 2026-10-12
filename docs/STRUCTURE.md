@@ -230,13 +230,15 @@ src/
 │   ├── logger/                     # create-logger.util.ts, pino-logger.service.ts
 │   ├── pipes/                      # zod-validation.pipe.ts (global, fail closed)
 │   ├── schemas/                    # shared zod field schemas (email.schema.ts)
-│   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest)
-│   └── utils/                      # crypto, zod-dto, auth-kind, ulid, to-json, decision (isHold/isBlock) (*.util.ts)
+│   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest), verdict-counts.type.ts
+│   └── utils/                      # crypto, zod-dto, auth-kind, ulid, to-json, decision (isHold/isBlock), verdict-counts (*.util.ts)
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
 ├── org/                            # org.module.ts, org-bootstrap.service.ts (runs on boot)
 │   └── utils/                      # bootstrap-org.util.ts (also used by the seed), org-db.util.ts (org-scoped client)
 ├── auth/                           # auth.module/controller/service (login, logout, me; login rate limit)
+│   ├── sessions.service.ts         # the one session check, shared by SessionGuard and the WebSocket handshake
 │   ├── constants/                  # session.constants.ts
+│   ├── types/                      # resolved-session.type.ts
 │   ├── dto/                        # login.dto.ts
 │   ├── enums/                      # auth-error, login-throttler
 │   ├── guards/                     # session.guard.ts (default deny)
@@ -250,7 +252,6 @@ src/
 │   ├── dto/                        # create-agent, update-agent, agent-id-params
 │   ├── enums/                      # agent-error
 │   ├── schemas/                    # agent-fields.schema.ts (kebab-case name, id)
-│   ├── types/                      # agent-decision-counts.type.ts
 │   ├── utils/                      # create-agent.util.ts (agent + starter policy v1), to-agent-view.util.ts
 │   └── api-keys/                   # api-keys.module/controller/service: create (shown once), list, revoke
 │       ├── dto/                    # create-api-key, api-key-params
@@ -272,8 +273,12 @@ src/
 │   ├── enums/                      # policy-error
 │   ├── schemas/                    # policy-fields.schema.ts, check-payload.schema.ts (what replay reads from audit)
 │   └── utils/                      # compile-policy, to-policy-version-view, to-policy-draft-view
-├── stats/                          # GET /v1/stats/overview (role-scoped aggregates)
-├── runs/                           # GET /v1/runs, /v1/runs/:planId
+├── stats/                          # stats.module/controller/service: GET /v1/stats/overview (raw SQL aggregates, role-scoped)
+│   ├── constants/ · dto/ · enums/  # stats.constants, overview-query.dto, stats-bucket + stats-error
+├── runs/                           # runs.module/controller/service: GET /v1/runs, /v1/runs/:planId (members: own only)
+│   ├── constants/ · dto/ · enums/  # runs.constants, list-runs-query + run-params, run-status + run-error
+│   ├── schemas/                    # run-entry-payload.schema.ts
+│   └── utils/                      # run-status.util.ts (expired is derived from expiresAt)
 ├── plans/                          # plans.module/controller/service: POST /v1/plans, /refresh (stored plan, current policy)
 │   ├── constants/ · enums/ · schemas/ · dto/   # plan.constants, plan-error, plan-fields (PlanSchema, TokenSchema), sign/refresh/params DTOs
 │   └── utils/                      # unsafe-regexes.util.ts (ReDoS heuristic at signing)
@@ -295,7 +300,10 @@ src/
 │   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format
 │   ├── types/                      # audit-input.type.ts
 │   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry)
-├── events/                         # events.gateway.ts (WebSocket /events)
+├── events/                         # events.module, events.gateway.ts (WebSocket /events, session checked in handshake middleware),
+│   │                               # events.service.ts (per-socket viewer, filtered publish, session recheck every 60 s)
+│   ├── constants/ · enums/ · types/   # events.constants, event-name, event-audience.type
+│   └── utils/                      # can-see-event.util.ts
 └── health/                         # health.module/controller: /health, /health/ready (DB + signing key)
 test/
 ├── global-setup.ts                 # once per run: point at TEST_DATABASE_URL, `prisma migrate deploy`
@@ -305,7 +313,8 @@ test/
 ├── routes.e2e.test.ts              # every route requires auth unless explicitly public / agent-only
 ├── agents.e2e.test.ts              # agents, keys, revoke, disable; a probe @AgentAuth controller tests the API-key guard
 ├── policies.e2e.test.ts            # draft, test, publish, 409, rollback, version used by new plans
-├── visibility.e2e.test.ts          # role-scoped stats/runs/audit/holds
+├── visibility.e2e.test.ts          # role-scoped runs and stats
+├── events.e2e.test.ts              # WebSocket handshake auth, per-role filtering, disabled-user drop
 ├── license.e2e.test.ts
 ├── plans.e2e.test.ts               # signing, snapshots, refresh, JWKS
 ├── check.e2e.test.ts               # check, report, maxCalls under concurrency, chain under load, audit list/export/verify
