@@ -111,10 +111,10 @@
 ## Phase 3 · Agent guard + providers (Wed 14) — `packages/guard`, `packages/anthropic`
 
 **3a · Provider layer**
-- [ ] Neutral types + `LLMProvider` interface per ARCHITECTURE §7.1
-- [ ] `FakeProvider` (scripted responses, records requests)
-- [ ] `OpenAICompatibleProvider` using the `openai` client with custom `baseURL`; map tools, `tool_calls` (parse JSON-string args safely), and `role: "tool"` results; unit tests with recorded responses
-- [ ] `providerFromEnv()` with zod-validated `LLM_*` env vars
+- [x] Neutral types + `LLMProvider` interface per ARCHITECTURE §7.1
+- [x] `FakeProvider` (scripted responses, records requests)
+- [x] `OpenAICompatibleProvider` using the `openai` client with custom `baseURL`; map tools, `tool_calls` (parse JSON-string args safely), and `role: "tool"` results; unit tests with recorded responses
+- [x] `providerFromEnv()` with zod-validated `LLM_*` env vars
 - [ ] Pick the default free model: run the same 3-tool smoke task on 2–3 options (e.g. a Gemini model via its OpenAI-compatible endpoint, a Groq-hosted model, a local Ollama model); record tool-call reliability and the choice in an ADR — **needs a free API key or Ollama from Abdullah**
 
 **3b · Guard loop (provider-agnostic)**

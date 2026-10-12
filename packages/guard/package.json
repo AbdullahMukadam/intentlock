@@ -22,7 +22,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@intentlock/sdk": "workspace:*"
+    "@intentlock/core": "workspace:*",
+    "@intentlock/sdk": "workspace:*",
+    "openai": "^7.32.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",

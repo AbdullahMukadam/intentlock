@@ -710,7 +710,7 @@ export type ToolDef = {
   inputSchema: JSONSchema;           // JSON Schema object, generated from the tool's zod schema with zod 4's z.toJSONSchema()
 };
 
-export type ToolCallReq = { id: string; name: string; args: Record<string, unknown> };
+export type ToolCallReq = { id: string; name: string; args: Record<string, unknown>; argsError?: string };   // argsError: adapter could not parse args → never executed (ADR-041)
 
 export type Message =
   | { role: "user"; text: string }
@@ -746,7 +746,7 @@ export interface LLMProvider {
 | `AnthropicProvider({ apiKey, model })` | `anthropic` | Messages API: `tool_use` content blocks in, `tool_result` blocks (with `is_error`) back in one user message | Tested with recorded/fake responses until a key is available; one live test behind `RUN_LIVE_ANTHROPIC=1`. |
 | `FakeProvider(script)` | `guard` | Returns scripted `ChatResponse`s in order; records requests | Used by every unit test and by `DEMO_FORCE_ATTACK=1` (scripted malicious tool calls, clearly labelled in the UI). |
 
-**Config** (env, validated with zod): `LLM_PROVIDER=openai-compatible|anthropic|fake`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. A `providerFromEnv()` helper builds the right adapter. The chosen default free model is recorded in an ADR during Phase 3 after a quick reliability comparison.
+**Config** (env, validated with zod): `LLM_PROVIDER=openai-compatible|anthropic|fake`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. A `providerFromEnv()` helper builds the right adapter; the one re-exported by `@intentlock/anthropic` also handles `anthropic` (ADR-041). The chosen default free model is recorded in an ADR during Phase 3 after a quick reliability comparison.
 
 ### 7.3 Guard API
 

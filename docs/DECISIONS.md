@@ -343,3 +343,13 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   5. **Testability:** every command runs against an injected `CliContext` (fetch, home, cwd, print, prompt); `bin.ts` wires the real ones. Tests use a fake fetch router that records each request.
   6. **`scripts/issue-license.ts`** imports the server's `LicenseSchema` and enums, so the issuer can never produce a license the server's parser would reject, and signs with `node:crypto` Ed25519 (no extra dependency). Run as `pnpm issue-license`. A server unit test runs the script with a throwaway vendor key and verifies the result with the server's own `verifyLicense`.
 - **Consequences:** CLI API commands are tested against a fake server, not the real one (the import boundaries keep the server tests from importing the CLI); the Phase 2 walkthrough below exercised them against a real server.
+
+### ADR-041: Provider layer details
+- **Date:** 2026-10-12 · **Status:** Accepted · Amends ARCHITECTURE §7.1, §7.2 (updated in the same change); `openai` and `zod` added to `packages/guard` (both on the allowed list), plus `@intentlock/core` as a direct dependency (already reachable through sdk)
+- **Decision:**
+  1. **`ToolCallReq.argsError?`**: an adapter that cannot turn a call's arguments into a JSON object sets `args: {}` and `argsError` instead of throwing, so one bad call does not lose the rest of the turn; the guard turns it into an error result and never executes it (§7.5 rule 5). Missing provider call ids get `call_<uuid>`, never an index (an index can collide with a real id).
+  2. **Neutral fixed values are enums** in `guard/src/provider/enums/`: `MessageRole`, `ToolChoice` (`AUTO`; a forced choice stays `{ name }`), `ProviderKind` (the `LLM_PROVIDER` values).
+  3. **OpenAI tool results carry no error flag**, so error results are sent as `ERROR: <content>`.
+  4. **`providerFromEnv(env = process.env, { anthropic?, fakeScript? })`**: guard may not import `@intentlock/anthropic` (it sits above guard), so `LLM_PROVIDER=anthropic` needs the factory, and `@intentlock/anthropic` re-exports a `providerFromEnv` that passes it. Apps that import the anthropic one switch between all three providers with no code change. Empty `LLM_*` values count as unset; missing `LLM_PROVIDER` means `fake`; `LLM_API_KEY` is optional for openai-compatible (Ollama needs none).
+  5. **`OpenAICompatibleProvider` accepts an injected `client`** (`Pick<OpenAI, "chat">`) for tests; the default client has a 60 s timeout and 2 retries.
+- **Alternatives:** Throwing on bad JSON (loses the other calls' results and breaks rule 2); a dynamic import of the anthropic package from guard (reverses the dependency graph).
