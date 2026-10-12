@@ -1,11 +1,11 @@
-import type { Decision, HoldDecision } from "@intentlock/core";
-
-import { AuditVerdict } from "../../audit/enums/audit-verdict.enum.js";
+import { type Decision, type HoldDecision, Verdict } from "@intentlock/core";
 
 export function isHold(decision: Decision): decision is HoldDecision {
-  return decision.verdict === AuditVerdict.HOLD;
+  return decision.verdict === Verdict.HOLD;
 }
 
-export function isBlock(decision: Decision): decision is Extract<Decision, { verdict: "block" }> {
-  return decision.verdict === AuditVerdict.BLOCK;
+export function isBlock(
+  decision: Decision,
+): decision is Extract<Decision, { verdict: Verdict.BLOCK }> {
+  return decision.verdict === Verdict.BLOCK;
 }

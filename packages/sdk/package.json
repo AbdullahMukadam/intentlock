@@ -23,7 +23,8 @@
     "example": "tsx examples/local.ts"
   },
   "dependencies": {
-    "@intentlock/core": "workspace:*"
+    "@intentlock/core": "workspace:*",
+    "jose": "^6.2.12"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",

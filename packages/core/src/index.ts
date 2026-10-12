@@ -1,3 +1,10 @@
+export { BlockReason } from "./enums/block-reason.enum.js";
+export { ClientBlockReason } from "./enums/client-block-reason.enum.js";
+export { ClientEntryKind } from "./enums/client-entry-kind.enum.js";
+export { ReportOutcome } from "./enums/report-outcome.enum.js";
+export { Verdict } from "./enums/verdict.enum.js";
+export { API_ENDPOINTS, apiPath, type ApiEndpoint } from "./api/endpoints.js";
+export { chainClientEntry, hashClientEntry, type NewClientEntry } from "./audit/client-chain.js";
 export { GENESIS, hashEntry } from "./audit/hash-entry.js";
 export { verifyChain, type ChainBreak, type ChainResult } from "./audit/verify-chain.js";
 export { jcs, planHash, policyHash, sha256Base64url } from "./canonical.js";
@@ -32,16 +39,15 @@ export {
   type Comparison,
   type ComparisonResult,
   type PolicyOutcome,
-  type PolicyVerdict,
   type SampleCall,
 } from "./policy/compare.js";
 export { evaluatePolicy } from "./policy/evaluate.js";
 export { matches, type MatchContext, type PolicyUser } from "./policy/match.js";
 export { parsePolicy, type PolicyError, type PolicyParseResult } from "./policy/parse.js";
 export { STARTER_POLICY } from "./policy/starter.js";
-export { AuditEntry, AuditEntryBody } from "./schemas/audit.js";
+export { AuditEntry, AuditEntryBody, ClientEntry, ClientEntryBody } from "./schemas/audit.js";
 export { BundleClaims } from "./schemas/bundle.js";
-export { BlockReason, Decision, type GateDecision, type HoldDecision } from "./schemas/decision.js";
+export { Decision, GateDecision, type HoldDecision } from "./schemas/decision.js";
 export {
   ArgCondition,
   ArgConstraint,

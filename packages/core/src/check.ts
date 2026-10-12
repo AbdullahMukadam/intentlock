@@ -3,11 +3,13 @@ import { TokenExpiredError } from "./errors.js";
 import { matchStep } from "./plan/match-step.js";
 import { evaluatePolicy } from "./policy/evaluate.js";
 import type { BundleClaims } from "./schemas/bundle.js";
-import type { BlockReason, Decision } from "./schemas/decision.js";
+import { BlockReason } from "./enums/block-reason.enum.js";
+import { Verdict } from "./enums/verdict.enum.js";
+import type { Decision } from "./schemas/decision.js";
 import { ToolCall } from "./schemas/tool-call.js";
 
 export function block(reason: BlockReason): Decision {
-  return { verdict: "block", ruleId: null, reason };
+  return { verdict: Verdict.BLOCK, ruleId: null, reason };
 }
 
 function decideUnsafe(bundle: BundleClaims, call: ToolCall, usage: readonly number[]): Decision {
@@ -21,27 +23,27 @@ function decideUnsafe(bundle: BundleClaims, call: ToolCall, usage: readonly numb
       break;
     }
   }
-  if (!matchedStep) return block("not_in_plan");
-  if (planStep < 0) return block("call_limit");
+  if (!matchedStep) return block(BlockReason.NOT_IN_PLAN);
+  if (planStep < 0) return block(BlockReason.CALL_LIMIT);
 
   const ctx = {
     user: { email: bundle.sub, role: bundle.role, groups: bundle.groups },
     inPlan: true,
   };
   const rule = evaluatePolicy(bundle.pol, call, ctx);
-  if (!rule) return block("no_matching_rule");
+  if (!rule) return block(BlockReason.NO_MATCHING_RULE);
   switch (rule.decision) {
-    case "allow":
-      return { verdict: "allow", ruleId: rule.id, planStep };
-    case "block":
+    case Verdict.ALLOW:
+      return { verdict: Verdict.ALLOW, ruleId: rule.id, planStep };
+    case Verdict.BLOCK:
       return {
-        verdict: "block",
+        verdict: Verdict.BLOCK,
         ruleId: rule.id,
         reason: rule.reason ?? `Blocked by rule ${rule.id}`,
       };
-    case "hold":
+    case Verdict.HOLD:
       return {
-        verdict: "hold",
+        verdict: Verdict.HOLD,
         ruleId: rule.id,
         planStep,
         approvers: rule.approvers,
@@ -58,7 +60,7 @@ export function check(bundle: BundleClaims, call: ToolCall, usage: readonly numb
   try {
     return decideUnsafe(bundle, call, usage);
   } catch {
-    return block("internal_error");
+    return block(BlockReason.INTERNAL_ERROR);
   }
 }
 
@@ -75,15 +77,18 @@ export async function decide(
   now: Date,
 ): Promise<Decision> {
   const parsedCall = ToolCall.safeParse(call);
-  if (!parsedCall.success) return block("invalid_call");
+  if (!parsedCall.success) return block(BlockReason.INVALID_CALL);
   let bundle: BundleClaims;
   try {
     bundle = await verifyBundle(token, key, now);
   } catch (err) {
-    return block(err instanceof TokenExpiredError ? "token_expired" : "invalid_token");
+    return block(
+      err instanceof TokenExpiredError ? BlockReason.TOKEN_EXPIRED : BlockReason.INVALID_TOKEN,
+    );
   }
   const usage = usageFor(bundle.jti);
   const decision = check(bundle, parsedCall.data, usage);
-  if (decision.verdict !== "block") usage[decision.planStep] = (usage[decision.planStep] ?? 0) + 1;
+  if (decision.verdict !== Verdict.BLOCK)
+    usage[decision.planStep] = (usage[decision.planStep] ?? 0) + 1;
   return decision;
 }

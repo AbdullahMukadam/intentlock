@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
+    "@intentlock/sdk": "workspace:*",
     "@nestjs/cli": "^12.0.0",
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",

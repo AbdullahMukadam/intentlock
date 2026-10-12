@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put } from "@nestjs/common";
+import { API_ENDPOINTS } from "@intentlock/core";
 
 import { AgentIdParamsDto } from "../agents/dto/agent-id-params.dto.js";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
@@ -13,27 +14,27 @@ import { TestPolicyDto } from "./dto/test-policy.dto.js";
 import { ValidatePolicyDto } from "./dto/validate-policy.dto.js";
 import { PoliciesService } from "./policies.service.js";
 
-@Controller("v1/agents/:id/policy")
+@Controller()
 export class PoliciesController {
   constructor(private readonly policies: PoliciesService) {}
 
-  @Get()
+  @Get(API_ENDPOINTS.AGENT_POLICY)
   get(@CurrentUser() user: SessionUser, @Param() { id }: AgentIdParamsDto) {
     return this.policies.get(user.orgId, id);
   }
 
-  @Get("versions")
+  @Get(API_ENDPOINTS.AGENT_POLICY_VERSIONS)
   versions(@CurrentUser() user: SessionUser, @Param() { id }: AgentIdParamsDto) {
     return this.policies.versions(user.orgId, id);
   }
 
-  @Get("versions/:version")
+  @Get(API_ENDPOINTS.AGENT_POLICY_VERSION)
   version(@CurrentUser() user: SessionUser, @Param() { id, version }: PolicyVersionParamsDto) {
     return this.policies.getVersion(user.orgId, id, version);
   }
 
   @Roles(UserRole.ADMIN)
-  @Put("draft")
+  @Put(API_ENDPOINTS.AGENT_POLICY_DRAFT)
   saveDraft(
     @CurrentUser() admin: SessionUser,
     @Param() { id }: AgentIdParamsDto,
@@ -42,14 +43,14 @@ export class PoliciesController {
     return this.policies.saveDraft(admin, id, body.source, body.baseVersion);
   }
 
-  @Post("validate")
+  @Post(API_ENDPOINTS.AGENT_POLICY_VALIDATE)
   @HttpCode(HttpStatus.OK)
   validate(@Param() _params: AgentIdParamsDto, @Body() body: ValidatePolicyDto) {
     return this.policies.validate(body.source);
   }
 
   @Roles(UserRole.ADMIN, UserRole.APPROVER)
-  @Post("test")
+  @Post(API_ENDPOINTS.AGENT_POLICY_TEST)
   @HttpCode(HttpStatus.OK)
   test(
     @CurrentUser() user: SessionUser,
@@ -60,7 +61,7 @@ export class PoliciesController {
   }
 
   @Roles(UserRole.ADMIN)
-  @Post("publish")
+  @Post(API_ENDPOINTS.AGENT_POLICY_PUBLISH)
   publish(
     @CurrentUser() admin: SessionUser,
     @Param() { id }: AgentIdParamsDto,
@@ -70,7 +71,7 @@ export class PoliciesController {
   }
 
   @Roles(UserRole.ADMIN)
-  @Post("rollback")
+  @Post(API_ENDPOINTS.AGENT_POLICY_ROLLBACK)
   rollback(
     @CurrentUser() admin: SessionUser,
     @Param() { id }: AgentIdParamsDto,

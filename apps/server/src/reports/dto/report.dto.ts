@@ -1,8 +1,8 @@
+import { ReportOutcome } from "@intentlock/core";
 import { z } from "zod";
 
 import { zodDto } from "../../common/utils/zod-dto.util.js";
 import { TokenSchema } from "../../plans/schemas/plan-fields.schema.js";
-import { ReportOutcome } from "../enums/report-outcome.enum.js";
 
 export class ReportDto extends zodDto(
   z.strictObject({

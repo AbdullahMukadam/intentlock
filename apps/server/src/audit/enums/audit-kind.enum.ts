@@ -16,4 +16,5 @@ export enum AuditKind {
   CHECK = "check",
   HOLD_RESOLVED = "hold_resolved",
   REPORT = "report",
+  CLIENT_GAP = "client_gap",
 }

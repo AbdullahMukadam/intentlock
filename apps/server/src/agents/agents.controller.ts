@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { API_ENDPOINTS } from "@intentlock/core";
 
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { Roles } from "../common/decorators/roles.decorator.js";
@@ -9,28 +10,28 @@ import { AgentIdParamsDto } from "./dto/agent-id-params.dto.js";
 import { CreateAgentDto } from "./dto/create-agent.dto.js";
 import { UpdateAgentDto } from "./dto/update-agent.dto.js";
 
-@Controller("v1/agents")
+@Controller()
 export class AgentsController {
   constructor(private readonly agents: AgentsService) {}
 
   @Roles(UserRole.ADMIN)
-  @Post()
+  @Post(API_ENDPOINTS.AGENTS)
   create(@CurrentUser() admin: SessionUser, @Body() body: CreateAgentDto) {
     return this.agents.create(admin, body);
   }
 
-  @Get()
+  @Get(API_ENDPOINTS.AGENTS)
   list(@CurrentUser() user: SessionUser) {
     return this.agents.list(user.orgId);
   }
 
-  @Get(":id")
+  @Get(API_ENDPOINTS.AGENT)
   get(@CurrentUser() user: SessionUser, @Param() { id }: AgentIdParamsDto) {
     return this.agents.get(user.orgId, id);
   }
 
   @Roles(UserRole.ADMIN)
-  @Patch(":id")
+  @Patch(API_ENDPOINTS.AGENT)
   update(
     @CurrentUser() admin: SessionUser,
     @Param() { id }: AgentIdParamsDto,
@@ -41,7 +42,7 @@ export class AgentsController {
 
   // Agents are never hard-deleted: their policy versions and audit entries must stay resolvable.
   @Roles(UserRole.ADMIN)
-  @Delete(":id")
+  @Delete(API_ENDPOINTS.AGENT)
   disable(@CurrentUser() admin: SessionUser, @Param() { id }: AgentIdParamsDto) {
     return this.agents.update(admin, id, { disabled: true });
   }

@@ -10,8 +10,10 @@ import {
   signBundle,
   type GateDecision,
   type PlanInput,
-  type Role,
   type ToolCall,
+  ClientBlockReason,
+  Role,
+  Verdict,
 } from "@intentlock/core";
 
 import type { Gate, HoldOutcome, SignedPlan } from "./gate.js";
@@ -55,7 +57,7 @@ export class LocalGate implements Gate {
   }
 
   #user(email: string): LocalUser {
-    if (!this.#opts.users) return { role: "member" };
+    if (!this.#opts.users) return { role: Role.enum.member };
     const match = Object.entries(this.#opts.users).find(
       ([e]) => e.toLowerCase() === email.toLowerCase(),
     );
@@ -105,8 +107,13 @@ export class LocalGate implements Gate {
       usageFor,
       this.#now(),
     );
-    if (decision.verdict === "hold")
-      return { verdict: "block", ruleId: decision.ruleId, reason: "hold_requires_server" };
+    if (decision.verdict === Verdict.HOLD) {
+      return {
+        verdict: Verdict.BLOCK,
+        ruleId: decision.ruleId,
+        reason: ClientBlockReason.HOLD_REQUIRES_SERVER,
+      };
+    }
     return decision;
   }
 

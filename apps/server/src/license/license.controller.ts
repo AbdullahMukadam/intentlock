@@ -1,4 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
+import { API_ENDPOINTS } from "@intentlock/core";
 
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import type { SessionUser } from "../common/types/auth.types.js";
@@ -8,14 +9,14 @@ import { LicensedResource } from "./enums/licensed-resource.enum.js";
 import { LicenseService } from "./license.service.js";
 import { toLicenseView } from "./utils/to-license-view.util.js";
 
-@Controller("v1/license")
+@Controller()
 export class LicenseController {
   constructor(
     private readonly license: LicenseService,
     private readonly prisma: PrismaService,
   ) {}
 
-  @Get()
+  @Get(API_ENDPOINTS.LICENSE)
   async get(@CurrentUser() user: SessionUser) {
     const db = orgDb(this.prisma, user.orgId);
     const [users, agents] = await Promise.all([

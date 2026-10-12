@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { Verdict } from "../enums/verdict.enum.js";
 import { ArgCondition } from "./plan.js";
 
 export const Role = z.enum(["admin", "approver", "member"]);
@@ -36,11 +37,11 @@ const RuleBase = {
 };
 
 export const Rule = z.discriminatedUnion("decision", [
-  z.strictObject({ ...RuleBase, decision: z.literal("allow") }),
-  z.strictObject({ ...RuleBase, decision: z.literal("block") }),
+  z.strictObject({ ...RuleBase, decision: z.literal(Verdict.ALLOW) }),
+  z.strictObject({ ...RuleBase, decision: z.literal(Verdict.BLOCK) }),
   z.strictObject({
     ...RuleBase,
-    decision: z.literal("hold"),
+    decision: z.literal(Verdict.HOLD),
     approvers: ApproverSpec.refine((a) => a.roles.length > 0 || a.emails.length > 0 || a.self, {
       message: "A hold rule needs at least one possible approver (roles, emails or self: true)",
     }),
@@ -52,7 +53,7 @@ export type Rule = z.infer<typeof Rule>;
 export const PolicySet = z
   .strictObject({
     version: z.literal(1),
-    default: z.literal("block"),
+    default: z.literal(Verdict.BLOCK),
     rules: z.array(Rule),
   })
   .superRefine((policy, ctx) => {

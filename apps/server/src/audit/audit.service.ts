@@ -23,8 +23,12 @@ export class AuditService {
     return orgDb(this.prisma, orgId).$transaction((t) => this.appendIn(t, orgId, entries));
   }
 
-  private async appendIn(tx: OrgTx, orgId: string, entries: AuditInput[]) {
+  async lock(tx: OrgTx) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CHAIN_LOCK_ID})`;
+  }
+
+  private async appendIn(tx: OrgTx, orgId: string, entries: AuditInput[]) {
+    await this.lock(tx);
     // Raw SQL on purpose: the chain is global, so its head must not be filtered by org.
     const [head] = await tx.$queryRaw<{ seq: number; hash: string }[]>`
       SELECT seq, hash FROM "AuditEntry" ORDER BY seq DESC LIMIT 1`;

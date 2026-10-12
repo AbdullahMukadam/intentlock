@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from "@nestjs/common";
+import { API_ENDPOINTS } from "@intentlock/core";
 
 import { CurrentUser } from "../../common/decorators/current-user.decorator.js";
 import { Roles } from "../../common/decorators/roles.decorator.js";
@@ -10,11 +11,11 @@ import { ApiKeyParamsDto } from "./dto/api-key-params.dto.js";
 import { CreateApiKeyDto } from "./dto/create-api-key.dto.js";
 
 @Roles(UserRole.ADMIN)
-@Controller("v1/agents/:id/api-keys")
+@Controller()
 export class ApiKeysController {
   constructor(private readonly keys: ApiKeysService) {}
 
-  @Post()
+  @Post(API_ENDPOINTS.AGENT_API_KEYS)
   create(
     @CurrentUser() admin: SessionUser,
     @Param() { id }: AgentIdParamsDto,
@@ -23,12 +24,12 @@ export class ApiKeysController {
     return this.keys.create(admin, id, body.name);
   }
 
-  @Get()
+  @Get(API_ENDPOINTS.AGENT_API_KEYS)
   list(@CurrentUser() admin: SessionUser, @Param() { id }: AgentIdParamsDto) {
     return this.keys.list(admin.orgId, id);
   }
 
-  @Delete(":keyId")
+  @Delete(API_ENDPOINTS.AGENT_API_KEY)
   @HttpCode(HttpStatus.NO_CONTENT)
   revoke(@CurrentUser() admin: SessionUser, @Param() { id, keyId }: ApiKeyParamsDto) {
     return this.keys.revoke(admin, id, keyId);

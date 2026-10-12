@@ -1,4 +1,5 @@
 import { Inject } from "@nestjs/common";
+import { API_ENDPOINTS } from "@intentlock/core";
 import {
   type OnGatewayConnection,
   type OnGatewayDisconnect,
@@ -13,10 +14,9 @@ import { parseCookie } from "../auth/utils/session-cookie.util.js";
 import { ErrorCode } from "../common/enums/error-code.enum.js";
 import type { SessionUser } from "../common/types/auth.types.js";
 import { ENV, type Env } from "../config/config.module.js";
-import { EVENTS_NAMESPACE } from "./constants/events.constants.js";
 import { EventsService } from "./events.service.js";
 
-@WebSocketGateway({ namespace: EVENTS_NAMESPACE })
+@WebSocketGateway({ namespace: API_ENDPOINTS.EVENTS })
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly sessions: SessionsService,

@@ -1,9 +1,8 @@
+import { Verdict } from "../enums/verdict.enum.js";
 import type { PolicySet } from "../schemas/policy.js";
 import type { ToolCall } from "../schemas/tool-call.js";
 import { evaluatePolicy } from "./evaluate.js";
 import type { PolicyUser } from "./match.js";
-
-export type PolicyVerdict = "allow" | "block" | "hold";
 
 export interface SampleCall {
   call: ToolCall;
@@ -12,7 +11,7 @@ export interface SampleCall {
 }
 
 export interface PolicyOutcome {
-  verdict: PolicyVerdict;
+  verdict: Verdict;
   ruleId: string | null;
 }
 
@@ -24,7 +23,7 @@ export interface ComparisonResult {
 
 export interface Comparison {
   results: ComparisonResult[];
-  changed: { from: PolicyVerdict; to: PolicyVerdict; count: number }[];
+  changed: { from: Verdict; to: Verdict; count: number }[];
 }
 
 function outcome(policy: PolicySet, sample: SampleCall): PolicyOutcome {
@@ -32,7 +31,9 @@ function outcome(policy: PolicySet, sample: SampleCall): PolicyOutcome {
     user: sample.user,
     inPlan: sample.inPlan ?? true,
   });
-  return rule ? { verdict: rule.decision, ruleId: rule.id } : { verdict: "block", ruleId: null };
+  return rule
+    ? { verdict: rule.decision, ruleId: rule.id }
+    : { verdict: Verdict.BLOCK, ruleId: null };
 }
 
 /** Dry run for the policy editor and CLI: how each sample is decided under the old and new policy. */

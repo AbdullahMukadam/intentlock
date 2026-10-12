@@ -14,6 +14,7 @@ export default defineConfig({
           setupFiles: ["test/setup.ts"],
           // One shared test database: files must not truncate tables under each other.
           fileParallelism: false,
+          hookTimeout: 30_000,
         },
       },
     ],

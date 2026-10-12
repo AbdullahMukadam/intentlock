@@ -21,6 +21,7 @@ const AGENT = [
   "POST /v1/holds",
   "GET /v1/holds/:id/wait",
   "POST /v1/report",
+  "POST /v1/audit/batch",
 ];
 
 type Route = {
@@ -61,7 +62,9 @@ function listRoutes(app: INestApplication): Route[] {
       const path: unknown = Reflect.getMetadata(PATH_METADATA, handler);
       if (path === undefined) continue;
       const method = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod];
-      const full = `/${[base, String(path)].filter((p) => p && p !== "/").join("/")}`;
+      const full = `/${[base, String(path)].join("/")}`
+        .replace(/\/{2,}/g, "/")
+        .replace(/(.)\/$/, "$1");
       const kind = reflector.getAllAndOverride<AuthKind | undefined>(AUTH_KIND_KEY, [
         handler,
         metatype,

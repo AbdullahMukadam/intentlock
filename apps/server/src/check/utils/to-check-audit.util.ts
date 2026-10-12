@@ -13,7 +13,7 @@ export function toCheckAudit(
   call: ToolCall | null,
   decision: GateDecision,
 ): AuditInput {
-  const inPlan = !(isBlock(decision) && decision.reason === BlockReason.enum.not_in_plan);
+  const inPlan = !(isBlock(decision) && decision.reason === BlockReason.NOT_IN_PLAN);
   return {
     kind: AuditKind.CHECK,
     actor: caller.agentId,

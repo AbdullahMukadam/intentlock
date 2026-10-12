@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from "@nestjs/common";
+import { API_ENDPOINTS } from "@intentlock/core";
 
 import { AgentAuth } from "../common/decorators/agent-auth.decorator.js";
 import { CurrentAgent } from "../common/decorators/current-agent.decorator.js";
@@ -11,18 +12,18 @@ import { ResolveHoldDto } from "./dto/resolve-hold.dto.js";
 import { WaitHoldQueryDto } from "./dto/wait-hold-query.dto.js";
 import { HoldsService } from "./holds.service.js";
 
-@Controller("v1/holds")
+@Controller()
 export class HoldsController {
   constructor(private readonly holds: HoldsService) {}
 
   @AgentAuth()
-  @Post()
+  @Post(API_ENDPOINTS.HOLDS)
   create(@CurrentAgent() agent: AgentCaller, @Body() body: CreateHoldDto) {
     return this.holds.createForAgent(agent, body.token, body.call, body.ruleId);
   }
 
   @AgentAuth()
-  @Get(":id/wait")
+  @Get(API_ENDPOINTS.HOLD_WAIT)
   wait(
     @CurrentAgent() agent: AgentCaller,
     @Param() { id }: HoldIdParamsDto,
@@ -31,13 +32,13 @@ export class HoldsController {
     return this.holds.wait(agent, id, query.timeout);
   }
 
-  @Get()
+  @Get(API_ENDPOINTS.HOLDS)
   list(@CurrentUser() user: SessionUser, @Query() query: ListHoldsQueryDto) {
     return this.holds.list(user, query.status);
   }
 
   // Session only: the approver is always the signed-in user, never a value from the body.
-  @Post(":id/approve")
+  @Post(API_ENDPOINTS.HOLD_APPROVE)
   @HttpCode(HttpStatus.OK)
   approve(
     @CurrentUser() user: SessionUser,
@@ -47,7 +48,7 @@ export class HoldsController {
     return this.holds.resolve(user, id, true, body.note);
   }
 
-  @Post(":id/reject")
+  @Post(API_ENDPOINTS.HOLD_REJECT)
   @HttpCode(HttpStatus.OK)
   reject(
     @CurrentUser() user: SessionUser,

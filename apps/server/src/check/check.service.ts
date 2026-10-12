@@ -40,7 +40,7 @@ export class CheckService {
     let bundle: BundleClaims | null = null;
     let decision: Decision;
     if (!call) {
-      decision = block(BlockReason.enum.invalid_call);
+      decision = block(BlockReason.INVALID_CALL);
     } else {
       const verified = await this.keys.verifyForAgent(token, caller, now);
       if (verified.ok) {
@@ -59,7 +59,7 @@ export class CheckService {
         !isBlock(final) &&
         !(await this.reserve(tx, caller.orgId, bundle, final.planStep))
       ) {
-        final = block(BlockReason.enum.call_limit);
+        final = block(BlockReason.CALL_LIMIT);
       }
       let result: GateDecision = final as GateDecision;
       if (bundle && call && isHold(final)) {
@@ -95,7 +95,7 @@ export class CheckService {
 
   private async decide(db: ReturnType<typeof orgDb>, bundle: BundleClaims, call: ToolCall) {
     const rows = await db.stepUsage.findMany({ where: { planId: bundle.jti } });
-    if (rows.length === 0) return block(BlockReason.enum.invalid_token);
+    if (rows.length === 0) return block(BlockReason.INVALID_TOKEN);
     const usage: number[] = [];
     for (const row of rows) usage[row.step] = row.calls;
     return check(bundle, call, usage);
