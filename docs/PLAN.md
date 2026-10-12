@@ -90,19 +90,19 @@
 - [x] Multi-instance safety (DEPLOYMENT §5): atomic conditional counter updates, idempotent hold expiry + `status = 'PENDING'` guards on approve/reject, advisory lock on chain append, no shared in-memory state
 - [x] `/health` and `/health/ready` (DB + signing key); graceful shutdown that drains long-polls
 - [x] Audit service: serialized append (transaction / row lock), `GET /v1/audit` paginated, `GET /v1/audit/verify`
-- [ ] `POST /v1/audit/batch`: idempotent on `(planId, clientSeq)`, client-chain + gap check, server re-run of `check()` with `flagged` on mismatch
+- [x] `POST /v1/audit/batch`: idempotent on `(planId, clientSeq)`, client-chain + gap check, server re-run of `check()` with `flagged` on mismatch
 - [x] WebSocket gateway `/events`: session required at handshake; `hold.created`, `hold.resolved`, `decision`, filtered per user role
-- [ ] `HttpGate` in `packages/sdk`: keep-alive, timeouts, network error → block; hold wait loop with `AbortSignal`
-- [ ] `HybridGate`: JWKS cache, local verify + `check()`, per-plan usage counts, holds via server
-- [ ] Outbox: per-plan JSONL file with local hash chain, append + fsync before acting, `.ack` file (ARCHITECTURE §6.2)
-- [ ] Background worker: timer (`unref`), batches of ≤ 100, exponential backoff + jitter, startup recovery of leftover files, delete when plan complete + acked
-- [ ] Backpressure: `audit_backlog` block when unacked > `maxUnacked` or older than `maxUnackedAgeMs`
-- [ ] `close()` + SIGTERM/SIGINT flush with timeout
-- [ ] Integration tests (Vitest + test DB): plan → check allow → report; off-plan block; hold → approve → wait returns approved; hold timeout; API key cannot approve; requester cannot self-approve unless `self: true`; disabled user's session rejected; every non-public route returns 401 without a session; member cannot read another member's runs; publish with stale `baseVersion` → 409; revoked key and disabled agent cannot sign plans; new plan after publish uses the new version, running bundle keeps the old; tamper a row → verify fails at that seq; 50 concurrent checks keep a valid chain
-- [ ] HybridGate tests: decisions match remote mode for the same inputs; server down → allow/block continue, then `audit_backlog` after the limit; kill the process mid-run → restart uploads leftovers with no duplicates; edited outbox line → server flags it; forged verdict → `decision_mismatch`; dropped middle entry → `client_gap`
-- [ ] `packages/cli`: `intentlock audit verify --file export.jsonl`, `keygen`, `policy validate` (offline, uses core); `login`, `users add|list|disable|token`, `agents create|list|disable`, `keys create|list|revoke --agent`, `policy pull|test|push --agent` (call the API with the stored session)
-- [ ] `scripts/issue-license.ts` (repo root, not published): issue a license JWS from a vendor key file; document in the journal how to generate the vendor keypair (private key never committed)
-- [ ] Journal entry
+- [x] `HttpGate` in `packages/sdk`: keep-alive, timeouts, network error → block; hold wait loop with `AbortSignal`
+- [x] `HybridGate`: JWKS cache, local verify + `check()`, per-plan usage counts, holds via server
+- [x] Outbox: per-plan JSONL file with local hash chain, append + fsync before acting, `.ack` file (ARCHITECTURE §6.2)
+- [x] Background worker: timer (`unref`), batches of ≤ 100, exponential backoff + jitter, startup recovery of leftover files, delete when plan complete + acked
+- [x] Backpressure: `audit_backlog` block when unacked > `maxUnacked` or older than `maxUnackedAgeMs`
+- [x] `close()` + SIGTERM/SIGINT flush with timeout
+- [x] Integration tests (Vitest + test DB): plan → check allow → report; off-plan block; hold → approve → wait returns approved; hold timeout; API key cannot approve; requester cannot self-approve unless `self: true`; disabled user's session rejected; every non-public route returns 401 without a session; member cannot read another member's runs; publish with stale `baseVersion` → 409; revoked key and disabled agent cannot sign plans; new plan after publish uses the new version, running bundle keeps the old; tamper a row → verify fails at that seq; 50 concurrent checks keep a valid chain
+- [x] HybridGate tests: decisions match remote mode for the same inputs; server down → allow/block continue, then `audit_backlog` after the limit; kill the process mid-run → restart uploads leftovers with no duplicates; edited outbox line → server flags it; forged verdict → `decision_mismatch`; dropped middle entry → `client_gap`
+- [x] `packages/cli`: `intentlock audit verify --file export.jsonl`, `keygen`, `policy validate` (offline, uses core); `login`, `users add|list|disable|token`, `agents create|list|disable`, `keys create|list|revoke --agent`, `policy pull|test|push --agent` (call the API with the stored session)
+- [x] `scripts/issue-license.ts` (repo root, not published): issue a license JWS from a vendor key file; document in the journal how to generate the vendor keypair (private key never committed)
+- [x] Journal entry
 
 **Acceptance:** all integration tests green; `curl` walkthrough in the journal shows sign → check → hold → approve → verify; a HybridGate run with the server stopped mid-way recovers and the audit chain verifies.
 

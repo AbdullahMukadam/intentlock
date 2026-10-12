@@ -301,3 +301,143 @@ A running log of every work session. **Append a new entry at the bottom** at the
 
 **Notes for Abdullah**
 - When writing PEM files from PowerShell, use `Out-File -Encoding ascii` (or Git Bash); `>` writes UTF-16, which key parsers reject
+
+### 2026-10-12 · Session 10 · Phase 2 — hybrid mode, shared enums, API_ENDPOINTS
+
+**Done**
+- Core: `ClientEntry` + `chainClientEntry()` / `hashClientEntry()`, `GateDecision` schema, shared enums (`Verdict`, `BlockReason`, `ClientBlockReason`, `ClientEntryKind`, `ReportOutcome`), `API_ENDPOINTS` + `apiPath()`
+- Server: `POST /v1/audit/batch` (token de-duplication, chain check, re-run `check()`, gap/edit/forgery/truncation flags, idempotent); report bookkeeping shared between `/v1/report` and batch ingest; every controller on `API_ENDPOINTS`
+- SDK: `HttpClient`, `HttpGate`, `HybridGate`, `MemoryOutbox` / `FileOutbox`, `OutboxWorker`, SIGTERM/SIGINT flush; `jose` remote JWKS
+- Integration tests through the real SDK gates: remote plan/check/report, hold approve + expiry, hybrid = remote decisions, outage → keeps deciding → `audit_backlog` → recovers, crash → restart uploads exactly once (also with a lost ack), edited line / forged verdict / dropped line all flagged and the server chain still verifies
+
+**Problems hit and how they were solved**
+- Hybrid client blocked everything as `invalid_token` when the server went down before its first check (JWKS never fetched) → prefetch the JWKS in `start()`; the server's mismatch rule flagged those safe blocks → flag only looser-than-policy decisions (ADR-038)
+- The SDK's string literals (`"block"`, `"check"`, `"ok"`) slipped past the server-only enum rule → shared core enums (ADR-039)
+- First run of the new e2e file timed out in `beforeAll` (cold transform of the freshly built SDK) → e2e `hookTimeout` 30 s
+- `apps/server/test` could not import the SDK under the import-boundary lint → test-only exception (ADR-038)
+
+**Decisions** (link ADRs)
+- ADR-038: hybrid wire format, ingest rules, SDK gates · ADR-039: shared enums and `API_ENDPOINTS`
+
+**Numbers**
+- core 147, sdk 23, server 112 tests; whole monorepo lint, typecheck, test, build, format green
+
+**Next**
+- `packages/cli` (audit verify, keygen, policy validate, then the API commands) and `scripts/issue-license.ts`, then the Phase 2 acceptance walkthrough (curl sign → check → hold → approve → verify; HybridGate run with the server stopped mid-way)
+
+**Notes for Abdullah**
+- Phase 3 will need a `refresh` method on the `Gate` interface (guard rule 6); that is a public SDK API change, so I will ask before adding it
+
+### 2026-10-12 · Session 11 · Phase 2 — CLI, license issuer, acceptance
+
+**Done**
+- `packages/cli`: `audit verify --file`, `keygen`, `policy validate` (offline); `login`, `users add|list|disable|token`, `agents create|list|disable`, `keys create|list|revoke --agent`, `policy pull|test|push --agent` (stored session)
+- `scripts/issue-license.ts` (`pnpm issue-license`), verified end to end against the server's `verifyLicense` and the vendor public key that ships in the server
+- Removed every code comment added in sessions 10–11; CLAUDE.md now says: no code comments
+- Phase 2 acceptance: curl walkthrough and a HybridGate run with the server killed mid-way (below)
+
+**Acceptance: curl walkthrough** (fresh database, server on :3100, secrets masked)
+
+```text
+$ intentlock login --url http://localhost:3100 --email admin@acme-demo.dev --token <from server log>
+Signed in as admin@acme-demo.dev (admin)
+
+$ intentlock users add approver@acme-demo.dev --role approver
+Added approver@acme-demo.dev (approver)
+Login token (shown once): …
+
+$ intentlock users add alice@acme-demo.dev --role member
+Added alice@acme-demo.dev (member)
+Login token (shown once): …
+
+$ intentlock agents create github-assistant
+Created github-assistant (cmv5bgw490004z0vt0rd04bi4) with the starter policy as v1
+
+$ intentlock keys create --agent github-assistant --name walkthrough
+Key cmv5bgxl00007z0vtw3civbnx (il_live_7Ilh…) for github-assistant
+INTENTLOCK_API_KEY=il_live_…
+Shown once: store it in the agent app's secrets now.
+
+$ intentlock policy push --agent github-assistant -m Hold public comments policy.yaml
+Published github-assistant v2 (was v1)
+
+$ curl -X POST http://localhost:3100/v1/plans # agent signs a plan for alice
+{"planId":"01M4R6FB0PBB7K858T0BVE3RVC","token":"…","planHash":"xziXTccduGEtpNJeCHO0osjHOsWzgj-f-wSjIdx6ogk","policyVersion":2,"policyHash":"0E8KgKyajZFjDfYO_6EXHNHJe3NyXHLRq4NVm7R62B4","expiresAt":"2026-10-12T14:12:43.062Z"}
+
+$ curl -X POST http://localhost:3100/v1/check # in plan, in scope
+{"verdict":"allow","ruleId":"allow-in-plan","planStep":0}
+
+$ curl -X POST http://localhost:3100/v1/check # off plan (the injected PR)
+{"verdict":"block","ruleId":null,"reason":"not_in_plan"}
+
+$ curl -X POST http://localhost:3100/v1/check # public comment → hold
+{"verdict":"hold","ruleId":"hold-public-comments","planStep":1,"approvers":{"roles":["approver"],"emails":[],"self":false},"timeoutSeconds":300,"holdId":"cmv5bh2ml0009z0vtnd79b4jz"}
+
+$ curl -X POST http://localhost:3100/v1/holds/cmv5bh2ml0009z0vtnd79b4jz/approve # with the API key → refused
+401
+
+$ curl -X POST http://localhost:3100/v1/auth/login # approver signs in
+{"user":{"email":"approver@acme-demo.dev","role":"approver","groups":[]}}
+
+$ curl -X POST http://localhost:3100/v1/holds/cmv5bh2ml0009z0vtnd79b4jz/approve # approver approves
+approved
+
+$ curl http://localhost:3100/v1/holds/cmv5bh2ml0009z0vtnd79b4jz/wait?timeout=5 # the waiting agent sees the decision
+{"status":"approved"}
+
+$ curl -X POST http://localhost:3100/v1/report # agent reports the run
+{"planStatus":"active"}
+
+$ curl http://localhost:3100/v1/audit/verify
+{"ok":true,"count":13,"flagged":[]}
+
+$ curl http://localhost:3100/v1/audit?format=jsonl > export.jsonl && intentlock audit verify --file export.jsonl
+lines: 13
+ok: 13 entries, chain intact
+```
+
+**Acceptance: HybridGate with the server stopped mid-way**
+
+```text
+13:58:15 signed plan 01M4R6GAV85ANMEJ60EAY37MH9 policy v2
+13:58:16 check h1 github_list_issues(acme-demo/public-app) → allow allow-in-plan
+13:58:16 check h2 github_list_issues(acme-demo/private-notes) → block not_in_plan
+13:58:18 STOP_SERVER
+13:58:23 check h3 github_list_issues(acme-demo/public-app) → allow allow-in-plan
+13:58:23 check h4 github_create_pull_request(acme-demo/public-app) → block not_in_plan
+13:58:23 check h5 github_list_issues(acme-demo/public-app) → allow allow-in-plan
+13:58:23 upload failed: POST /v1/audit/batch failed
+13:58:24 upload failed: POST /v1/audit/batch failed
+13:58:25 START_SERVER
+13:58:26 upload failed: POST /v1/audit/batch failed
+13:58:30 upload failed: POST /v1/audit/batch failed
+13:58:35 upload failed: POST /v1/audit/batch failed
+13:58:46 upload failed: POST /v1/audit/batch failed
+13:58:51 closed: outbox drained
+```
+
+After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":19,"flagged":[]}`; the five client entries are stored once each as `clientSeq` 1–5 (allow, block, allow, block, allow), none flagged; the run shows allow 3 / block 2. The outbox files stay on disk because that plan has no required steps, so it never completes; files are deleted only for completed, fully acked plans (ADR-038).
+
+**Vendor keypair (for licenses), never committed**
+- Generate: `node packages/cli/dist/bin.js keygen --out keys/vendor` (or `pnpm --filter @intentlock/cli build` first), then rename `keys/vendor/signing-key.pem` → `keys/vendor-private.pem`; `keys/` and `*.pem` are git-ignored
+- Put the public half (`signing-key.pub.pem`) into `apps/server/src/license/constants/vendor-public-key.constant.ts` and release the server
+- Issue: `pnpm issue-license --key keys/vendor-private.pem --licensee "Acme" --edition team --expires 2027-10-12 --max-users 25 --max-agents 10 --features multi_instance,audit_export --out acme.license`
+- The pair in use today was generated on 2026-10-12 (ADR-035)
+
+**Problems hit and how they were solved**
+- `scripts/` has no package of its own → the script runs with root `tsx` and imports the server's schema by relative path, which also resolves the server's `zod`
+- Docker Desktop was down again; on the first run after a cold Postgres start the bootstrap race test took 11 s (10 s limit) and failed once, then passed on every rerun (full server suite 115/115). If it recurs in CI, raise that test's timeout
+
+**Decisions** (link ADRs)
+- ADR-040: CLI and license issuer
+
+**Numbers**
+- core 147, sdk 23, cli 13, server 115 tests; whole monorepo lint, typecheck, test, build, format green
+
+**Next**
+- Phase 3: neutral provider types + `LLMProvider`, `FakeProvider`, OpenAI-compatible adapter, guard loop, Anthropic adapter
+
+**Notes for Abdullah**
+- Phase 3 needs a `refresh(planId, token)` method on the SDK `Gate` interface (guard rule 6) — a public API change I will ask about first
+- Phase 3 also needs a free model option: a Gemini or Groq API key, or Ollama with a tool-calling model
+- Phase 0 leftovers still open: npm scope + repo name, CI green on GitHub

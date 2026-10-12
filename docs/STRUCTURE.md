@@ -34,7 +34,7 @@ intentlock/
 ├── README.md
 ├── LICENSE                         # Elastic License 2.0 (everything except the MIT packages)
 ├── scripts/
-│   ├── issue-license.ts            # vendor-only license issuer (not published; private key never in repo)
+│   ├── issue-license.ts            # vendor-only license issuer (`pnpm issue-license`); validates with the server's LicenseSchema
 │   └── create-test-db.sql          # run by the postgres container on first start: creates intentlock_test
 ├── package.json                    # root scripts only (turbo), devDeps for tooling
 ├── pnpm-workspace.yaml             # apps/*, packages/*
@@ -72,6 +72,9 @@ Unit tests sit **next to the code** as `*.test.ts`. App integration tests live i
 ```
 src/
 ├── index.ts
+├── api/
+│   └── endpoints.ts                # API_ENDPOINTS (every server route) + apiPath()
+├── enums/                          # verdict, block-reason, client-block-reason, client-entry-kind, report-outcome (*.enum.ts)
 ├── schemas/
 │   ├── plan.ts                     # Plan, PlanStep, ArgConstraint
 │   ├── tool-call.ts                # ToolCall
@@ -93,7 +96,7 @@ src/
 ├── audit/
 │   ├── hash-entry.ts               # server chain hashing
 │   ├── verify-chain.ts             # first broken seq
-│   └── client-chain.ts             # outbox localHash + gap detection
+│   └── client-chain.ts             # hashClientEntry(), chainClientEntry() (outbox local hash chain)
 └── errors.ts
 ```
 
@@ -103,20 +106,19 @@ src/
 src/
 ├── index.ts
 ├── gate.ts                         # Gate interface, SignedPlan, shared types
-├── errors.ts                       # GateUnavailableError, TokenExpiredError, ...
+├── errors.ts                       # GateUnavailableError (fail closed), HttpError
+├── enums/                          # hold-status, http-method
 ├── http/
-│   ├── client.ts                   # fetch wrapper: base URL, API key, keep-alive, timeouts
-│   └── http-gate.ts                # remote mode
+│   ├── client.ts                   # fetch wrapper: base URL, API key, keep-alive, timeouts, injectable fetch
+│   ├── http-gate.ts                # remote mode
+│   └── wait-for-hold.ts            # long-poll loop shared by both gates
 ├── hybrid/
-│   ├── hybrid-gate.ts              # local verify + check(), holds via server
-│   ├── jwks-cache.ts
-│   └── usage-counter.ts            # per-plan call counts
+│   ├── hybrid-gate.ts              # local verify + decide(), per-plan usage, holds via server, backpressure, crash recovery
+│   └── jwks-cache.ts               # jose remote JWKS set (prefetched at start, refetch on unknown kid)
 ├── outbox/
-│   ├── file-outbox.ts              # append + fsync + local hash chain, .ack file
-│   ├── memory-outbox.ts            # serverless fallback
-│   ├── worker.ts                   # timer, batching, backoff + jitter
-│   ├── recovery.ts                 # upload leftovers on startup
-│   └── backpressure.ts             # audit_backlog limits
+│   ├── memory-outbox.ts            # in-memory outbox + the shared per-plan state; serverless fallback
+│   ├── file-outbox.ts              # extends it: <planId>.jsonl append + fsync, .ack (atomic rename), .done, recover()
+│   └── worker.ts                   # timer (unref), batches ≤ maxBatch with de-duplicated tokens, backoff + jitter, drain()
 ├── local-gate.ts
 ├── passthrough-gate.ts
 └── shutdown.ts                     # SIGTERM/SIGINT → close()
@@ -158,7 +160,15 @@ test/fixtures/                      # hand-written / recorded Messages API respo
 
 ```
 src/
-├── index.ts                        # commander setup, bin: "intentlock"
+├── index.ts                        # exports buildProgram() and run() (for tests)
+├── bin.ts                          # the `intentlock` binary: real fetch, home dir, stdin prompt
+├── program.ts                      # commander setup, CliError → exit code 1
+├── errors.ts                       # CliError
+├── api/                            # api-client.ts (session cookie + CSRF header), session-api.ts, resolve-agent.ts (name → id)
+├── session/session-store.ts        # ~/.intentlock/session.json (0600)
+├── constants/ · enums/ · types/    # cli.constants, http-method, cli-context.type (injectable fetch/home/print/prompt)
+├── utils/columns.util.ts           # aligned table output
+├── testing/fake-context.ts         # fake fetch router + captured output for tests
 └── commands/
     ├── audit-verify.ts             # verify an exported JSONL chain offline
     ├── login.ts                    # store a session for the CLI
@@ -166,7 +176,7 @@ src/
     ├── agents.ts                   # agents create | list | disable (admin)
     ├── keys.ts                     # keys create | list | revoke --agent <name> (admin)
     ├── policy.ts                   # policy pull | test | push --agent <name>
-    ├── keygen.ts                   # create an Ed25519 keypair (PEM)
+    ├── keygen.ts                   # create an Ed25519 signing key (PEM, UTF-8, 0600)
     └── policy-validate.ts          # lint a policy YAML file
 ```
 
@@ -289,17 +299,18 @@ src/
 │   ├── constants/ · enums/ · dto/ · types/   # hold.constants, hold-state + hold-error, create/wait/list/resolve DTOs, new-hold.type
 │   └── utils/                      # hold-state.util.ts (DB ↔ API status), to-hold-view.util.ts
 ├── reports/                        # reports.module/controller/service: POST /v1/report (ran counts, plan completion)
-│   ├── enums/ · schemas/ · dto/    # report-outcome, report-error, checked-call.schema, report.dto
+│   ├── enums/ · schemas/ · dto/    # report-error, checked-call.schema, report.dto (ReportOutcome comes from core)
+│   └── utils/                      # plan-progress.util.ts (findCheckedCall, recordRun, updateCompletion; shared with batch ingest)
 ├── audit/
 │   ├── audit.service.ts            # serialized chain append
 │   ├── audit-query.service.ts      # role-scoped list, cursor pagination, JSONL export
-│   ├── batch.service.ts            # /v1/audit/batch ingest, client-chain check, re-run check()
+│   ├── batch.service.ts            # /v1/audit/batch ingest under the chain lock: chain check, re-run check(), flags
 │   ├── verify.service.ts           # walks the global chain in batches
 │   ├── audit.controller.ts
-│   ├── constants/ · dto/           # audit.constants, audit-query.dto
-│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format
+│   ├── constants/ · dto/           # audit.constants, audit-query.dto, audit-batch.dto (tokens + tokenRef)
+│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format, audit-flag, audit-error, batch-reject-reason
 │   ├── types/                      # audit-input.type.ts
-│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry)
+│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry), decisions-agree.util.ts (looser-than-policy test)
 ├── events/                         # events.module, events.gateway.ts (WebSocket /events, session checked in handshake middleware),
 │   │                               # events.service.ts (per-socket viewer, filtered publish, session recheck every 60 s)
 │   ├── constants/ · enums/ · types/   # events.constants, event-name, event-audience.type
@@ -427,6 +438,7 @@ flowchart BT
 - Provider SDKs (`openai`, `@anthropic-ai/sdk`) appear only in `guard/src/provider/` and `packages/anthropic`.
 - Apps never import another app.
 - Import from a package's root (`@intentlock/core`), never from `@intentlock/core/src/...`.
+- One exception: `apps/server/test/**` may import `@intentlock/sdk` (dev dependency) so integration tests drive the server through the real gates; server code still may not (ADR-038).
 - Enforced by the eslint preset in `packages/config` with `no-restricted-imports` per package, plus each package's `dependencies` list.
 
 ## 5. Naming and code conventions
