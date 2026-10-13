@@ -711,7 +711,7 @@ export type ToolDef = {
   inputSchema: JSONSchema;           // JSON Schema object, generated from the tool's zod schema with zod 4's z.toJSONSchema()
 };
 
-export type ToolCallReq = { id: string; name: string; args: Record<string, unknown>; argsError?: string };   // argsError: adapter could not parse args → never executed (ADR-041)
+export type ToolCallReq = { id: string; name: string; args: Record<string, unknown>; argsError?: string; providerData?: Record<string, unknown> };   // argsError: never executed (ADR-041); providerData: opaque, replayed as-is (ADR-044)
 
 export type Message =
   | { role: "user"; text: string }

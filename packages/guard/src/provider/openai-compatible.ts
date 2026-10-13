@@ -78,6 +78,7 @@ function toMessages(m: Message): ChatCompletionMessageParam[] {
                   id: c.id,
                   type: "function" as const,
                   function: { name: c.name, arguments: JSON.stringify(c.args) },
+                  ...c.providerData,
                 })),
               }
             : {}),
@@ -101,7 +102,13 @@ export function fromCompletion(completion: ChatCompletion): ChatResponse {
       toolCalls.push({ id, name: call.custom.name, args: {}, argsError: "Unsupported tool type" });
       continue;
     }
-    toolCalls.push({ id, name: call.function.name, ...parseArgs(call.function.arguments) });
+    const { extra_content } = call as { extra_content?: unknown };
+    toolCalls.push({
+      id,
+      name: call.function.name,
+      ...parseArgs(call.function.arguments),
+      ...(extra_content !== undefined && { providerData: { extra_content } }),
+    });
   }
   return {
     ...(message?.content ? { text: message.content } : {}),

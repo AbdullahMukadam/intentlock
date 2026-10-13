@@ -1,4 +1,7 @@
-import type { ChatCompletion } from "openai/resources/chat/completions";
+import type {
+  ChatCompletion,
+  ChatCompletionMessageToolCall,
+} from "openai/resources/chat/completions";
 import { describe, expect, test } from "vitest";
 
 import { MessageRole } from "./enums/message-role.enum.js";
@@ -30,7 +33,8 @@ const recorded: ChatCompletion = {
             id: "call_1",
             type: "function",
             function: { name: "list_issues", arguments: '{"repo":"acme-demo/public-app"}' },
-          },
+            extra_content: { google: { thought_signature: "sig-1" } },
+          } as ChatCompletionMessageToolCall,
           { id: "call_2", type: "function", function: { name: "add_label", arguments: "{bad" } },
           { id: "", type: "function", function: { name: "get_repo", arguments: "" } },
         ],
@@ -105,7 +109,12 @@ describe("fromCompletion", () => {
   test("parses tool calls, fails closed on bad JSON, fills missing ids", () => {
     const res = fromCompletion(recorded);
     expect(res.toolCalls).toEqual([
-      { id: "call_1", name: "list_issues", args: { repo: "acme-demo/public-app" } },
+      {
+        id: "call_1",
+        name: "list_issues",
+        args: { repo: "acme-demo/public-app" },
+        providerData: { extra_content: { google: { thought_signature: "sig-1" } } },
+      },
       { id: "call_2", name: "add_label", args: {}, argsError: "Arguments are not valid JSON" },
       { id: expect.stringMatching(/^call_[0-9a-f-]{36}$/), name: "get_repo", args: {} },
     ]);
@@ -117,6 +126,26 @@ describe("fromCompletion", () => {
     const done = structuredClone(recorded);
     done.choices[0]!.message = { role: "assistant", content: "All done.", refusal: null };
     expect(fromCompletion(done)).toMatchObject({ text: "All done.", toolCalls: [] });
+  });
+});
+
+test("Gemini thought signatures survive the round trip", () => {
+  const [first] = fromCompletion(recorded).toolCalls;
+  const params = toParams("m", {
+    messages: [{ role: MessageRole.ASSISTANT, toolCalls: [first!] }],
+    tools: [],
+  });
+  expect(params.messages[0]).toEqual({
+    role: "assistant",
+    content: null,
+    tool_calls: [
+      {
+        id: "call_1",
+        type: "function",
+        function: { name: "list_issues", arguments: '{"repo":"acme-demo/public-app"}' },
+        extra_content: { google: { thought_signature: "sig-1" } },
+      },
+    ],
   });
 });
 

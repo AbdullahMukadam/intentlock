@@ -1,0 +1,31 @@
+{
+  "id": "msg_01PlannerForcedToolChoice",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-4-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01Plan",
+      "name": "declare_plan",
+      "input": {
+        "goal": "Triage open issues in acme-demo/public-app",
+        "steps": [
+          {
+            "tool": "list_issues",
+            "args": { "repo": { "eq": "acme-demo/public-app" } },
+            "maxCalls": 2
+          },
+          {
+            "tool": "add_label",
+            "args": { "repo": { "eq": "acme-demo/public-app" } },
+            "required": true
+          }
+        ]
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": { "input_tokens": 230, "output_tokens": 120 }
+}

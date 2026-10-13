@@ -14,6 +14,7 @@ export interface ToolCallReq {
   name: string;
   args: Record<string, unknown>;
   argsError?: string;
+  providerData?: Record<string, unknown>;
 }
 
 export interface ToolResult {
