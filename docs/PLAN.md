@@ -118,17 +118,17 @@
 - [ ] Pick the default free model: run the same 3-tool smoke task on 2–3 options (e.g. a Gemini model via its OpenAI-compatible endpoint, a Groq-hosted model, a local Ollama model); record tool-call reliability and the choice in an ADR — **needs a free API key or Ollama from Abdullah**
 
 **3b · Guard loop (provider-agnostic)**
-- [ ] `createGuard(opts)` API per ARCHITECTURE §7.3; zod-validated options
-- [ ] Planner: separate chat with only the task + tool list, forced `declare_plan`; prompt pins scope args (repo, recipient, path); retry once, then fail closed
-- [ ] `explicit` plan source (developer passes steps)
-- [ ] Tool loop: check all calls concurrently, run allowed impls, return all results in one `tool` message in order
-- [ ] Block / unknown tool / bad args → error results with the reason text from §7.5
-- [ ] Holds: emit `hold`, wait via `gate.waitForHold`, approved → run, rejected/timeout → error result
-- [ ] Token expiry: refresh once, retry, else block
-- [ ] Impl errors → error result + `report(outcome: "error")`; max turns guard
-- [ ] Events with `provider` and `latencyMs`
-- [ ] `no-restricted-imports` lint rule: no provider SDKs in `core`, `sdk`, or the guard loop
-- [ ] Unit tests with `FakeProvider` + `LocalGate`: allow, block, parallel calls with one blocked, hold approved/rejected/timeout (fake gate), planner missing/invalid, bad JSON args, impl throws, max turns
+- [x] `createGuard(opts)` API per ARCHITECTURE §7.3; zod-validated options
+- [x] Planner: separate chat with only the task + tool list, forced `declare_plan`; prompt pins scope args (repo, recipient, path); retry once, then fail closed
+- [x] `explicit` plan source (developer passes steps)
+- [x] Tool loop: check all calls concurrently, run allowed impls, return all results in one `tool` message in order
+- [x] Block / unknown tool / bad args → error results with the reason text from §7.5
+- [x] Holds: emit `hold`, wait via `gate.waitForHold`, approved → run, rejected/timeout → error result
+- [x] Token expiry: refresh once, retry, else block
+- [x] Impl errors → error result + `report(outcome: "error")`; max turns guard
+- [x] Events with `provider` and `latencyMs`
+- [x] `no-restricted-imports` lint rule: no provider SDKs in `core`, `sdk`, or the guard loop
+- [x] Unit tests with `FakeProvider` + `LocalGate`: allow, block, parallel calls with one blocked, hold approved/rejected/timeout (fake gate), planner missing/invalid, bad JSON args, impl throws, max turns
 
 **3c · Anthropic adapter**
 - [ ] `AnthropicProvider` in `packages/anthropic`: `tool_use` blocks in, `tool_result` blocks (with `is_error`) out, forced tool choice for the planner

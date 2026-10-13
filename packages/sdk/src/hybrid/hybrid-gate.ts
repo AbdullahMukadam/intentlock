@@ -1,5 +1,6 @@
 import {
   API_ENDPOINTS,
+  apiPath,
   ClientBlockReason,
   ClientEntryKind,
   decide,
@@ -12,7 +13,7 @@ import {
 } from "@intentlock/core";
 import { decodeJwt } from "jose";
 
-import type { Gate, HoldOutcome, SignedPlan } from "../gate.js";
+import type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "../gate.js";
 import { HttpClient } from "../http/client.js";
 import { waitForHold } from "../http/wait-for-hold.js";
 import { FileOutbox } from "../outbox/file-outbox.js";
@@ -100,6 +101,13 @@ export class HybridGate implements Gate {
       plan.steps.flatMap((s, i) => (s.required ? [i] : [])),
     );
     return signed;
+  }
+
+  async refresh(planId: string, token: string): Promise<RefreshedToken> {
+    await this.start();
+    return this.#http.post<RefreshedToken>(apiPath(API_ENDPOINTS.PLAN_REFRESH, { id: planId }), {
+      token,
+    });
   }
 
   async check(token: string, call: ToolCall): Promise<GateDecision> {

@@ -171,3 +171,33 @@ describe("PassThroughGate", () => {
     await gate.close();
   });
 });
+
+describe("LocalGate refresh", () => {
+  test("re-signs the same plan after expiry; the new token is accepted", async () => {
+    let now = new Date("2026-10-12T10:00:00Z");
+    const gate = new LocalGate({ privateKey, policies: parsed(POLICY_YAML), now: () => now });
+    const signed = await gate.signPlan(PLAN);
+    now = new Date("2026-10-12T11:00:00Z");
+    expect(await gate.check(signed.token, call("github_get_issue"))).toMatchObject({
+      verdict: "block",
+      reason: "token_expired",
+    });
+    const fresh = await gate.refresh(signed.planId, signed.token);
+    expect(fresh.expiresAt).toBe("2026-10-12T11:15:00.000Z");
+    expect(await gate.check(fresh.token, call("github_get_issue"))).toMatchObject({
+      verdict: "allow",
+    });
+  });
+
+  test("rejects another plan's id and a forged token", async () => {
+    const gate = new LocalGate({ privateKey, policies: parsed(POLICY_YAML) });
+    const signed = await gate.signPlan(PLAN);
+    await expect(gate.refresh("other", signed.token)).rejects.toThrow(/another plan/);
+    const other = new LocalGate({
+      privateKey: (await generateSigningKeyPair()).privateKey,
+      policies: parsed(POLICY_YAML),
+    });
+    const forged = await other.signPlan(PLAN);
+    await expect(gate.refresh(forged.planId, forged.token)).rejects.toThrow(/signature/);
+  });
+});

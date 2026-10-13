@@ -583,6 +583,7 @@ Aggregations are plain SQL (`date_trunc` buckets, `GROUP BY verdict`) for v0.1; 
 ```ts
 export interface Gate {
   signPlan(plan: PlanInput): Promise<SignedPlan>;       // { planId, token, planHash, policyVersion, policyHash, expiresAt (ISO) }
+  refresh(planId: string, token: string): Promise<{ token: string; expiresAt: string }>;   // same plan only (ADR-042)
   check(token: string, call: ToolCall): Promise<GateDecision>;
   waitForHold(holdId: string, opts: { timeoutMs: number; signal?: AbortSignal }):
     Promise<"approved" | "rejected" | "expired">;
@@ -763,8 +764,9 @@ const guard = createGuard({
 });
 
 const result = await guard.run({ user: "alice@acme-demo.dev", task: "Triage open issues in acme-demo/public-app" });
-// or, with your own loop:
-const results = await guard.execute(token, toolCalls);   // ToolCallReq[] -> tool results
+// or, with your own loop (ADR-042):
+const session = await guard.start({ user, task });        // { planId, token, user }; refresh updates session.token
+const results = await guard.execute(session, toolCalls);  // ToolCallReq[] -> tool results
 ```
 
 ### 7.4 Run sequence
@@ -812,7 +814,7 @@ sequenceDiagram
 3. Checks for one turn run concurrently (`Promise.all`); one block does not cancel others.
 4. Blocked result content: `"Blocked by Intentlock (<ruleId or reason>): <reason>. This action is outside what the user asked for."` with `isError: true`.
 5. Unknown tool name or unparseable arguments → error result, never executed.
-6. On `TokenExpired` → refresh once (same plan) and retry the check; on second failure → block.
+6. On `TokenExpired` → refresh once (same plan, `gate.refresh`, shared by concurrent calls) and retry the check; on second failure → block.
 7. Tool implementation throws → error result with the message, `report(outcome: "error")`.
 8. Max loop turns (default 20) to prevent runaway loops.
 9. The guard never imports a provider SDK; a lint rule (`no-restricted-imports`) enforces this in `packages/guard/src/loop.ts` and `packages/core`.
