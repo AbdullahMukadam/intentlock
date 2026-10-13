@@ -111,32 +111,32 @@
 ## Phase 3 · Agent guard + providers (Wed 14) — `packages/guard`, `packages/anthropic`
 
 **3a · Provider layer**
-- [ ] Neutral types + `LLMProvider` interface per ARCHITECTURE §7.1
-- [ ] `FakeProvider` (scripted responses, records requests)
-- [ ] `OpenAICompatibleProvider` using the `openai` client with custom `baseURL`; map tools, `tool_calls` (parse JSON-string args safely), and `role: "tool"` results; unit tests with recorded responses
-- [ ] `providerFromEnv()` with zod-validated `LLM_*` env vars
-- [ ] Pick the default free model: run the same 3-tool smoke task on 2–3 options (e.g. a Gemini model via its OpenAI-compatible endpoint, a Groq-hosted model, a local Ollama model); record tool-call reliability and the choice in an ADR — **needs a free API key or Ollama from Abdullah**
+- [x] Neutral types + `LLMProvider` interface per ARCHITECTURE §7.1
+- [x] `FakeProvider` (scripted responses, records requests)
+- [x] `OpenAICompatibleProvider` using the `openai` client with custom `baseURL`; map tools, `tool_calls` (parse JSON-string args safely), and `role: "tool"` results; unit tests with recorded responses
+- [x] `providerFromEnv()` with zod-validated `LLM_*` env vars
+- [x] Pick the default free model: run the same 3-tool smoke task on 2–3 options (e.g. a Gemini model via its OpenAI-compatible endpoint, a Groq-hosted model, a local Ollama model); record tool-call reliability and the choice in an ADR — **needs a free API key or Ollama from Abdullah**
 
 **3b · Guard loop (provider-agnostic)**
-- [ ] `createGuard(opts)` API per ARCHITECTURE §7.3; zod-validated options
-- [ ] Planner: separate chat with only the task + tool list, forced `declare_plan`; prompt pins scope args (repo, recipient, path); retry once, then fail closed
-- [ ] `explicit` plan source (developer passes steps)
-- [ ] Tool loop: check all calls concurrently, run allowed impls, return all results in one `tool` message in order
-- [ ] Block / unknown tool / bad args → error results with the reason text from §7.5
-- [ ] Holds: emit `hold`, wait via `gate.waitForHold`, approved → run, rejected/timeout → error result
-- [ ] Token expiry: refresh once, retry, else block
-- [ ] Impl errors → error result + `report(outcome: "error")`; max turns guard
-- [ ] Events with `provider` and `latencyMs`
-- [ ] `no-restricted-imports` lint rule: no provider SDKs in `core`, `sdk`, or the guard loop
-- [ ] Unit tests with `FakeProvider` + `LocalGate`: allow, block, parallel calls with one blocked, hold approved/rejected/timeout (fake gate), planner missing/invalid, bad JSON args, impl throws, max turns
+- [x] `createGuard(opts)` API per ARCHITECTURE §7.3; zod-validated options
+- [x] Planner: separate chat with only the task + tool list, forced `declare_plan`; prompt pins scope args (repo, recipient, path); retry once, then fail closed
+- [x] `explicit` plan source (developer passes steps)
+- [x] Tool loop: check all calls concurrently, run allowed impls, return all results in one `tool` message in order
+- [x] Block / unknown tool / bad args → error results with the reason text from §7.5
+- [x] Holds: emit `hold`, wait via `gate.waitForHold`, approved → run, rejected/timeout → error result
+- [x] Token expiry: refresh once, retry, else block
+- [x] Impl errors → error result + `report(outcome: "error")`; max turns guard
+- [x] Events with `provider` and `latencyMs`
+- [x] `no-restricted-imports` lint rule: no provider SDKs in `core`, `sdk`, or the guard loop
+- [x] Unit tests with `FakeProvider` + `LocalGate`: allow, block, parallel calls with one blocked, hold approved/rejected/timeout (fake gate), planner missing/invalid, bad JSON args, impl throws, max turns
 
 **3c · Anthropic adapter**
-- [ ] `AnthropicProvider` in `packages/anthropic`: `tool_use` blocks in, `tool_result` blocks (with `is_error`) out, forced tool choice for the planner
-- [ ] Unit tests against recorded/hand-written Messages API responses (no key needed)
-- [ ] Live test behind `RUN_LIVE_ANTHROPIC=1` (skipped until a key exists)
+- [x] `AnthropicProvider` in `packages/anthropic`: `tool_use` blocks in, `tool_result` blocks (with `is_error`) out, forced tool choice for the planner
+- [x] Unit tests against recorded/hand-written Messages API responses (no key needed)
+- [x] Live test behind `RUN_LIVE_ANTHROPIC=1` (skipped until a key exists)
 
-- [ ] Live smoke test on the default free model behind `RUN_LIVE=1`
-- [ ] Journal entry
+- [x] Live smoke test on the default free model behind `RUN_LIVE=1`
+- [x] Journal entry
 
 **Acceptance:** unit tests green for guard + both adapters; live smoke test on the free model completes a 2-tool task and blocks an off-plan call; switching `LLM_PROVIDER` needs no code change; a 5-line usage example is in `packages/guard/README.md`.
 

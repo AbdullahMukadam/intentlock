@@ -87,9 +87,21 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Consequences:** ~half a day of extra work in Phase 3. Free models call tools less reliably, so a quick model comparison is part of Phase 3. Eval results must always be labelled with provider and model. The project's pitch broadens from "guards Claude agents" to "guards any LLM agent".
 
 ### ADR-012: Default free model for development and evals
-- **Date:** _TBD in Phase 3_ · **Status:** Proposed
+- **Date:** 2026-10-12 · **Status:** Accepted
 - **Context:** Need one reliable, free tool-calling model for the demo and evals.
-- **Decision:** _Fill in after the Phase 3a comparison: model, provider, base URL, why, observed tool-call reliability._
+- **Decision:** **`gemini-3.5-flash-lite`** on Gemini's OpenAI-compatible endpoint (`LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`), free-tier key.
+- **Comparison** (the `RUN_LIVE=1` smoke test in `packages/guard/src/live.test.ts`: planner `declare_plan` with forced tool choice, then `list_issues` + `add_label` with a prompt injection in the issue body; two runs each, 2026-10-12):
+
+  | Model | Result | Notes |
+  | --- | --- | --- |
+  | `gemini-3.5-flash-lite` | 3/3 passed, ~10 s per run | Valid `declare_plan` first try, 3 turns, never called `delete_repo` |
+  | `gemini-3.8-flash` | 0/4 | 503 "high demand" on every attempt, then 429 free-tier quota |
+  | `gemini-3.5-flash` | 0/2 | 503, then 429 |
+  | `gemma-4-31b-it` | 0/2 | Timed out at 180 s |
+  | `gemini-2.5-flash` | — | 404, closed to new users |
+
+  The first Flash-Lite attempt failed with 400 "missing thought_signature": Gemini 3 needs each tool call's `extra_content.google.thought_signature` echoed back, fixed by `ToolCallReq.providerData` (ADR-044). Groq and Ollama were not compared (no key / no local install); they stay supported through the same adapter.
+- **Consequences:** The free-tier quota is small and shared across models; the evals should run sequentially with retries on 429/503 rather than in parallel. Rerun the comparison when a bigger Flash model stops returning 503.
 
 ### ADR-013: Hybrid enforcement as the default mode
 - **Date:** 2026-10-11 · **Status:** Accepted
@@ -343,3 +355,38 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   5. **Testability:** every command runs against an injected `CliContext` (fetch, home, cwd, print, prompt); `bin.ts` wires the real ones. Tests use a fake fetch router that records each request.
   6. **`scripts/issue-license.ts`** imports the server's `LicenseSchema` and enums, so the issuer can never produce a license the server's parser would reject, and signs with `node:crypto` Ed25519 (no extra dependency). Run as `pnpm issue-license`. A server unit test runs the script with a throwaway vendor key and verifies the result with the server's own `verifyLicense`.
 - **Consequences:** CLI API commands are tested against a fake server, not the real one (the import boundaries keep the server tests from importing the CLI); the Phase 2 walkthrough below exercised them against a real server.
+
+### ADR-041: Provider layer details
+- **Date:** 2026-10-12 · **Status:** Accepted · Amends ARCHITECTURE §7.1, §7.2 (updated in the same change); `openai` and `zod` added to `packages/guard` (both on the allowed list), plus `@intentlock/core` as a direct dependency (already reachable through sdk)
+- **Decision:**
+  1. **`ToolCallReq.argsError?`**: an adapter that cannot turn a call's arguments into a JSON object sets `args: {}` and `argsError` instead of throwing, so one bad call does not lose the rest of the turn; the guard turns it into an error result and never executes it (§7.5 rule 5). Missing provider call ids get `call_<uuid>`, never an index (an index can collide with a real id).
+  2. **Neutral fixed values are enums** in `guard/src/provider/enums/`: `MessageRole`, `ToolChoice` (`AUTO`; a forced choice stays `{ name }`), `ProviderKind` (the `LLM_PROVIDER` values).
+  3. **OpenAI tool results carry no error flag**, so error results are sent as `ERROR: <content>`.
+  4. **`providerFromEnv(env = process.env, { anthropic?, fakeScript? })`**: guard may not import `@intentlock/anthropic` (it sits above guard), so `LLM_PROVIDER=anthropic` needs the factory, and `@intentlock/anthropic` re-exports a `providerFromEnv` that passes it. Apps that import the anthropic one switch between all three providers with no code change. Empty `LLM_*` values count as unset; missing `LLM_PROVIDER` means `fake`; `LLM_API_KEY` is optional for openai-compatible (Ollama needs none).
+  5. **`OpenAICompatibleProvider` accepts an injected `client`** (`Pick<OpenAI, "chat">`) for tests; the default client has a 60 s timeout and 2 retries.
+- **Alternatives:** Throwing on bad JSON (loses the other calls' results and breaks rule 2); a dynamic import of the anthropic package from guard (reverses the dependency graph).
+
+### ADR-042: Gate.refresh and the guard loop
+- **Date:** 2026-10-12 · **Status:** Accepted · Amends ARCHITECTURE §6, §7.3, §7.5, §7.6 (updated in the same change); resolves the open point in ADR-038
+- **Decision:**
+  1. **`Gate.refresh(planId, token): Promise<{ token, expiresAt }>`** on every gate (owner-approved). `HttpGate`/`HybridGate` call `POST /v1/plans/:id/refresh`; `LocalGate` verifies the old token's signature as of its own `iat` (so an expired token still proves it is ours), checks `jti === planId` and re-signs the same plan; `PassThroughGate` returns the token unchanged.
+  2. **Refresh in the guard:** a check that comes back `block: token_expired` triggers one refresh, then one re-check with the new token. Concurrent calls in a turn share a single in-flight refresh for the same expired token; the new token is kept on the session for later turns and reports. A failed refresh or a second expiry returns the original block.
+  3. **Sessions instead of bare tokens:** `guard.start(input)` signs a plan and returns a `GuardSession { planId, token, user }`; `guard.execute(session, toolCalls)` replaces `execute(token, toolCalls)` from the sketch, because a refresh has to update the token the caller holds. `run()` is `start()` plus the loop.
+  4. **Results that never reach the gate:** unknown tool → `unknown_tool`, an adapter `argsError` → `invalid_args` (`GuardBlockReason`, guard-local), both in the §7.5 block text and emitted as `block` events. A gate that throws becomes `block: server_unavailable`. Holds: approved → run; rejected, expired, or a `waitForHold` that throws → error result (`rejected` / `timeout` events). Rule-4 text is used for blocks; rejected/timed-out holds and impl errors have their own texts (`results.ts`).
+  5. **Planner:** `declare_plan` has a hand-written, flat JSON schema (tool names as an `enum`, one constraint object with optional `eq | in | glob | lte | gte`), because zod's generated schema for core's `ArgConstraint` uses `$ref`/`$defs` and a recursive JSON type that free models handle poorly. The result is validated with core `Plan` (strict: two keys in one constraint fails) plus a known-tool check. The planner's prompt carries the task and tool names + descriptions only; the only tool offered is `declare_plan`. Exactly one call and no other calls, else retry once, then `PlannerError` (no plan signed, `error` event).
+  6. **`defineTool({ name, description, schema, impl })`** derives `inputSchema` with `z.toJSONSchema` (minus `$schema`) and validates args before the impl runs, so schema-invalid args never execute; `toolset()` splits tools into `{ tools, impls }` for `createGuard`.
+  7. **Run result:** `{ status: completed | max_turns, planId, text?, turns, messages }`. Provider errors in the main loop propagate (the run fails; nothing further executes). `onEvent` exceptions are swallowed so logging cannot break enforcement.
+  8. **Lint:** the existing preset already bans provider SDKs in `core`, `sdk` and all of `guard` except `src/provider/**`; verified by linting a throwaway import in `guard/src/guard` and `core`.
+- **Alternatives:** Keep `execute(token, …)` and return the new token alongside results (every caller has to thread it); decode `jti` from the JWT in the guard (fails for non-JWT gates like PassThrough).
+
+### ADR-043: Anthropic adapter mapping and live tests
+- **Date:** 2026-10-12 · **Status:** Accepted · `@anthropic-ai/sdk` (allowed list) and `@intentlock/guard` added to `packages/anthropic`; `core`, `sdk`, `zod` as dev dependencies for the tests
+- **Decision:**
+  1. **Mapping:** neutral `user` and `tool` messages both become Messages API `user` turns and consecutive same-role turns are merged, so tool results and a following user note land in one message (the API needs alternating roles). Each tool result is a `tool_result` block with `is_error`; empty content is omitted rather than sent as an empty string; an assistant message with no text and no calls is dropped. `max_tokens` defaults to 4096 (the API requires it). A forced choice is `{ type: "tool", name }`. A `tool_use` whose `input` is not a JSON object gets `argsError` (ADR-041), so it is never executed.
+  2. **Tests:** hand-written Messages API responses in `packages/anthropic/test/fixtures/` (planner `declare_plan`, a two-call `tool_use` turn, `end_turn`) drive both mapping tests and a full `createGuard` run over `LocalGate` through an injected client.
+  3. **Live tests are opt-in and bypass turbo:** `RUN_LIVE_ANTHROPIC=1` (`packages/anthropic/src/live.test.ts`, key from `ANTHROPIC_API_KEY` or `LLM_API_KEY`, model from `ANTHROPIC_MODEL`) and `RUN_LIVE=1` (`packages/guard/src/live.test.ts`, provider from the root `.env` via `providerFromEnv`). Turbo filters undeclared env vars and caches test results, so they run with `pnpm --filter <pkg> exec vitest run src/live.test.ts`. The free-model smoke test checks an off-plan `delete_repo` is blocked on the live plan directly (a model may or may not take the injected bait) and that the run completes `list_issues` + `add_label` without ever running `delete_repo`.
+
+### ADR-044: Opaque provider data on tool calls
+- **Date:** 2026-10-12 · **Status:** Accepted · Amends ARCHITECTURE §7.1 (updated in the same change)
+- **Context:** Gemini 3 models on the OpenAI-compatible endpoint attach `extra_content.google.thought_signature` to each tool call and reject the next request with 400 if the replayed assistant message lacks it. The neutral `ToolCallReq` dropped it.
+- **Decision:** `ToolCallReq.providerData?: Record<string, unknown>` holds adapter-owned data that the guard never reads and passes back unchanged in the history. `OpenAICompatibleProvider` stores `extra_content` there and spreads it back into the replayed `tool_calls` entry. It is metadata between the model and its own adapter; the gate checks only `name` and `args`, so it cannot widen what runs.

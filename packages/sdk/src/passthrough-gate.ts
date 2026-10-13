@@ -1,6 +1,6 @@
 import { type GateDecision, Plan, planHash, type PlanInput, Verdict } from "@intentlock/core";
 
-import type { Gate, HoldOutcome, SignedPlan } from "./gate.js";
+import type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "./gate.js";
 
 /** Allows everything. Only for the unprotected demo/eval baseline; never use it to protect anything. */
 export class PassThroughGate implements Gate {
@@ -14,6 +14,10 @@ export class PassThroughGate implements Gate {
       policyHash: "",
       expiresAt: new Date(8.64e15).toISOString(),
     };
+  }
+
+  async refresh(_planId: string, token: string): Promise<RefreshedToken> {
+    return { token, expiresAt: new Date(8.64e15).toISOString() };
   }
 
   async check(): Promise<GateDecision> {

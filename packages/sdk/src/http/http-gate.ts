@@ -1,5 +1,6 @@
 import {
   API_ENDPOINTS,
+  apiPath,
   GateDecision,
   type PlanInput,
   type ReportOutcome,
@@ -7,7 +8,7 @@ import {
 } from "@intentlock/core";
 
 import { GateUnavailableError } from "../errors.js";
-import type { Gate, HoldOutcome, SignedPlan } from "../gate.js";
+import type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "../gate.js";
 import { HttpClient, type HttpClientOptions } from "./client.js";
 import { waitForHold } from "./wait-for-hold.js";
 
@@ -22,6 +23,12 @@ export class HttpGate implements Gate {
 
   signPlan(plan: PlanInput): Promise<SignedPlan> {
     return this.#http.post<SignedPlan>(API_ENDPOINTS.PLANS, { plan });
+  }
+
+  refresh(planId: string, token: string): Promise<RefreshedToken> {
+    return this.#http.post<RefreshedToken>(apiPath(API_ENDPOINTS.PLAN_REFRESH, { id: planId }), {
+      token,
+    });
   }
 
   async check(token: string, call: ToolCall): Promise<GateDecision> {

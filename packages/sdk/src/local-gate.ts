@@ -8,6 +8,8 @@ import {
   PolicySet,
   publicKeyFromPrivate,
   signBundle,
+  verifyBundle,
+  InvalidTokenError,
   type GateDecision,
   type PlanInput,
   type ToolCall,
@@ -15,8 +17,9 @@ import {
   Role,
   Verdict,
 } from "@intentlock/core";
+import { decodeJwt } from "jose";
 
-import type { Gate, HoldOutcome, SignedPlan } from "./gate.js";
+import type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "./gate.js";
 
 export interface LocalUser {
   role: Role;
@@ -67,8 +70,32 @@ export class LocalGate implements Gate {
 
   async signPlan(input: PlanInput): Promise<SignedPlan> {
     const plan = Plan.parse(input);
+    const { planId, token, expiresAt } = await this.#sign(crypto.randomUUID(), plan);
+    return {
+      planId,
+      token,
+      planHash: await planHash(plan),
+      policyVersion: 1,
+      policyHash: await policyHash(this.#policy),
+      expiresAt,
+    };
+  }
+
+  async refresh(planId: string, token: string): Promise<RefreshedToken> {
+    const { iat } = decodeJwt(token);
+    if (iat === undefined) throw new InvalidTokenError("Token has no iat");
+    const claims = await verifyBundle(
+      token,
+      (await this.#publicKeys()).publicKey,
+      new Date(iat * 1000),
+    );
+    if (claims.jti !== planId) throw new InvalidTokenError("Token belongs to another plan");
+    const { token: fresh, expiresAt } = await this.#sign(planId, claims.plan);
+    return { token: fresh, expiresAt };
+  }
+
+  async #sign(planId: string, plan: Plan) {
     const user = this.#user(plan.user);
-    const planId = crypto.randomUUID();
     const now = this.#now();
     const ttlSeconds = this.#opts.ttlSeconds ?? DEFAULT_TTL_SECONDS;
     const token = await signBundle(
@@ -87,9 +114,6 @@ export class LocalGate implements Gate {
     return {
       planId,
       token,
-      planHash: await planHash(plan),
-      policyVersion: 1,
-      policyHash: await policyHash(this.#policy),
       expiresAt: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
     };
   }

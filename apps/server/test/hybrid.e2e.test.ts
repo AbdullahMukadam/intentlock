@@ -163,6 +163,18 @@ describe("HttpGate (remote mode)", () => {
     if (lonely.verdict !== "hold") throw new Error("expected a hold");
     expect(await gate.waitForHold(lonely.holdId, { timeoutMs: 6_000 })).toBe("expired");
   });
+
+  it("refresh re-signs the same plan for both gates; another plan's id is refused", async () => {
+    for (const gate of [remote(), hybrid()]) {
+      const signed = await gate.signPlan(planFor(user, STEPS));
+      const fresh = await gate.refresh(signed.planId, signed.token);
+      expect(Date.parse(fresh.expiresAt)).toBeGreaterThanOrEqual(Date.parse(signed.expiresAt));
+      expect(await gate.check(fresh.token, CALLS()[0]!)).toMatchObject({ verdict: "allow" });
+      const other = await gate.signPlan(planFor(user, STEPS));
+      await expect(gate.refresh(other.planId, signed.token)).rejects.toThrow();
+      await gate.close();
+    }
+  });
 });
 
 describe("HybridGate", () => {

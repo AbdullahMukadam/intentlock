@@ -441,3 +441,43 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Phase 3 needs a `refresh(planId, token)` method on the SDK `Gate` interface (guard rule 6) — a public API change I will ask about first
 - Phase 3 also needs a free model option: a Gemini or Groq API key, or Ollama with a tool-calling model
 - Phase 0 leftovers still open: npm scope + repo name, CI green on GitHub
+
+### 2026-10-12 · Session 12 · Phase 3 — providers, guard loop, Anthropic adapter
+
+**Done**
+- 3a provider layer: neutral types + `LLMProvider`, `FakeProvider`, `OpenAICompatibleProvider`, `providerFromEnv()` (commit `ce2c2d0`)
+- 3b guard loop: `createGuard` (start / execute / run), planner with forced `declare_plan` + retry + fail closed, explicit plans, concurrent checks, holds, token refresh, events, `defineTool`/`toolset`; `Gate.refresh` on all four SDK gates (commit `2482523`)
+- 3c `AnthropicProvider` with fixture-driven tests; live tests for Anthropic (`RUN_LIVE_ANTHROPIC=1`, not run yet: no key) and the free model (`RUN_LIVE=1`), both skipped by default
+- Default free model chosen after a live comparison: `gemini-3.5-flash-lite` (ADR-012); live smoke test passes
+
+**Problems hit and how they were solved**
+- Missing provider call ids fell back to `call_<index>`, which collided with a real `call_2` in the fixture → `call_<uuid>`
+- zod's JSON Schema for core's `ArgConstraint` has `$ref`/`$defs` and a recursive JSON type, poor fit for free models → hand-written flat `declare_plan` schema, validated with core `Plan` afterwards (ADR-042)
+- Refreshing within the same second returned a byte-identical token (Ed25519 is deterministic, same `iat`/`exp`) → the e2e test checks `expiresAt` and that the new token is accepted instead
+- Python on Windows rewrote docs with CRLF in text mode → edits now keep the file's own newlines
+- Gemini 3 returned 400 "Function call is missing a thought_signature" on the second turn → `ToolCallReq.providerData` carries `extra_content` back unchanged (ADR-044)
+- `gemini-3.8-flash` / `gemini-3.5-flash` answered 503 "high demand", then 429 quota; `gemini-2.5-flash` is closed to new users (404); `gemma-4-31b-it` timed out → Flash-Lite, the only one that ran
+- Docker Desktop stopped mid-session → restarted it and Postgres; the first test run after the restart hit P1001 because Postgres was not ready yet, rerun after `pg_isready` was green
+
+**Decisions** (link ADRs)
+- ADR-041: Provider layer details (`argsError`, `providerFromEnv` + anthropic factory)
+- ADR-042: `Gate.refresh` and the guard loop (`guard.execute(session, calls)` instead of `execute(token, calls)`)
+- ADR-043: Anthropic adapter mapping and live tests
+- ADR-012: default free model `gemini-3.5-flash-lite`
+- ADR-044: opaque `providerData` on tool calls (Gemini thought signatures)
+
+**Numbers**
+- guard 35 (+1 live, skipped), anthropic 6 (+1 live, skipped), sdk 26, server 116, core 147 tests
+- Live smoke on `gemini-3.5-flash-lite`: 3/3 passed, ~10 s per run, 3 turns; events `plan_signed`, `block delete_repo not_in_plan` (9.9 ms), `plan_signed`, `allow list_issues` (5.0 ms), `allow add_label` (3.0 ms). The model ignored the injected "call delete_repo" in the issue body, so the block came from the direct off-plan call
+
+**Live tests** (bypass turbo, which filters env vars and caches results)
+- Free model: set `LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` in `.env`, then `RUN_LIVE=1 pnpm --filter @intentlock/guard exec vitest run src/live.test.ts`
+- Anthropic: `RUN_LIVE_ANTHROPIC=1 ANTHROPIC_API_KEY=… pnpm --filter @intentlock/anthropic exec vitest run src/live.test.ts`
+
+**Next**
+- Phase 3 acceptance met: guard + both adapters green, free-model live smoke passes, `LLM_PROVIDER` switch needs no code change, README example in `packages/guard`
+- Phase 4: inbox (Next.js middleware + sign-in first)
+
+**Notes for Abdullah**
+- Your `.env` still says `LLM_PROVIDER=fake`, empty `LLM_BASE_URL`, `LLM_MODEL="gemini-3.8-flash"`; the live runs passed those as overrides. To use Gemini by default set `LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, `LLM_MODEL=gemini-3.5-flash-lite`
+- The Anthropic live test still waits for a key

@@ -22,14 +22,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@intentlock/guard": "workspace:*"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
+    "@intentlock/core": "workspace:*",
+    "@intentlock/sdk": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
   }
 }
