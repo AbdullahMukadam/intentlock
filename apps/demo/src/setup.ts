@@ -15,12 +15,15 @@ const CONFLICT = 409;
 
 const DESCRIPTIONS: Record<DemoAgent, string> = {
   [DemoAgent.GITHUB_ASSISTANT]: "Triages issues in the demo GitHub repo",
+  [DemoAgent.SUPPORT_ASSISTANT]: "Answers the support inbox and issues refunds",
 };
+
+const SUPPORT_LEAD = { email: "lead@acme-demo.dev", groups: ["support-leads"] };
 
 type Agent = { id: string; name: string };
 type PolicyState = { active: { version: number; source: string } };
 
-async function ensureUser(call: AdminCall, email: string) {
+async function ensureUser(call: AdminCall, email: string, groups: string[] = []) {
   try {
     const { loginToken } = await call<{ loginToken: string }>(
       "POST",
@@ -29,6 +32,7 @@ async function ensureUser(call: AdminCall, email: string) {
       {
         email,
         role: Role.enum.member,
+        groups,
       },
     );
     console.log(`created member ${email} (login token, shown once: ${loginToken})`);
@@ -99,6 +103,7 @@ async function main(env: DemoEnv) {
     required(env, "INTENTLOCK_ADMIN_TOKEN"),
   );
   await ensureUser(call, env.DEMO_USER);
+  await ensureUser(call, SUPPORT_LEAD.email, SUPPORT_LEAD.groups);
   let envText = existsSync(DEMO_ENV_FILE) ? await readFile(DEMO_ENV_FILE, "utf8") : "";
   for (const agent of Object.values(DemoAgent)) {
     const { id } = await ensureAgent(call, agent);

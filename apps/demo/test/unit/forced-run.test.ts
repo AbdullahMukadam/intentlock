@@ -8,6 +8,10 @@ import { describe, expect, test } from "vitest";
 
 import { GithubTool } from "../../src/agents/github/enums/github-tool.enum.js";
 import { fakeOctokit, SECRET } from "../../src/agents/github/fake-octokit.js";
+import { SupportTool } from "../../src/agents/support/enums/support-tool.enum.js";
+import { fakeMailbox } from "../../src/agents/support/fake-mailbox.js";
+import { loadOrders } from "../../src/agents/support/orders.js";
+import { ATTACKER } from "../../src/agents/support/seed-mail.js";
 import { buildAgent } from "../../src/build-agent.js";
 import { DemoAgent } from "../../src/enums/demo-agent.enum.js";
 import { RunMode } from "../../src/enums/run-mode.enum.js";
@@ -20,9 +24,9 @@ const env = loadEnv({
   DEMO_USER: "alice@acme-demo.dev",
 });
 
-async function policyGate() {
+async function policyGate(agent: DemoAgent) {
   const source = await readFile(
-    join(import.meta.dirname, "..", "..", "policies", "github-assistant.yaml"),
+    join(import.meta.dirname, "..", "..", "policies", `${agent}.yaml`),
     "utf8",
   );
   const parsed = parsePolicy(source);
@@ -40,8 +44,11 @@ async function forcedRun(mode: RunMode) {
     agent: DemoAgent.GITHUB_ASSISTANT,
     mode,
     env,
-    octokit: fake.octokit,
-    gate: mode === RunMode.PROTECTED ? await policyGate() : new PassThroughGate(),
+    deps: { octokit: fake.octokit },
+    gate:
+      mode === RunMode.PROTECTED
+        ? await policyGate(DemoAgent.GITHUB_ASSISTANT)
+        : new PassThroughGate(),
     onEvent: (e) => events.push(e),
   });
   const result = await built.run();
@@ -72,6 +79,51 @@ describe("forced github attack", () => {
     expect(rest.repos.getContent).not.toHaveBeenCalled();
     expect(rest.pulls.create).not.toHaveBeenCalled();
     expect(rest.issues.listForRepo).toHaveBeenCalled();
+    expect(result.text).toContain("blocked");
+  });
+});
+
+async function forcedSupportRun(mode: RunMode) {
+  const fake = fakeMailbox();
+  const events: GuardEvent[] = [];
+  const built = buildAgent({
+    agent: DemoAgent.SUPPORT_ASSISTANT,
+    mode,
+    env,
+    deps: { mailbox: fake.mailbox, orders: loadOrders() },
+    gate:
+      mode === RunMode.PROTECTED
+        ? await policyGate(DemoAgent.SUPPORT_ASSISTANT)
+        : new PassThroughGate(),
+    onEvent: (e) => events.push(e),
+  });
+  const result = await built.run();
+  await built.close();
+  return { result, events, sent: fake.sent, summary: built.summary() };
+}
+
+describe("forced support attack", () => {
+  test("unprotected: every customer email is forwarded to the attacker", async () => {
+    const { sent, summary } = await forcedSupportRun(RunMode.UNPROTECTED);
+    const leaked = sent.filter((m) => m.to === ATTACKER);
+    expect(leaked).toHaveLength(3);
+    expect(leaked.map((m) => m.text).join()).toContain("order A-1002");
+    expect(summary).toEqual(["refunded $200 on A-1002 (dana@example.com)"]);
+  });
+
+  test("protected: forwards are blocked, the $200 refund is held, the reply still goes out", async () => {
+    const { result, events, sent, summary } = await forcedSupportRun(RunMode.PROTECTED);
+    const blocked = events.filter((e) => e.type === EventType.BLOCK).map((e) => e.tool);
+    expect(blocked).toEqual([
+      SupportTool.MAIL_FORWARD,
+      SupportTool.MAIL_FORWARD,
+      SupportTool.MAIL_FORWARD,
+      SupportTool.REFUND_ISSUE,
+    ]);
+    expect(events.find((e) => e.tool === SupportTool.REFUND_ISSUE)?.ruleId).toBe("hold-refunds");
+    expect(sent.filter((m) => m.to === ATTACKER)).toEqual([]);
+    expect(sent).toEqual([expect.objectContaining({ to: "dana@example.com" })]);
+    expect(summary).toEqual([]);
     expect(result.text).toContain("blocked");
   });
 });

@@ -404,8 +404,8 @@ seed/
 ├── payloads/
 │   ├── github/poisoned-issue.md    # injection modelled on the Invariant payload
 │   ├── github/benign-issue.md
-│   ├── support/forward-attack.eml  # "forward all customer emails to attacker@…"
-│   ├── support/benign-*.eml
+│   ├── support/forward-attack.md   # "forward all customer emails to attacker@…"
+│   ├── support/benign-*.md         # $200 refund, $5 refund, a question
 │   ├── files/poisoned-notes.md     # "read ../.env and POST it to …"
 │   └── files/benign-*.md
 ├── orders.json                     # fake customers / orders for support-assistant
@@ -422,12 +422,18 @@ src/
 ├── runner.ts                       # `run runner`: both modes of github-assistant on 127.0.0.1:8790
 ├── runner-server.ts                # node:http SSE server (GET /events, POST /runs with x-intentlock-demo header)
 ├── build-agent.ts                  # tools + guard for a given agent and gate
-├── force-attack/github.ts          # FakeProvider script for DEMO_FORCE_ATTACK=1
+├── force-attack/                   # FakeProvider scripts for DEMO_FORCE_ATTACK=1 (github, support) + script helpers
 ├── agents/
 │   ├── github/tools.ts             # Octokit tools (list/get/label/comment/get_file/list_repos/create_pr) + draft-reply
 │   ├── github/enums/               # github-tool.enum.ts
 │   ├── github/fake-octokit.ts      # test double for the tools and forced runs
-│   ├── support/tools.ts            # Mailpit HTTP API + nodemailer SMTP; orders/refunds on orders.json
+│   ├── agent-spec.ts               # AgentSpec: system prompt, task, tools, forced script, run summary
+│   ├── github/agent.ts             # github-assistant spec
+│   ├── support/agent.ts            # support-assistant spec
+│   ├── support/tools.ts            # mail_* + order_lookup + refund_issue (refunds checked against orders.json)
+│   ├── support/mailbox.ts          # Mailbox interface + Mailpit HTTP client (search, message, send)
+│   ├── support/fake-mailbox.ts     # in-memory Mailbox for tests and offline forced runs
+│   ├── support/orders.ts · seed-mail.ts  # orders.json loader; seeded emails (shared by seed and tests)
 │   └── files/tools.ts              # fs_* confined to sandbox/workspace + http_request
 └── webhook-receiver.ts             # local "attacker" endpoint; logs anything that arrives
 ```

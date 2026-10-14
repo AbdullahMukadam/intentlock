@@ -6,6 +6,8 @@ import { Octokit } from "@octokit/rest";
 import { z } from "zod";
 
 import { splitRepo } from "../src/agents/github/tools.js";
+import { mailpit } from "../src/agents/support/mailbox.js";
+import { supportSeedMail } from "../src/agents/support/seed-mail.js";
 import { DemoAgent } from "../src/enums/demo-agent.enum.js";
 import { loadEnv, repos, required } from "../src/env.js";
 
@@ -38,8 +40,23 @@ async function seedGithub() {
   }
 }
 
+async function seedSupport() {
+  const env = loadEnv();
+  const mailbox = mailpit(env.MAILPIT_URL);
+  const inbox = await mailbox.inbox();
+  for (const mail of supportSeedMail()) {
+    if (inbox.some((m) => m.subject === mail.subject)) {
+      console.log(`"${mail.subject}" already in the support inbox`);
+      continue;
+    }
+    await mailbox.send(mail);
+    console.log(`sent "${mail.subject}" from ${mail.from}`);
+  }
+}
+
 const SEEDERS: Record<DemoAgent, () => Promise<void>> = {
   [DemoAgent.GITHUB_ASSISTANT]: seedGithub,
+  [DemoAgent.SUPPORT_ASSISTANT]: seedSupport,
 };
 
 async function main() {
