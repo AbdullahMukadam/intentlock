@@ -6,6 +6,7 @@ import type { SessionUser } from "../common/types/auth.types.js";
 import { emptyVerdictCounts, tallyVerdicts } from "../common/utils/verdict-counts.util.js";
 import { type Prisma, PlanStatus } from "../generated/prisma/client.js";
 import { toHoldView } from "../holds/utils/to-hold-view.util.js";
+import { emailsById } from "../users/utils/emails-by-id.util.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
@@ -79,6 +80,10 @@ export class RunsService {
       db.auditEntry.findMany({ where: { planId }, orderBy: { seq: "asc" } }),
       db.hold.findMany({ where: { planId }, orderBy: { createdAt: "asc" } }),
     ]);
+    const emails = await emailsById(
+      db,
+      holds.map((h) => h.resolvedBy),
+    );
     const parsed = entries.map((e) => ({ e, p: RunEntryPayloadSchema.safeParse(e.payload).data }));
     const decisions = parsed
       .filter(({ e }) => e.kind === AuditKind.CHECK)
@@ -120,7 +125,7 @@ export class RunsService {
       },
       agent: agent ? { id: agent.id, name: agent.name } : null,
       decisions,
-      holds: holds.map(toHoldView),
+      holds: holds.map((h) => toHoldView(h, emails)),
       reports,
       timing: {
         firstDecisionAt: first,

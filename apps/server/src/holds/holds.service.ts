@@ -32,6 +32,7 @@ import { HoldError } from "./enums/hold-error.enum.js";
 import type { HoldState } from "./enums/hold-state.enum.js";
 import type { NewHold } from "./types/new-hold.type.js";
 import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
+import { emailsById } from "../users/utils/emails-by-id.util.js";
 import { toHoldView } from "./utils/to-hold-view.util.js";
 
 type ExpiredRow = Pick<
@@ -156,8 +157,12 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
       orderBy: { createdAt: "desc" },
       take: MAX_LISTED_HOLDS,
     });
+    const emails = await emailsById(
+      orgDb(this.prisma, user.orgId),
+      rows.map((h) => h.resolvedBy),
+    );
     return rows
-      .map((h) => ({ ...toHoldView(h), canApprove: this.mayApprove(user, h) }))
+      .map((h) => ({ ...toHoldView(h, emails), canApprove: this.mayApprove(user, h) }))
       .filter((h) => user.role !== UserRole.MEMBER || h.user === user.email || h.canApprove);
   }
 
@@ -206,7 +211,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
       return tx.hold.findFirstOrThrow({ where: { id: holdId } });
     });
     this.announceResolved(resolved);
-    return toHoldView(resolved);
+    return toHoldView(resolved, new Map([[user.id, user.email]]));
   }
 
   async expireAll(): Promise<number> {

@@ -390,3 +390,71 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Date:** 2026-10-12 · **Status:** Accepted · Amends ARCHITECTURE §7.1 (updated in the same change)
 - **Context:** Gemini 3 models on the OpenAI-compatible endpoint attach `extra_content.google.thought_signature` to each tool call and reject the next request with 400 if the replayed assistant message lacks it. The neutral `ToolCallReq` dropped it.
 - **Decision:** `ToolCallReq.providerData?: Record<string, unknown>` holds adapter-owned data that the guard never reads and passes back unchanged in the history. `OpenAICompatibleProvider` stores `extra_content` there and spreads it back into the replayed `tool_calls` entry. It is metadata between the model and its own adapter; the gate checks only `name` and `args`, so it cannot widen what runs.
+
+### ADR-045: Inbox sign-in, proxy and API client
+- **Date:** 2026-10-13 · **Status:** Accepted · Amends STRUCTURE §3 (`apps/inbox`) and DEPLOYMENT §3 (updated in the same change)
+- **Decision:**
+  1. **`src/proxy.ts`, not `src/middleware.ts`:** Next.js 16 renamed the convention (same behaviour). It only checks that an `il_session` cookie exists and redirects to `/login?next=<path>`; the matcher skips `/login`, `/api/*`, `/_next/*` and the favicon. The server stays the only enforcement point.
+  2. **Same origin in every environment:** `next.config.ts` rewrites `/api/:path*` to `API_URL` (default `http://localhost:3000`), so the inbox only ever calls `/api/v1/...` and the session cookie stays first-party in dev too, not just behind nginx or Vercel. `NEXT_PUBLIC_API_URL` is replaced by the server-side `API_URL`; the browser never needs the server URL, so `lib/env.ts` is dropped.
+  3. **One client, `api(endpoint, schema, options)`:** paths from `API_ENDPOINTS` via `apiPath`, `X-Intentlock-CSRF: 1` on every non-GET, every response parsed with a zod schema, errors thrown as `ApiError(status, code)`. A 401 on anything but sign-in sends the browser to `/login?next=...`. The `next` target is accepted only if it is a same-origin path (`safeNext`), so sign-in cannot be used as an open redirect.
+  4. **Client-side data loading:** pages fetch from the browser through the rewrite instead of server components forwarding cookies; holds polling and the WebSocket need the browser path anyway. The shell loads `/v1/me` and `/v1/license` (edition in the footer).
+  5. **Cookie and CSRF header names are redeclared in the inbox** (`lib/constants.ts`), as the CLI already does; they are wire constants pinned by server tests.
+- **Alternatives:** Server components calling the API with the forwarded cookie (two fetch paths, and no live updates); keeping `NEXT_PUBLIC_API_URL` with CORS (cross-origin cookies, which ARCHITECTURE §5.6 rules out).
+
+### ADR-046: Overview, Activity and Run detail
+- **Date:** 2026-10-13 · **Status:** Accepted
+- **Decision:**
+  1. **Recharts `^3.10.1`** (listed for the inbox in ARCHITECTURE §2) for the verdict chart: stacked bars per hour (≤ 48 h) or per day, as the server buckets them. Verdicts use the fixed status colours from the dataviz reference palette (allow/approved `#0ca30c`, hold `#fab219`, expired `#ec835a`, block/rejected `#d03b3b`), always shown next to the verdict name, never colour alone.
+  2. **Activity filters live in the URL.** The filter bar is a `next/form` GET form on `/activity`, so filters are shareable and the Overview's top-blocked lists link straight into a filtered view. `datetime-local` values are converted to ISO in the browser so the server's timezone does not matter. JSONL export is a plain download link to `/api/v1/audit?...&format=jsonl` with the same filters.
+  3. **Activity lists every audit kind** (sign-ins, publishes, checks…) with a kind column, because `/v1/audit` has no kind filter; the verdict filter narrows it to decisions. Paging is "Load more" on the server's `seq` cursor.
+  4. **Inbox-side enums mirror the server ones it needs** (`AuditVerdict`, `AuditFormat`, `StatsBucket`) in `src/lib/enums/`, the same way the CLI mirrors wire constants; the values are pinned by the server's API tests.
+  5. **One data hook, `useApi(url, schema)`**: keyed by the full URL, parses with zod, ignores stale responses, exposes `reload()`. No data-fetching library.
+- **Alternatives:** SWR or TanStack Query (a new dependency for what one small hook covers); a kind filter on `/v1/audit` (a server API change, not needed yet).
+
+### ADR-047: Inbox holds, agents and live events
+- **Date:** 2026-10-13 · **Status:** Accepted · Amends ARCHITECTURE §2 and §5.2, DEPLOYMENT §3 (updated in the same change)
+- **Decision:**
+  1. **`socket.io-client` is an inbox runtime dependency** (owner-approved), the client half of the Socket.IO the server already uses.
+  2. **Socket.IO through the single origin:** the browser connects to namespace `/events` with engine path `/api/socket.io`, which the `/api/*` rewrite forwards to the server's `/socket.io`. Next.js redirects away trailing slashes (308) and Socket.IO's engine only matched `/socket.io/`, so the gateway sets `addTrailingSlash: false` and the client does the same. The server still accepts the old path (existing tests unchanged); a new e2e test pins the slash-less handshake. In dev the rewrite also carries the WebSocket upgrade.
+  3. **Holds page:** `GET /v1/holds?status=pending`, split into "waiting for you" (`canApprove` from the server) and "waiting for someone else". It reloads on `hold.created` / `hold.resolved`, on every (re)connect, and every 10 s. The note and Approve/Reject sit inline on each card (no dialog); a 409 `hold_not_pending` says someone else resolved it or it expired. The approver is never sent: the server takes it from the session.
+  4. **Agents:** list for everyone; the create form, the API keys tab and revoke are shown to admins only. A new key is shown once with a copy button; revoke asks with `window.confirm`. The Policy tab shows the active source read-only until the editor lands. Role checks in the UI only hide controls; the server enforces them.
+  5. **Signed-in user in context:** the app shell provides `useMe()` so pages can hide admin-only controls without another `/v1/me` call.
+- **Alternatives:** `skipTrailingSlashRedirect` plus a dedicated rewrite in Next (changes slash handling for every page, and Vercel/nginx would need the same care); polling only (no new dependency, but no live holds).
+
+### ADR-048: Policy editor, audit page and UI role checks
+- **Date:** 2026-10-13 · **Status:** Accepted
+- **Decision:**
+  1. **Editor:** CodeMirror 6 (`codemirror`, `@codemirror/lang-yaml`, `@codemirror/lint`, `@codemirror/merge`, all listed in ARCHITECTURE §2). Lint runs `parsePolicy()` from `@intentlock/core` in the browser and maps its 1-based line/col to diagnostics (`lib/policy-lint.ts`); the same errors are listed under the editor. "Show changes" switches on CodeMirror's unified merge view against the active version; history diffs use the side-by-side `MergeView`.
+  2. **Edit state:** the editor shows the active source until the first keystroke, which pins `baseVersion` to the active version at that moment. Publish sends that base; on 409 `stale_base_version` the text is kept and the panel offers "Rebase onto vN", which reloads the active version, moves the base and turns on the diff so the admin reviews before publishing again. Server-side `invalid_policy` errors are shown too, though the client lint normally blocks publishing first. Publish needs a message and is disabled while there are errors or nothing changed.
+  3. **Drafts (`PUT .../policy/draft`) are not used by the inbox yet:** edits live in the page until published. Saving drafts is easy to add when someone asks for it.
+  4. **Test panel:** sample calls are a JSON textarea (validated with zod before sending) plus "replay last N" decisions; results list verdict changes first with a from → to summary. Shown to admins and approvers, as the server allows.
+  5. **Rollback** asks for a message with `window.prompt` and publishes a new version copying the old one.
+  6. **UI role checks in one place:** `can(role, UiAction)` in `lib/permissions.ts` mirrors the server's `@Roles` (create agent, manage keys, edit policy: admin; test policy: admin + approver), with a test. Non-admins get the editor read-only. Holds use the server's per-hold `canApprove`. These only hide controls; the server enforces every rule (checked live: a member gets 403 on publish, test, create agent and API keys).
+  7. **Audit page:** "Verify now" calls `/v1/audit/verify` and shows intact/broken (with the first broken entry) and flagged client entries.
+- **Alternatives:** a dialog library for publish and rollback (no dialog component in `packages/ui` yet; inline controls and `window.prompt` cover it); Monaco (heavier, not on the allowed list).
+
+### ADR-049: Hold and API key views name people by email
+- **Date:** 2026-10-13 · **Status:** Accepted (owner-approved API change) · Amends ARCHITECTURE §5.1 (updated in the same change)
+- **Decision:** `resolvedBy` on holds (`GET /v1/holds`, approve/reject responses, run detail) and `createdBy` on API keys now carry the user's **email** instead of their internal id. The database still stores user ids; views map them with one `emailsById()` query per response (`users/utils/emails-by-id.util.ts`). An id with no matching user falls back to the id. Field names are unchanged.
+- **Alternatives:** extra `resolvedByEmail` / `createdByEmail` fields (two fields for one fact, and nothing reads the ids); storing emails on the rows (emails can change, ids cannot).
+
+### ADR-050: GitHub demo agent, setup and seed
+- **Date:** 2026-10-13 · **Status:** Accepted · Amends ARCHITECTURE §8 (updated in the same change)
+- **Decision:**
+  1. **Repos come from env:** `GITHUB_OWNER`, `GITHUB_PUBLIC_REPO` (default `public-app`), `GITHUB_PRIVATE_REPO` (default `private-notes`). The current throwaway account is `acme-demo-bot-1` with `public-app` and `private-repo`; those values live in `apps/demo/.env` (git-ignored).
+  2. **The policy pins by pattern, not by name:** `only-public-app` blocks every `github_*` call whose `repo` is not `*/public-app` (a call with no `repo`, like `github_list_repos`, is blocked too), so the file works for any owner and private repo name. Then `no-pull-requests` (block), `hold-public-comments` (hold for admin/approver, 10 min), `allow-in-plan`. A unit test pins each rule's decision; the free model's plan did not pin `repo` on its own, which is exactly what this rule covers.
+  3. **Setup talks to the API directly** (`src/admin-api.ts`, admin email + login token from env) instead of shelling out to `intentlock policy push`: `apps/demo` may not import the CLI (import boundaries), and the publish endpoint, `baseVersion` check and audit entry are the same. It creates `DEMO_USER` as a member (a hold needs someone other than the requester to approve), registers the agent, publishes the policy only when the file changed, and writes one API key per agent into `apps/demo/.env` unless one is already there. It is idempotent.
+  4. **Script name `setup-instance`:** `pnpm setup` is a built-in pnpm command (it edits the user's PATH), so our script cannot be called `setup`.
+  5. **Seed is idempotent by open-issue title.** GitHub's issue list lags a few seconds after creating an issue, so two runs back to back can still create a duplicate.
+  6. **Forced attack:** `DEMO_FORCE_ATTACK=1` swaps the model for a `FakeProvider` script (plan → list issues → read the poisoned issue → list repos → read the private `notes.md` → open a PR with it → final text), labelled in the output. Same gate, tools and policy as a real run.
+  7. **Free-tier pacing:** real providers are wrapped to wait `DEMO_TURN_DELAY_MS` (default 1.5 s) before each model call.
+- **Alternatives:** templating owner/repo names into the policy at setup time (the glob needs no templating); spawning the CLI (needs a separate `intentlock login` and would cross the import boundary in spirit).
+
+### ADR-051: Split-screen demo runner and demo users
+- **Date:** 2026-10-13 · **Status:** Accepted · Amends ARCHITECTURE §8 and DEPLOYMENT §2 (updated in the same change)
+- **Decision:**
+  1. **Runner:** `apps/demo/src/runner.ts` binds `127.0.0.1:8790` and runs `github-assistant` in both modes at once. `GET /events` is SSE (`no-cache, no-transform`) and replays the current run's events on connect, so a reload or reconnect shows everything; `POST /runs` starts both modes (202), refuses a second start while running (409) and requires `x-intentlock-demo: 1`, which a cross-site form or simple request cannot send. A mode that throws reports a `failed` event instead of stopping the other mode.
+  2. **Inbox:** `/demo` uses `EventSource('/demo-runner/events')` through a Next.js rewrite to `DEMO_RUNNER_URL`, so it is same-origin and behind the sign-in proxy. Frames are parsed with zod; a reducer drops replayed `seq`s and starts over when a new `runId` arrives. Measured through the dev rewrite: frames arrive as they are emitted (about 1 s apart), not buffered.
+  3. **No polling fallback:** ARCHITECTURE had one for the free-hosted instance, but the runner is a local recording tool that never runs there, and `EventSource` reconnects on its own (`retry: 2000`) with the replay above.
+  4. **Demo users already existed** (`INTENTLOCK_DEMO=1` on first boot, ADR-032); now covered by an e2e test (four users with the right roles and groups, each can sign in). `DEMO_USER` defaults to `member@acme-demo.dev`, one of those users, so `setup-instance` has nothing to create on a demo install.
+- **Alternatives:** WebSocket (no need for client → server messages); CORS straight to the runner (a second origin to configure; the rewrite needs none); a separate `--demo` seed command on the server (first-boot env covers it).

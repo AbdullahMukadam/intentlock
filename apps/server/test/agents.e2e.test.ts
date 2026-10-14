@@ -168,6 +168,7 @@ describe("API keys", () => {
       .set("Cookie", admin.cookie)
       .expect(200);
     expect(list.body).toHaveLength(1);
+    expect(list.body[0]).toMatchObject({ createdBy: admin.user.email });
     expect(JSON.stringify(list.body)).not.toContain(key);
     expect(list.body[0]).not.toHaveProperty("hash");
 

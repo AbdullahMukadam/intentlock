@@ -74,7 +74,11 @@ async function heldCall(policy = holdPolicy()) {
     .send({ token: plan.body.token, call: call("github_post_comment", { body: "hi" }) })
     .expect(200);
   expect(res.body).toMatchObject({ verdict: "hold", ruleId: "hold-comments" });
-  return { holdId: res.body.holdId as string, token: plan.body.token as string };
+  return {
+    holdId: res.body.holdId as string,
+    token: plan.body.token as string,
+    planId: plan.body.planId as string,
+  };
 }
 
 const resolve = (holdId: string, action: "approve" | "reject", cookie: string) =>
@@ -90,7 +94,7 @@ describe("holds", () => {
     const approved = await resolve(holdId, "approve", approver.cookie).expect(200);
     expect(approved.body).toMatchObject({
       status: "approved",
-      resolvedBy: approver.user.id,
+      resolvedBy: approver.user.email,
       note: "ok",
     });
     expect((await waiting).body).toEqual({ status: "approved" });
@@ -112,6 +116,17 @@ describe("holds", () => {
       error: "hold_not_pending",
       status: "rejected",
     });
+  });
+
+  it("names the approver by email in the hold list and run detail", async () => {
+    const { holdId, planId } = await heldCall();
+    await resolve(holdId, "approve", approver.cookie).expect(200);
+    const list = await http().get("/v1/holds").set("Cookie", admin.cookie).expect(200);
+    expect(list.body.find((h: { id: string }) => h.id === holdId)).toMatchObject({
+      resolvedBy: approver.user.email,
+    });
+    const run = await http().get(`/v1/runs/${planId}`).set("Cookie", admin.cookie).expect(200);
+    expect(run.body.holds[0]).toMatchObject({ id: holdId, resolvedBy: approver.user.email });
   });
 
   it("the requester cannot approve their own hold unless self: true", async () => {

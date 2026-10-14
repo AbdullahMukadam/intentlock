@@ -1,0 +1,7 @@
+export const SESSION_COOKIE = "il_session";
+export const CSRF_HEADER = "x-intentlock-csrf";
+export const API_PREFIX = "/api";
+export const LOGIN_PATH = "/login";
+export const NEXT_PARAM = "next";
+export const DEMO_RUNNER_PREFIX = "/demo-runner";
+export const DEMO_RUNNER_HEADER = "x-intentlock-demo";

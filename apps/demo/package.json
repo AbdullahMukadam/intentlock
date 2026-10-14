@@ -6,13 +6,21 @@
   "license": "Elastic-2.0",
   "type": "module",
   "scripts": {
+    "setup-instance": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/setup.ts",
+    "seed": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env seed/seed.ts",
+    "github-assistant": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/run.ts github-assistant",
+    "run": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/run.ts",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "runner": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/runner.ts"
   },
   "dependencies": {
+    "@intentlock/core": "workspace:*",
     "@intentlock/guard": "workspace:*",
-    "@intentlock/sdk": "workspace:*"
+    "@intentlock/sdk": "workspace:*",
+    "@octokit/rest": "^22.0.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",

@@ -145,28 +145,28 @@
 ## Phase 4 · Inbox + GitHub demo (Thu 15) — `apps/inbox`, `apps/demo`
 
 **Inbox (every page requires sign-in)**
-- [ ] Next.js middleware: no session → `/login`; sign-in page (email + login token), sign-out, CSRF header on mutations, edition in the footer
-- [ ] App shell with navigation: Overview · Activity · Holds · Agents · Audit
-- [ ] **Overview:** allowed/blocked/held over time (Recharts), pending holds, median time-to-approve, top blocked tools and rules, flagged entries, audit lag; agent filter
-- [ ] **Activity:** decision table with filters (agent, user, tool, verdict, rule, policy version, time), search, JSONL export
-- [ ] **Run detail:** plan, policy version, ordered tool calls with verdict, rule, approval and timing
-- [ ] **Holds:** live list (WebSocket + 10 s polling fallback) filtered for the signed-in user; approve/reject with note
-- [ ] **Agents:** list; create (admin); agent page tabs Overview · Policy · API keys · Activity; create key (shown once, copy button) and revoke
-- [ ] **Policy editor:** CodeMirror YAML with inline errors from `@intentlock/core`; test panel (sample calls + replay last N) showing what changes; diff vs active; publish with message; 409 conflict handling; history with view/diff and rollback; read-only for non-admins
-- [ ] **Audit:** verify chain result
-- [ ] Role checks reflected in the UI (hidden/disabled actions), never relied on for security
+- [x] Next.js middleware: no session → `/login`; sign-in page (email + login token), sign-out, CSRF header on mutations, edition in the footer
+- [x] App shell with navigation: Overview · Activity · Holds · Agents · Audit
+- [x] **Overview:** allowed/blocked/held over time (Recharts), pending holds, median time-to-approve, top blocked tools and rules, flagged entries, audit lag; agent filter
+- [x] **Activity:** decision table with filters (agent, user, tool, verdict, rule, policy version, time), search, JSONL export
+- [x] **Run detail:** plan, policy version, ordered tool calls with verdict, rule, approval and timing
+- [x] **Holds:** live list (WebSocket + 10 s polling fallback) filtered for the signed-in user; approve/reject with note
+- [x] **Agents:** list; create (admin); agent page tabs Overview · Policy · API keys · Activity; create key (shown once, copy button) and revoke
+- [x] **Policy editor:** CodeMirror YAML with inline errors from `@intentlock/core`; test panel (sample calls + replay last N) showing what changes; diff vs active; publish with message; 409 conflict handling; history with view/diff and rollback; read-only for non-admins
+- [x] **Audit:** verify chain result
+- [x] Role checks reflected in the UI (hidden/disabled actions), never relied on for security
 
 **GitHub demo agent**
-- [ ] Throwaway GitHub accounts + repos (`public-app`, `private-notes` with fake data); fine-grained PAT over both — **manual step for Abdullah**
-- [ ] Octokit tools from ARCHITECTURE §8 with zod input schemas; `apps/demo/policies/github-assistant.yaml`
-- [ ] `setup` script: register the three agents, create one API key each into `apps/demo/.env`, publish their policies via `intentlock policy push`
-- [ ] `seed --agent github-assistant`: poisoned issue + benign issue
-- [ ] Unprotected run with `PassThroughGate`: get it to leak via PR (tune payload / model); else use `DEMO_FORCE_ATTACK=1` (`FakeProvider` script, labelled on screen)
-- [ ] Protected run: leak blocked at `get_file_contents` / `create_pull_request`; the model explains the block; the run appears in Activity and Run detail
-- [ ] Split-screen `/demo` page in the inbox: two panes streaming both modes
-- [ ] Server demo seed (`--demo` / `INTENTLOCK_DEMO=1`): sample admin, approver, member, intern users
+- [x] Throwaway GitHub accounts + repos (`public-app`, `private-notes` with fake data); fine-grained PAT over both — **manual step for Abdullah**
+- [x] Octokit tools from ARCHITECTURE §8 with zod input schemas; `apps/demo/policies/github-assistant.yaml`
+- [x] `setup` script: register the three agents, create one API key each into `apps/demo/.env`, publish their policies via `intentlock policy push`
+- [x] `seed --agent github-assistant`: poisoned issue + benign issue
+- [x] Unprotected run with `PassThroughGate`: get it to leak via PR (tune payload / model); else use `DEMO_FORCE_ATTACK=1` (`FakeProvider` script, labelled on screen) — the free model refuses the injection, so the leak uses `DEMO_FORCE_ATTACK=1`; proven by `forced-run.test.ts`, shown live in the `/demo` split screen when recording
+- [x] Protected run: leak blocked at `get_file_contents` / `create_pull_request`; the model explains the block; the run appears in Activity and Run detail
+- [x] Split-screen `/demo` page in the inbox: two panes streaming both modes
+- [x] Server demo seed (`--demo` / `INTENTLOCK_DEMO=1`): sample admin, approver, member, intern users
 - [ ] Record backup clips
-- [ ] Journal entry
+- [x] Journal entry
 
 **Acceptance:** signed out, every inbox page and API route refuses access; signed in, `pnpm --filter @intentlock/demo run github-assistant` blocks the leak, a benign `post_comment` holds and is approved in the inbox and posts to GitHub; a policy edit is tested, published as a new version and used by the next run; the dashboard and run detail show all of it.
 
