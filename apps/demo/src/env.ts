@@ -17,7 +17,10 @@ export const DemoEnv = z.object({
   INTENTLOCK_ADMIN_TOKEN: Optional,
   INTENTLOCK_API_KEY_GITHUB_ASSISTANT: Optional,
   INTENTLOCK_API_KEY_SUPPORT_ASSISTANT: Optional,
+  INTENTLOCK_API_KEY_FILES_ASSISTANT: Optional,
   MAILPIT_URL: z.url().default("http://localhost:8025"),
+  DEMO_SANDBOX: Optional,
+  DEMO_RECEIVER_URL: z.url().default("http://localhost:8787/collect"),
   DEMO_USER: z.email().default("member@acme-demo.dev"),
   DEMO_FORCE_ATTACK: Optional,
   DEMO_TURN_DELAY_MS: z.coerce.number().int().min(0).default(1500),
@@ -48,6 +51,7 @@ export function repos(env: DemoEnv) {
 export const API_KEY_VARS = {
   [DemoAgent.GITHUB_ASSISTANT]: "INTENTLOCK_API_KEY_GITHUB_ASSISTANT",
   [DemoAgent.SUPPORT_ASSISTANT]: "INTENTLOCK_API_KEY_SUPPORT_ASSISTANT",
+  [DemoAgent.FILES_ASSISTANT]: "INTENTLOCK_API_KEY_FILES_ASSISTANT",
 } as const satisfies Record<DemoAgent, keyof DemoEnv>;
 
 export function apiKey(env: DemoEnv, agent: DemoAgent) {

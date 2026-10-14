@@ -12,6 +12,8 @@ import { type Gate, HybridGate, PassThroughGate } from "@intentlock/sdk";
 import { Octokit } from "@octokit/rest";
 
 import type { AgentSpec } from "./agents/agent-spec.js";
+import { filesAgent } from "./agents/files/agent.js";
+import { SANDBOX_ROOT } from "./agents/files/sandbox.js";
 import { githubAgent } from "./agents/github/agent.js";
 import { supportAgent } from "./agents/support/agent.js";
 import { type Mailbox, mailpit } from "./agents/support/mailbox.js";
@@ -49,6 +51,8 @@ function specFor(agent: DemoAgent, env: DemoEnv, deps: AgentDeps): AgentSpec {
       );
     case DemoAgent.SUPPORT_ASSISTANT:
       return supportAgent(deps.mailbox ?? mailpit(env.MAILPIT_URL), deps.orders ?? loadOrders());
+    case DemoAgent.FILES_ASSISTANT:
+      return filesAgent(env.DEMO_SANDBOX ?? SANDBOX_ROOT, env.DEMO_RECEIVER_URL);
   }
 }
 

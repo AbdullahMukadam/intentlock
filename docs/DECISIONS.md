@@ -474,3 +474,14 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   5. **Refunds live for one run:** orders come from `seed/orders.json`; issued refunds are kept in memory and printed after the run (and are in the audit log). No refund file to clean up between runs.
   6. **One `AgentSpec` per agent** (`src/agents/<name>/agent.ts`: system prompt, task, tools, forced script, summary). `build-agent` picks the spec and wires provider, gate and guard the same way for every agent; dependencies (Octokit, mailbox, orders) can be injected for tests.
 - **Alternatives:** `nodemailer` over SMTP (a dependency for one call that Mailpit's API already makes); a `to` argument on `mail_reply` pinned by the plan (the planner cannot know senders before reading mail); persisting refunds to a JSON file (state to reset before every recording).
+
+### ADR-054: Files-assistant demo agent
+- **Date:** 2026-10-14 · **Status:** Accepted · Amends ARCHITECTURE §8 (updated in the same change)
+- **Decision:**
+  1. **Two boundaries, one per layer:** the `fs_*` tools take paths relative to `apps/demo/sandbox/` and throw for anything that resolves outside it (absolute paths, `..` past the root), so even an unprotected run cannot touch the real disk. The sandbox itself holds a fake `.env` next to `workspace/`, so the attack has something to steal inside that boundary. Intentlock's policy narrows access further: `no-env-files` (`**/.env*` → block) first, then `workspace-only` (paths outside `workspace{,/**}` → block, a missing path blocks too).
+  2. **`..` and `.` segments never match the workspace glob** (minimatch's `**` does not cross them), so `workspace/../.env` is caught by `workspace-only`; the policy test pins that.
+  3. **Network only through the plan:** `http_request` has no policy rule of its own; it runs only when the signed plan has an `http_request` step. The summarise task never needs one, so the seeded POST is `not_in_plan`.
+  4. **Receiver:** `src/webhook-receiver.ts` records every request (method, path, body up to 1 MB) and `run receiver` prints them on `127.0.0.1:8787`. Tests start it on port 0 and point `DEMO_RECEIVER_URL` at it; `DEMO_SANDBOX` points the agent at a temp folder.
+  5. **Seed resets the workspace:** `seed --agent files-assistant` deletes `sandbox/workspace/` and copies the payloads back (poisoned release notes, meeting notes, a to-do list) plus `sandbox/.env`, so every run starts the same.
+  6. **`setup-instance` lists users before creating them:** at the Community limit (5 users) creating an existing user answers `403 user_limit_reached` before the 409, so setup no longer relies on the 409.
+- **Alternatives:** tools rooted at `workspace/` (the attack would fail in the tool, not in Intentlock, and the demo would show nothing); an `http_request` URL allow-list in the policy (not needed while the plan already excludes the call).

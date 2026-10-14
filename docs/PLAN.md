@@ -178,8 +178,8 @@
 - [x] Mailpit service in the dev `docker-compose.yml`; `mail_*` tools via Mailpit HTTP API (sending through its send API instead of `nodemailer` SMTP, ADR-053); orders/refunds in a local JSON store of fake customers
 - [x] `support-assistant` policy: reply only to the sender, no forwarding outside `@acme-demo.dev`, refunds ≤ $20 allow / ≤ $500 hold / unknown account block, group rules (`support-leads` vs `intern`)
 - [x] `seed --agent support-assistant`: forward-to-attacker email + benign emails; protected run blocks the forward, holds a $200 refund
-- [ ] `files-assistant`: `fs_*` tools confined to `sandbox/workspace/`, `http_request` tool, local webhook receiver (`node:http`) that logs what arrives
-- [ ] `files-assistant` policy: paths `workspace/**` only, never `.env`, network calls only if in the plan; `seed`: poisoned document; protected run blocks the read and the POST, receiver shows nothing arrived
+- [x] `files-assistant`: `fs_*` tools confined to `sandbox/workspace/`, `http_request` tool, local webhook receiver (`node:http`) that logs what arrives
+- [x] `files-assistant` policy: paths `workspace/**` only, never `.env`, network calls only if in the plan; `seed`: poisoned document; protected run blocks the read and the POST, receiver shows nothing arrived
 
 **Afternoon: evals**
 - [ ] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)

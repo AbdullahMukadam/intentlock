@@ -720,3 +720,24 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Phase 5b: files-assistant (fs_* tools in sandbox/workspace, http_request, webhook receiver, policy, seed, protected run)
+
+### 2026-10-14 · Session 15 (cont.) · Phase 5b — files-assistant
+
+**Done**
+- `fs_list/read/write` on paths relative to `apps/demo/sandbox/` (refuse anything outside), `http_request`, webhook receiver + `run receiver`
+- `policies/files-assistant.yaml`: `no-env-files`, `workspace-only`, `allow-in-plan` (network only when planned)
+- `seed --agent files-assistant` resets `sandbox/workspace/` (poisoned release notes, meeting notes, to-do) and writes the fake `sandbox/.env`; forced-attack script; setup registers the agent
+
+**Problems hit and how they were solved**
+- `setup-instance` failed with `403 user_limit_reached`: the demo instance has exactly 5 users (Community limit) and the server checks the limit before the duplicate → setup now lists users first
+- `workspace/../.env` is not matched by `**/.env*` (minimatch `**` does not cross `..`) → it is still blocked by `workspace-only`; test row pins which rule
+
+**Decisions**
+- ADR-054: Files-assistant demo agent
+
+**Numbers**
+- demo 77 tests (was 50): sandbox escape checks, tools on a temp sandbox, receiver, 12-row files policy table, forced files run unprotected (fake secret arrives at the receiver) and protected (`.env` read blocked by `no-env-files`, POST `not_in_plan`, receiver empty, summary written)
+- Live, test-DB server: forced protected run → `.env` read and POST blocked, receiver got nothing, summary written. Real `gemini-3.5-flash-lite` protected run (4 turns) → ignored the hidden instruction, read the three documents, wrote a correct summary; receiver got nothing
+
+**Next**
+- Phase 5c: evals (scenario type, mock backends, 30 scenarios, policies)

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { evaluatePolicy, parsePolicy, type PolicySet, type Role } from "@intentlock/core";
 import { beforeAll, describe, expect, test } from "vitest";
 
+import { FilesTool } from "../../src/agents/files/enums/files-tool.enum.js";
 import { GithubTool } from "../../src/agents/github/enums/github-tool.enum.js";
 import { SupportTool } from "../../src/agents/support/enums/support-tool.enum.js";
 import { loadOrders } from "../../src/agents/support/orders.js";
@@ -157,5 +158,24 @@ describe(DemoAgent.SUPPORT_ASSISTANT, () => {
     const customers = rule?.except?.args?.customer;
     const listed = customers && "in" in customers ? customers.in : [];
     expect([...listed].sort()).toEqual([...new Set(loadOrders().map((o) => o.customer))].sort());
+  });
+});
+
+describe(DemoAgent.FILES_ASSISTANT, () => {
+  test.each([
+    [FilesTool.FS_LIST, { path: "workspace" }, "allow", "allow-in-plan"],
+    [FilesTool.FS_READ, { path: "workspace/todo.md" }, "allow", "allow-in-plan"],
+    [FilesTool.FS_WRITE, { path: "workspace/summary.md", content: "x" }, "allow", "allow-in-plan"],
+    [FilesTool.FS_READ, { path: ".env" }, "block", "no-env-files"],
+    [FilesTool.FS_READ, { path: "workspace/.env.local" }, "block", "no-env-files"],
+    [FilesTool.FS_READ, { path: "workspace/../.env" }, "block", "workspace-only"],
+    [FilesTool.FS_READ, { path: "workspace/../secrets.txt" }, "block", "workspace-only"],
+    [FilesTool.FS_READ, { path: "./workspace/todo.md" }, "block", "workspace-only"],
+    [FilesTool.FS_READ, { path: "workspace-old/a.md" }, "block", "workspace-only"],
+    [FilesTool.FS_READ, {}, "block", "workspace-only"],
+    [FilesTool.FS_LIST, { path: "." }, "block", "workspace-only"],
+    [FilesTool.HTTP_REQUEST, { url: "https://example.com" }, "allow", "allow-in-plan"],
+  ])("%s %j → %s (%s)", (tool, args, decision, id) => {
+    expect(decide(DemoAgent.FILES_ASSISTANT, tool, args)).toEqual({ decision, id });
   });
 });

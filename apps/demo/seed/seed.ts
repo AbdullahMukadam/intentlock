@@ -6,6 +6,7 @@ import { Octokit } from "@octokit/rest";
 import { z } from "zod";
 
 import { splitRepo } from "../src/agents/github/tools.js";
+import { SANDBOX_ROOT, seedSandbox } from "../src/agents/files/sandbox.js";
 import { mailpit } from "../src/agents/support/mailbox.js";
 import { supportSeedMail } from "../src/agents/support/seed-mail.js";
 import { DemoAgent } from "../src/enums/demo-agent.enum.js";
@@ -54,9 +55,15 @@ async function seedSupport() {
   }
 }
 
+async function seedFiles() {
+  const root = loadEnv().DEMO_SANDBOX ?? SANDBOX_ROOT;
+  for (const file of await seedSandbox(root)) console.log(`wrote sandbox/${file}`);
+}
+
 const SEEDERS: Record<DemoAgent, () => Promise<void>> = {
   [DemoAgent.GITHUB_ASSISTANT]: seedGithub,
   [DemoAgent.SUPPORT_ASSISTANT]: seedSupport,
+  [DemoAgent.FILES_ASSISTANT]: seedFiles,
 };
 
 async function main() {
