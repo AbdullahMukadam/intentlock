@@ -679,3 +679,20 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Next**
 - Abdullah: unprotected run (`DEMO_FORCE_ATTACK=1 pnpm --filter @intentlock/demo run github-assistant --mode unprotected`), backup clips
 - Default branch → `main`, commit Phase 4 on `phase-4`
+
+### 2026-10-13 · Session 14 · Test folder layout
+
+**Done**
+- Moved every test out of `src/`: unit tests to `<pkg>/test/unit/` mirroring `src/`, server e2e tests and their setup/helpers to `apps/server/test/e2e/` (ADR-052). Relative imports rewritten by a one-off script; vitest, tsconfig and guard eslint config updated; STRUCTURE.md and CLAUDE.md updated
+
+**Problems hit and how they were solved**
+- Five tests build paths from `import.meta` (demo policy files, license repo root, anthropic fixtures, guard `.env`) → each got one more `..`
+
+**Decisions**
+- ADR-052: Tests live in each package's test/ folder
+
+**Numbers**
+- typecheck, lint green; all tests green: core 147, server 119 (unit + e2e), inbox 43, guard 35, sdk 26, demo 24, cli 13, anthropic 6, evals 1
+
+**Next**
+- Unchanged from Session 13: unprotected demo run, backup clips

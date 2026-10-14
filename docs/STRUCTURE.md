@@ -63,7 +63,7 @@ packages/<name>/
 └── README.md                       # what it is, 5-line usage, API summary
 ```
 
-Unit tests sit **next to the code** as `*.test.ts`. App integration tests live in the app's `test/` folder as `*.e2e.test.ts`.
+Tests live in each app's or package's `test/` folder, never in `src/` (ADR-052): unit tests in `test/unit/` mirroring the `src/` path (`src/policy/evaluate.ts` → `test/unit/policy/evaluate.test.ts`; files outside `src/`, like inbox's `next.config.ts`, sit at the root of `test/unit/`), integration tests in `test/e2e/` as `*.e2e.test.ts`, shared fixtures in `test/fixtures/`.
 
 ## 3. Package-by-package
 
@@ -317,23 +317,25 @@ src/
 │   └── utils/                      # can-see-event.util.ts
 └── health/                         # health.module/controller: /health, /health/ready (DB + signing key)
 test/
-├── global-setup.ts                 # once per run: point at TEST_DATABASE_URL, `prisma migrate deploy`
-├── setup.ts                        # test Prisma client, resetDb() (e2e files run serially)
-├── helpers.ts                      # createTestApp, createUser, sessionCookie, verifyAuditChain
-├── auth.e2e.test.ts                # login, sessions, CSRF, self-approval rules, API key can't approve
-├── routes.e2e.test.ts              # every route requires auth unless explicitly public / agent-only
-├── agents.e2e.test.ts              # agents, keys, revoke, disable; a probe @AgentAuth controller tests the API-key guard
-├── policies.e2e.test.ts            # draft, test, publish, 409, rollback, version used by new plans
-├── visibility.e2e.test.ts          # role-scoped runs and stats
-├── events.e2e.test.ts              # WebSocket handshake auth, per-role filtering, disabled-user drop
-├── license.e2e.test.ts
-├── plans.e2e.test.ts               # signing, snapshots, refresh, JWKS
-├── check.e2e.test.ts               # check, report, maxCalls under concurrency, chain under load, audit list/export/verify
-├── holds.e2e.test.ts               # approve/reject/wait/expiry/visibility, hybrid create, shutdown drain
-└── hybrid.e2e.test.ts              # HybridGate + outbox against a real server
+├── unit/                           # unit tests, mirroring src/ (config/env.schema.test.ts, license/utils/…)
+└── e2e/
+    ├── global-setup.ts                 # once per run: point at TEST_DATABASE_URL, `prisma migrate deploy`
+    ├── setup.ts                        # test Prisma client, resetDb() (e2e files run serially)
+    ├── helpers.ts                      # createTestApp, createUser, sessionCookie, verifyAuditChain
+    ├── auth.e2e.test.ts                # login, sessions, CSRF, self-approval rules, API key can't approve
+    ├── routes.e2e.test.ts              # every route requires auth unless explicitly public / agent-only
+    ├── agents.e2e.test.ts              # agents, keys, revoke, disable; a probe @AgentAuth controller tests the API-key guard
+    ├── policies.e2e.test.ts            # draft, test, publish, 409, rollback, version used by new plans
+    ├── visibility.e2e.test.ts          # role-scoped runs and stats
+    ├── events.e2e.test.ts              # WebSocket handshake auth, per-role filtering, disabled-user drop
+    ├── license.e2e.test.ts
+    ├── plans.e2e.test.ts               # signing, snapshots, refresh, JWKS
+    ├── check.e2e.test.ts               # check, report, maxCalls under concurrency, chain under load, audit list/export/verify
+    ├── holds.e2e.test.ts               # approve/reject/wait/expiry/visibility, hybrid create, shutdown drain
+    └── hybrid.e2e.test.ts              # HybridGate + outbox against a real server
 ```
 
-Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts` (and `<feature>.service.test.ts` where unit-testable) at its root, plus subfolders as needed, one concern per file (ADR-033):
+Each feature folder holds `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts` at its root (unit tests go under `test/unit/<feature>/`), plus subfolders as needed, one concern per file (ADR-033):
 
 | Subfolder | Holds | File name |
 | --- | --- | --- |
@@ -451,7 +453,7 @@ flowchart BT
 
 - Arrows point at what a package may import. Nothing imports "up" (core never imports sdk, sdk never imports guard).
 - `core` has no runtime I/O imports (`node:fs`, `node:http`, `fetch`, Prisma, provider SDKs).
-- Provider SDKs (`openai`, `@anthropic-ai/sdk`) appear only in `guard/src/provider/` and `packages/anthropic`.
+- Provider SDKs (`openai`, `@anthropic-ai/sdk`) appear only in `guard/src/provider/` (and its tests in `guard/test/unit/provider/`) and `packages/anthropic`.
 - Apps never import another app.
 - Import from a package's root (`@intentlock/core`), never from `@intentlock/core/src/...`.
 - One exception: `apps/server/test/**` may import `@intentlock/sdk` (dev dependency) so integration tests drive the server through the real gates; server code still may not (ADR-038).
@@ -468,8 +470,8 @@ flowchart BT
 | Tool names | snake_case, `^[a-zA-Z0-9_-]{1,64}$` | `github_post_comment` |
 | Rule ids, scenario ids | kebab-case | `hold-public-comments`, `gh-001-private-leak` |
 | NestJS files | `<feature>.<kind>.ts` | `holds.controller.ts` |
-| Unit tests | next to source, `*.test.ts` | `check.test.ts` |
-| Integration tests | `test/*.e2e.test.ts` | `holds.e2e.test.ts` |
+| Unit tests | `test/unit/<src path>.test.ts` | `test/unit/policy/evaluate.test.ts` |
+| Integration tests | `test/e2e/*.e2e.test.ts` | `test/e2e/holds.e2e.test.ts` |
 | Env vars | SCREAMING_SNAKE, documented in `.env.example` | `LLM_BASE_URL` |
 
 - One main export per file; `index.ts` files only re-export.

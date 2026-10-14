@@ -1,4 +1,4 @@
 {
   "extends": "@intentlock/config/tsconfig.base.json",
-  "include": ["src/**/*.ts", "seed/**/*.ts", "*.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "seed/**/*.ts", "*.config.ts"]
 }

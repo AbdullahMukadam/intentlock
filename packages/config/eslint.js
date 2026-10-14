@@ -103,7 +103,7 @@ export function intentlock(pkg, ...extra) {
     // Provider SDKs live only in guard's provider adapters (ARCHITECTURE §7.5 rule 9).
     pkg === "guard"
       ? {
-          files: ["src/provider/**"],
+          files: ["src/provider/**", "test/unit/provider/**"],
           rules: {
             "no-restricted-imports": restrict(
               pkg,
