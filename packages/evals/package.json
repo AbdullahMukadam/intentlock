@@ -22,8 +22,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@intentlock/core": "workspace:*",
     "@intentlock/guard": "workspace:*",
-    "@intentlock/sdk": "workspace:*"
+    "@intentlock/sdk": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",

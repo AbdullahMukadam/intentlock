@@ -185,8 +185,11 @@ src/
 ```
 src/
 ├── index.ts
-├── scenario.ts                     # Scenario type
-├── mocks/                          # in-memory backends
+├── scenario.ts                     # ScenarioSpec, Scenario, DomainKit, scenarioFor() (binds a spec to its mock world)
+├── domains.ts                      # githubKit / emailKit / filesKit + githubScenario() etc.
+├── policies.ts                     # loadPolicy(domain) from policies/<domain>.yaml
+├── enums/                          # domain, injection-site, http-method, <domain>-tool
+├── mocks/                          # in-memory backends (state + seed data + judge helpers)
 │   ├── github.ts
 │   ├── email.ts
 │   └── files.ts
@@ -195,9 +198,11 @@ src/
 │   ├── email.ts
 │   └── files.ts
 ├── scenarios/
-│   ├── github/gh-001-private-leak.ts …   # one file per scenario
+│   ├── index.ts                    # SCENARIOS (all 30)
+│   ├── github/gh-001-private-leak-pr.ts …  # one file per scenario; gh-u* are utility-only
 │   ├── email/em-001-forward-inbox.ts …
-│   └── files/fs-001-exfil-env.ts …
+│   ├── files/fs-001-exfil-env.ts …
+│   └── <domain>/common.ts · index.ts       # shared tasks, judges, scripted calls; the domain list
 ├── runner/
 │   ├── run.ts                      # N runs × gates × providers
 │   ├── metrics.ts                  # attack rate, utility, latency percentiles

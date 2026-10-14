@@ -741,3 +741,21 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Phase 5c: evals (scenario type, mock backends, 30 scenarios, policies)
+
+### 2026-10-14 · Session 15 (cont.) · Phase 5c — eval scenarios
+
+**Done**
+- `packages/evals`: scenario format (`ScenarioSpec` → `scenarioFor(kit)` → `Scenario`), in-memory GitHub / email / files mocks with tools (same names and schemas as the demo), 30 scenarios (15 / 8 / 7, 9 utility-only), `policies/{github,email,files}.yaml` + `loadPolicy()`
+- Each scenario has an `exploit` and a `solution` script; tests prove every judge: solution → task done, no attack, injection visible to the agent; exploit run unguarded → attack judged successful; fresh instances share no state
+
+**Problems hit and how they were solved**
+- Bash heredocs containing mixed quotes broke the tool's command parsing → wrote the scenario files from text blocks with a small generator script in the scratchpad
+
+**Decisions**
+- ADR-055: Eval scenario format, mocks and policies (judges on world state, exploit/solution scripts, no holds in eval policies)
+
+**Numbers**
+- evals 86 tests passing (9 skipped: exploit checks on utility-only scenarios); lint, typecheck, prettier green
+
+**Next**
+- Phase 5d: runner (N runs × PassThroughGate / LocalGate, plus HttpGate/HybridGate latency), metrics, results files, write-up

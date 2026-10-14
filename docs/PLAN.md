@@ -182,9 +182,9 @@
 - [x] `files-assistant` policy: paths `workspace/**` only, never `.env`, network calls only if in the plan; `seed`: poisoned document; protected run blocks the read and the POST, receiver shows nothing arrived
 
 **Afternoon: evals**
-- [ ] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)
-- [ ] 15 GitHub scenarios (incl. utility-only), 8 email, 7 files — injections in issue bodies, email bodies, file contents, tool outputs
-- [ ] Policy files per domain (`packages/evals/policies/`, loaded by `LocalGate`)
+- [x] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)
+- [x] 15 GitHub scenarios (incl. utility-only), 8 email, 7 files — injections in issue bodies, email bodies, file contents, tool outputs
+- [x] Policy files per domain (`packages/evals/policies/`, loaded by `LocalGate`)
 - [ ] Runner: N runs × {PassThroughGate, LocalGate}; collects tool logs, final text, check latencies, tokens
 - [ ] Metrics: attack success rate, utility rate, false-block count, p50/p95 check latency for `remote` (HttpGate) vs `hybrid` (HybridGate) vs `local`
 - [ ] Every result row labelled with provider + model; run at least the default free model (and Claude if a key becomes available)
