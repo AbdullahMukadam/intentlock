@@ -9,6 +9,7 @@ import { PrismaService } from "../../prisma/prisma.service.js";
 import { AgentsService } from "../agents.service.js";
 import { ApiKeyError } from "./enums/api-key-error.enum.js";
 import { newApiKey } from "./utils/api-key.util.js";
+import { emailsById } from "../../users/utils/emails-by-id.util.js";
 import { toApiKeyView } from "./utils/to-api-key-view.util.js";
 
 @Injectable()
@@ -46,11 +47,13 @@ export class ApiKeysService {
 
   async list(orgId: string, agentId: string) {
     await this.agents.findOrThrow(orgId, agentId);
-    const keys = await orgDb(this.prisma, orgId).apiKey.findMany({
-      where: { agentId },
-      orderBy: { createdAt: "asc" },
-    });
-    return keys.map(toApiKeyView);
+    const db = orgDb(this.prisma, orgId);
+    const keys = await db.apiKey.findMany({ where: { agentId }, orderBy: { createdAt: "asc" } });
+    const emails = await emailsById(
+      db,
+      keys.map((k) => k.createdBy),
+    );
+    return keys.map((k) => toApiKeyView(k, emails));
   }
 
   async revoke(admin: SessionUser, agentId: string, keyId: string) {

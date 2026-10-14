@@ -105,6 +105,21 @@ describe("/events", () => {
     );
   });
 
+  it("accepts the handshake path without a trailing slash, as Next.js rewrites send it", async () => {
+    const socket = io(url, {
+      transports: ["polling"],
+      addTrailingSlash: false,
+      extraHeaders: { cookie: admin.cookie },
+      reconnection: false,
+    });
+    sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.on("connect", () => resolve());
+      socket.on("connect_error", reject);
+    });
+    expect(socket.connected).toBe(true);
+  });
+
   it("streams decisions and holds, filtered by role", async () => {
     const forApprover = await connect({ cookie: approver.cookie });
     const forAlice = await connect({ cookie: alice.cookie });

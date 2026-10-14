@@ -1,6 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
+import { sha256Hex } from "../src/common/utils/crypto.util.js";
 import { bootstrapOrg } from "../src/org/utils/bootstrap-org.util.js";
 import {
   createOrg,
@@ -208,5 +209,29 @@ describe("bootstrap", () => {
     expect(await prisma.organization.count()).toBe(1);
     const token = results.find(Boolean)!.tokens["boss@acme.dev"]!;
     await login("boss@acme.dev", token).expect(200);
+  });
+
+  it("with demo on, adds an approver, a member and an intern, each with a login token", async () => {
+    await resetDb(prisma);
+    const result = await bootstrapOrg(prisma, {
+      orgName: "Acme",
+      adminEmail: "boss@acme.dev",
+      demo: true,
+    });
+    const users = await prisma.user.findMany({
+      select: { email: true, role: true, groups: true },
+      orderBy: { email: "asc" },
+    });
+    expect(users).toEqual([
+      { email: "approver@acme.dev", role: UserRole.APPROVER, groups: [] },
+      { email: "boss@acme.dev", role: UserRole.ADMIN, groups: [] },
+      { email: "intern@acme.dev", role: UserRole.MEMBER, groups: ["intern"] },
+      { email: "member@acme.dev", role: UserRole.MEMBER, groups: [] },
+    ]);
+    const hashes = await prisma.user.findMany({ select: { email: true, loginTokenHash: true } });
+    for (const { email, loginTokenHash } of hashes) {
+      expect(loginTokenHash).toBe(sha256Hex(result!.tokens[email]!));
+    }
+    await login("member@acme.dev", result!.tokens["member@acme.dev"]!).expect(200);
   });
 });

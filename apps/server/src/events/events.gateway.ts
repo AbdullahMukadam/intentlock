@@ -16,7 +16,7 @@ import type { SessionUser } from "../common/types/auth.types.js";
 import { ENV, type Env } from "../config/config.module.js";
 import { EventsService } from "./events.service.js";
 
-@WebSocketGateway({ namespace: API_ENDPOINTS.EVENTS })
+@WebSocketGateway({ namespace: API_ENDPOINTS.EVENTS, addTrailingSlash: false })
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly sessions: SessionsService,
