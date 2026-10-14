@@ -1,0 +1,24 @@
+version: 1
+default: block
+rules:
+  - id: only-public-app
+    match: { tool: "github_*" }
+    except: { args: { repo: { glob: "*/public-app" } } }
+    decision: block
+    reason: The assistant only works on public-app
+
+  - id: no-pull-requests
+    match: { tool: github_create_pull_request }
+    decision: block
+    reason: Opening pull requests is not part of issue triage
+
+  - id: hold-public-comments
+    match: { tool: github_post_comment }
+    decision: hold
+    approvers: { roles: [admin, approver] }
+    timeoutSeconds: 600
+    reason: Public comments are reviewed by a person before they go out
+
+  - id: allow-in-plan
+    match: { inPlan: true }
+    decision: allow
