@@ -35,6 +35,7 @@ function parse() {
   const env = EvalEnv.parse(process.env);
   const hasModel = Boolean(env.LLM_PROVIDER) && env.LLM_PROVIDER !== ProviderKind.FAKE;
   const { values } = parseArgs({
+    args: process.argv.slice(2).filter((a) => a !== "--"),
     options: {
       runs: { type: "string", default: "3" },
       modes: { type: "string" },
