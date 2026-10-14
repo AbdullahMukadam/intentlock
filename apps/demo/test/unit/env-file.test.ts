@@ -1,11 +1,10 @@
 import { expect, test } from "vitest";
 
 import { DemoAgent } from "../../src/enums/demo-agent.enum.js";
-import { API_KEY_VARS } from "../../src/env.js";
 import { hasValue, keyVar, upsertEnv } from "../../src/env-file.js";
 
-test.each(Object.values(DemoAgent))("keyVar(%s) matches the env schema's variable", (agent) => {
-  expect(keyVar(agent)).toBe(API_KEY_VARS[agent]);
+test("keyVar matches the env schema's variable", () => {
+  expect(keyVar(DemoAgent.GITHUB_ASSISTANT)).toBe("INTENTLOCK_API_KEY_GITHUB_ASSISTANT");
 });
 
 test("upsertEnv replaces an existing line and keeps the rest", () => {

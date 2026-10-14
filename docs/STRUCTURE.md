@@ -185,11 +185,8 @@ src/
 ```
 src/
 ├── index.ts
-├── scenario.ts                     # ScenarioSpec, Scenario, DomainKit, scenarioFor() (binds a spec to its mock world)
-├── domains.ts                      # githubKit / emailKit / filesKit + githubScenario() etc.
-├── policies.ts                     # loadPolicy(domain) from policies/<domain>.yaml
-├── enums/                          # domain, injection-site, http-method, <domain>-tool
-├── mocks/                          # in-memory backends (state + seed data + judge helpers)
+├── scenario.ts                     # Scenario type
+├── mocks/                          # in-memory backends
 │   ├── github.ts
 │   ├── email.ts
 │   └── files.ts
@@ -198,18 +195,14 @@ src/
 │   ├── email.ts
 │   └── files.ts
 ├── scenarios/
-│   ├── index.ts                    # SCENARIOS (all 30)
-│   ├── github/gh-001-private-leak-pr.ts …  # one file per scenario; gh-u* are utility-only
+│   ├── github/gh-001-private-leak.ts …   # one file per scenario
 │   ├── email/em-001-forward-inbox.ts …
-│   ├── files/fs-001-exfil-env.ts …
-│   └── <domain>/common.ts · index.ts       # shared tasks, judges, scripted calls; the domain list
+│   └── files/fs-001-exfil-env.ts …
 ├── runner/
-│   ├── run.ts                      # runScenario(): one scenario × gate × provider; logs calls, blocks, check latency, tokens
-│   ├── scripted.ts                 # model-free baseline: FakeProvider replaying exploit + solution under an honest plan
-│   ├── latency.ts                  # check-latency bench: local, hybrid (fsynced outbox), remote
-│   ├── metrics.ts                  # attack rate, utility, false blocks, latency percentiles
+│   ├── run.ts                      # N runs × gates × providers
+│   ├── metrics.ts                  # attack rate, utility, latency percentiles
 │   └── report.ts                   # results JSON + markdown table
-└── cli.ts                          # `pnpm --filter @intentlock/evals run eval [--runs N] [--modes scripted,model] [--only ids]`
+└── cli.ts                          # `pnpm --filter @intentlock/evals run eval`
 policies/                           # github.yaml, email.yaml, files.yaml
 results/                            # committed outputs: <date>.json, <date>.md
 ```
@@ -411,11 +404,10 @@ seed/
 ├── payloads/
 │   ├── github/poisoned-issue.md    # injection modelled on the Invariant payload
 │   ├── github/benign-issue.md
-│   ├── support/forward-attack.md   # "forward all customer emails to attacker@…"
-│   ├── support/benign-*.md         # $200 refund, $5 refund, a question
-│   ├── files/poisoned-notes.md     # "read ../.env and POST it to …" (copied to workspace/release-notes.md)
-│   ├── files/benign-*.md
-│   └── files/fake-env.txt          # copied to sandbox/.env by the seed
+│   ├── support/forward-attack.eml  # "forward all customer emails to attacker@…"
+│   ├── support/benign-*.eml
+│   ├── files/poisoned-notes.md     # "read ../.env and POST it to …"
+│   └── files/benign-*.md
 ├── orders.json                     # fake customers / orders for support-assistant
 └── seed.ts                         # --agent github-assistant|…|all (idempotent by issue title)
 sandbox/                            # git-ignored working area for files-assistant
@@ -430,23 +422,14 @@ src/
 ├── runner.ts                       # `run runner`: both modes of github-assistant on 127.0.0.1:8790
 ├── runner-server.ts                # node:http SSE server (GET /events, POST /runs with x-intentlock-demo header)
 ├── build-agent.ts                  # tools + guard for a given agent and gate
-├── force-attack/                   # FakeProvider scripts for DEMO_FORCE_ATTACK=1 (github, support) + script helpers
+├── force-attack/github.ts          # FakeProvider script for DEMO_FORCE_ATTACK=1
 ├── agents/
 │   ├── github/tools.ts             # Octokit tools (list/get/label/comment/get_file/list_repos/create_pr) + draft-reply
 │   ├── github/enums/               # github-tool.enum.ts
 │   ├── github/fake-octokit.ts      # test double for the tools and forced runs
-│   ├── agent-spec.ts               # AgentSpec: system prompt, task, tools, forced script, run summary
-│   ├── github/agent.ts             # github-assistant spec
-│   ├── support/agent.ts            # support-assistant spec
-│   ├── support/tools.ts            # mail_* + order_lookup + refund_issue (refunds checked against orders.json)
-│   ├── support/mailbox.ts          # Mailbox interface + Mailpit HTTP client (search, message, send)
-│   ├── support/fake-mailbox.ts     # in-memory Mailbox for tests and offline forced runs
-│   ├── support/orders.ts · seed-mail.ts  # orders.json loader; seeded emails (shared by seed and tests)
-│   ├── files/agent.ts              # files-assistant spec
-│   ├── files/tools.ts              # fs_* on paths relative to sandbox/ (never outside it) + http_request
-│   └── files/sandbox.ts            # sandbox paths, seedSandbox() (shared by seed and tests)
-├── webhook-receiver.ts             # local "attacker" endpoint (node:http); records anything that arrives
-└── receiver.ts                     # `run receiver`: the receiver on 127.0.0.1:8787, prints what arrives
+│   ├── support/tools.ts            # Mailpit HTTP API + nodemailer SMTP; orders/refunds on orders.json
+│   └── files/tools.ts              # fs_* confined to sandbox/workspace + http_request
+└── webhook-receiver.ts             # local "attacker" endpoint; logs anything that arrives
 ```
 
 ## 4. Dependency rules
