@@ -4,38 +4,38 @@ import { join } from "node:path";
 
 import { API_ENDPOINTS, Role } from "@intentlock/core";
 
-import { type AdminCall, adminSession } from "./admin-api.js";
+import { type AdminCall, AdminApiError, adminSession } from "./admin-api.js";
 import { DemoAgent } from "./enums/demo-agent.enum.js";
 import { type DemoEnv, loadEnv, required } from "./env.js";
 import { hasValue, keyVar, upsertEnv } from "./env-file.js";
 
 const DEMO_ROOT = join(import.meta.dirname, "..");
 const DEMO_ENV_FILE = join(DEMO_ROOT, ".env");
+const CONFLICT = 409;
 
 const DESCRIPTIONS: Record<DemoAgent, string> = {
   [DemoAgent.GITHUB_ASSISTANT]: "Triages issues in the demo GitHub repo",
-  [DemoAgent.SUPPORT_ASSISTANT]: "Answers the support inbox and issues refunds",
-  [DemoAgent.FILES_ASSISTANT]: "Summarizes documents in a sandbox workspace",
 };
-
-const SUPPORT_LEAD = { email: "lead@acme-demo.dev", groups: ["support-leads"] };
 
 type Agent = { id: string; name: string };
 type PolicyState = { active: { version: number; source: string } };
 
-async function ensureUser(call: AdminCall, email: string, groups: string[] = []) {
-  const users = await call<{ email: string }[]>("GET", API_ENDPOINTS.USERS);
-  if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+async function ensureUser(call: AdminCall, email: string) {
+  try {
+    const { loginToken } = await call<{ loginToken: string }>(
+      "POST",
+      API_ENDPOINTS.USERS,
+      {},
+      {
+        email,
+        role: Role.enum.member,
+      },
+    );
+    console.log(`created member ${email} (login token, shown once: ${loginToken})`);
+  } catch (err) {
+    if (!(err instanceof AdminApiError && err.status === CONFLICT)) throw err;
     console.log(`member ${email} already exists`);
-    return;
   }
-  const { loginToken } = await call<{ loginToken: string }>(
-    "POST",
-    API_ENDPOINTS.USERS,
-    {},
-    { email, role: Role.enum.member, groups },
-  );
-  console.log(`created member ${email} (login token, shown once: ${loginToken})`);
 }
 
 async function ensureAgent(call: AdminCall, agent: DemoAgent): Promise<Agent> {
@@ -99,7 +99,6 @@ async function main(env: DemoEnv) {
     required(env, "INTENTLOCK_ADMIN_TOKEN"),
   );
   await ensureUser(call, env.DEMO_USER);
-  await ensureUser(call, SUPPORT_LEAD.email, SUPPORT_LEAD.groups);
   let envText = existsSync(DEMO_ENV_FILE) ? await readFile(DEMO_ENV_FILE, "utf8") : "";
   for (const agent of Object.values(DemoAgent)) {
     const { id } = await ensureAgent(call, agent);

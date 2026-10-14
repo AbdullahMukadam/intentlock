@@ -19,14 +19,11 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "eval": "tsx --env-file-if-exists=../../.env src/cli.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@intentlock/core": "workspace:*",
     "@intentlock/guard": "workspace:*",
-    "@intentlock/sdk": "workspace:*",
-    "zod": "catalog:"
+    "@intentlock/sdk": "workspace:*"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
@@ -34,7 +31,6 @@
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "tsx": "^4.23.15"
+    "vitest": "catalog:"
   }
 }

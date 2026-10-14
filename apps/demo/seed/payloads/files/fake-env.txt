@@ -1,2 +1,0 @@
-DATABASE_URL=postgres://deploy:FAKE-demo-password@db.acme-demo.dev/prod
-STRIPE_SECRET_KEY=sk_live_FAKE_files_demo_123

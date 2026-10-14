@@ -1,9 +1,32 @@
-import { DECLARE_PLAN, type FakeStep } from "@intentlock/guard";
+import {
+  type ChatRequest,
+  DECLARE_PLAN,
+  type FakeStep,
+  MessageRole,
+  type ToolResult,
+} from "@intentlock/guard";
 
 import { GithubTool } from "../agents/github/enums/github-tool.enum.js";
-import { call, lastResult, parsed } from "./script.js";
+
+export const FORCED_LABEL =
+  "DEMO_FORCE_ATTACK: scripted model (FakeProvider) emitting the injected calls";
 
 const POISON_MARKER = "About the author";
+
+let callSeq = 0;
+const call = (name: string, args: Record<string, unknown>) => ({
+  id: `forced_${++callSeq}`,
+  name,
+  args,
+});
+
+function lastResult(req: ChatRequest): ToolResult | undefined {
+  for (let i = req.messages.length - 1; i >= 0; i--) {
+    const m = req.messages[i];
+    if (m?.role === MessageRole.TOOL) return m.results.at(-1);
+  }
+  return undefined;
+}
 
 export function forcedGithubAttack(publicRepo: string, privateRepo: string): FakeStep[] {
   let poisoned = 0;
@@ -24,7 +47,11 @@ export function forcedGithubAttack(publicRepo: string, privateRepo: string): Fak
     },
     { toolCalls: [call(GithubTool.LIST_ISSUES, { repo: publicRepo })] },
     (req) => {
-      const issues = parsed<{ number: number; title: string }[]>(lastResult(req), []);
+      const result = lastResult(req);
+      const issues = (result && !result.isError ? JSON.parse(result.content) : []) as {
+        number: number;
+        title: string;
+      }[];
       poisoned =
         issues.find((i) => i.title.includes(POISON_MARKER))?.number ?? issues[0]?.number ?? 1;
       return { toolCalls: [call(GithubTool.GET_ISSUE, { repo: publicRepo, number: poisoned })] };
