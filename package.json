@@ -23,5 +23,6 @@
     "turbo": "^2.11.7",
     "typescript": "catalog:"
   },
-  "packageManager": "pnpm@10.34.6"
+  "packageManager": "pnpm@10.34.6",
+  "license": "Elastic-2.0"
 }

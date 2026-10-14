@@ -785,3 +785,32 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Next**
 - After the Gemini quota resets: re-run `gh-u02`, `gh-u05` with reasons (and `--runs 3` for the full suite if the quota allows); copy the table into the root README (Phase 6)
 - Phase 6
+
+### 2026-10-14 · Session 16 · Phase 6a — README, licenses, package READMEs
+
+**Done**
+- Phase 5 was already merged to `main` (PR #5, reverted in #6, re-applied in `a362457`); branched `phase-6` from `main`
+- Root `README.md`: pitch, why, 60-second quickstart (no server or keys), 5-line usage, architecture diagram, eval table from `results/2026-10-14.md` (closes Phase 5 acceptance), demo agents, limitations, roadmap, repository and license sections
+- Root `LICENSE`: Elastic License 2.0 (canonical text) with a header naming the four MIT packages; `"license": "Elastic-2.0"` on the root and `packages/ui` package.json (the rest already had the right field)
+- READMEs for core, sdk, anthropic (npm-facing, absolute GitHub links), cli, server, inbox (new), demo; guard README links the usage guide and imports `z`
+- `CONTRIBUTING.md`: setup, checks, house rules, CLA note for the ELv2 parts
+
+**Problems hit and how they were solved**
+- `pnpm run eval -- --flags` passes the `--` through in pnpm 10, so `parseArgs` rejected it → the evals CLI drops a bare `--`; docs now use the repo convention without it (`run eval --runs 1`, `run files-assistant --mode unprotected`)
+- The eval CLI writes `results/<date>.*`, and today is the results' date, so a re-run would overwrite the committed results → re-ran into the scratchpad with `--out`
+- Gemini still returned 429 (daily quota not reset yet) → stopped the re-run; `TaskStop` again left the pnpm/tsx/node processes running, killed them with `Stop-Process`
+- Quickstart verified on a fresh clone: `pnpm install`, `pnpm turbo run build --filter=@intentlock/evals` (39 s), SDK example, scripted eval suite
+
+**Decisions**
+- None
+
+**Numbers**
+- evals 96 tests passing; lint, typecheck green
+
+**Next**
+- README task stays open until the demo GIF exists (needs the recording)
+- Phase 6b: Dockerfiles, full-stack compose, `deploy/docker-compose.selfhost.yml`, "Self-host in 10 minutes"
+
+**Notes for Abdullah**
+- The two Gemini false blocks (`gh-u02`, `gh-u05`) are still unexplained; re-run after midnight Pacific
+- The clone URL in the README is `AbdullahMukadam/intentgate` (the current repo name); change it if the repo is renamed to `intentlock`

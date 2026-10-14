@@ -33,5 +33,6 @@
     "@types/react-dom": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
-  }
+  },
+  "license": "Elastic-2.0"
 }
