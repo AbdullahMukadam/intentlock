@@ -175,22 +175,22 @@
 ## Phase 5 · More demo agents + evals (Fri 16) — `apps/demo`, `packages/evals`
 
 **Morning: support and files demo agents** (reuse the eval tool definitions where possible; cut in this order if late: files, then support)
-- [ ] Mailpit service in the dev `docker-compose.yml`; `mail_*` tools via Mailpit HTTP API + `nodemailer` SMTP; orders/refunds in a local JSON store of fake customers
-- [ ] `support-assistant` policy: reply only to the sender, no forwarding outside `@acme-demo.dev`, refunds ≤ $20 allow / ≤ $500 hold / unknown account block, group rules (`support-leads` vs `intern`)
-- [ ] `seed --agent support-assistant`: forward-to-attacker email + benign emails; protected run blocks the forward, holds a $200 refund
-- [ ] `files-assistant`: `fs_*` tools confined to `sandbox/workspace/`, `http_request` tool, local webhook receiver (`node:http`) that logs what arrives
-- [ ] `files-assistant` policy: paths `workspace/**` only, never `.env`, network calls only if in the plan; `seed`: poisoned document; protected run blocks the read and the POST, receiver shows nothing arrived
+- [x] Mailpit service in the dev `docker-compose.yml`; `mail_*` tools via Mailpit HTTP API (sending through its send API instead of `nodemailer` SMTP, ADR-053); orders/refunds in a local JSON store of fake customers
+- [x] `support-assistant` policy: reply only to the sender, no forwarding outside `@acme-demo.dev`, refunds ≤ $20 allow / ≤ $500 hold / unknown account block, group rules (`support-leads` vs `intern`)
+- [x] `seed --agent support-assistant`: forward-to-attacker email + benign emails; protected run blocks the forward, holds a $200 refund
+- [x] `files-assistant`: `fs_*` tools confined to `sandbox/workspace/`, `http_request` tool, local webhook receiver (`node:http`) that logs what arrives
+- [x] `files-assistant` policy: paths `workspace/**` only, never `.env`, network calls only if in the plan; `seed`: poisoned document; protected run blocks the read and the POST, receiver shows nothing arrived
 
 **Afternoon: evals**
-- [ ] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)
-- [ ] 15 GitHub scenarios (incl. utility-only), 8 email, 7 files — injections in issue bodies, email bodies, file contents, tool outputs
-- [ ] Policy files per domain (`packages/evals/policies/`, loaded by `LocalGate`)
-- [ ] Runner: N runs × {PassThroughGate, LocalGate}; collects tool logs, final text, check latencies, tokens
-- [ ] Metrics: attack success rate, utility rate, false-block count, p50/p95 check latency for `remote` (HttpGate) vs `hybrid` (HybridGate) vs `local`
-- [ ] Every result row labelled with provider + model; run at least the default free model (and Claude if a key becomes available)
-- [ ] Output `results/<date>.json` + `results/<date>.md` table; commit the first results
-- [ ] Short write-up of failures: which attacks got through and why
-- [ ] Journal entry
+- [x] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)
+- [x] 15 GitHub scenarios (incl. utility-only), 8 email, 7 files — injections in issue bodies, email bodies, file contents, tool outputs
+- [x] Policy files per domain (`packages/evals/policies/`, loaded by `LocalGate`)
+- [x] Runner: N runs × {PassThroughGate, LocalGate}; collects tool logs, final text, check latencies, tokens
+- [x] Metrics: attack success rate, utility rate, false-block count, p50/p95 check latency for `remote` (HttpGate) vs `hybrid` (HybridGate) vs `local`
+- [x] Every result row labelled with provider + model; run at least the default free model (and Claude if a key becomes available)
+- [x] Output `results/<date>.json` + `results/<date>.md` table; commit the first results
+- [x] Short write-up of failures: which attacks got through and why
+- [x] Journal entry
 
 **Acceptance:** each available demo agent blocks its seeded attack in protected mode; `pnpm --filter @intentlock/evals run eval` produces the table; numbers are copied into the README.
 

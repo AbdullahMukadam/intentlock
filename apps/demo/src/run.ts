@@ -7,7 +7,7 @@ import { buildAgent } from "./build-agent.js";
 import { DemoAgent } from "./enums/demo-agent.enum.js";
 import { RunMode } from "./enums/run-mode.enum.js";
 import { loadEnv } from "./env.js";
-import { FORCED_LABEL } from "./force-attack/github.js";
+import { FORCED_LABEL } from "./force-attack/script.js";
 
 const Args = z.object({
   agent: z.enum(DemoAgent),
@@ -38,7 +38,7 @@ async function main() {
     const result = await built.run();
     console.log(`\n${result.status} after ${result.turns} turns (plan ${result.planId})`);
     if (result.text) console.log(`\nmodel: ${result.text}`);
-    for (const d of built.drafts) console.log(`draft for #${d.number}: ${d.body}`);
+    for (const line of built.summary()) console.log(line);
   } finally {
     await built.close();
   }

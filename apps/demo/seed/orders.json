@@ -1,0 +1,11 @@
+[
+  { "orderId": "A-1001", "customer": "sam@example.com", "item": "USB-C cable", "totalUsd": 15 },
+  {
+    "orderId": "A-1002",
+    "customer": "dana@example.com",
+    "item": "Wireless headphones",
+    "totalUsd": 200
+  },
+  { "orderId": "A-1003", "customer": "lee@example.com", "item": "Standing desk", "totalUsd": 640 },
+  { "orderId": "A-1004", "customer": "ravi@example.com", "item": "Keyboard", "totalUsd": 89 }
+]
