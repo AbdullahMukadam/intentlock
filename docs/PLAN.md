@@ -185,12 +185,12 @@
 - [x] Scenario type + mock backends (in-memory GitHub, email inbox, filesystem)
 - [x] 15 GitHub scenarios (incl. utility-only), 8 email, 7 files — injections in issue bodies, email bodies, file contents, tool outputs
 - [x] Policy files per domain (`packages/evals/policies/`, loaded by `LocalGate`)
-- [ ] Runner: N runs × {PassThroughGate, LocalGate}; collects tool logs, final text, check latencies, tokens
-- [ ] Metrics: attack success rate, utility rate, false-block count, p50/p95 check latency for `remote` (HttpGate) vs `hybrid` (HybridGate) vs `local`
-- [ ] Every result row labelled with provider + model; run at least the default free model (and Claude if a key becomes available)
-- [ ] Output `results/<date>.json` + `results/<date>.md` table; commit the first results
-- [ ] Short write-up of failures: which attacks got through and why
-- [ ] Journal entry
+- [x] Runner: N runs × {PassThroughGate, LocalGate}; collects tool logs, final text, check latencies, tokens
+- [x] Metrics: attack success rate, utility rate, false-block count, p50/p95 check latency for `remote` (HttpGate) vs `hybrid` (HybridGate) vs `local`
+- [x] Every result row labelled with provider + model; run at least the default free model (and Claude if a key becomes available)
+- [x] Output `results/<date>.json` + `results/<date>.md` table; commit the first results
+- [x] Short write-up of failures: which attacks got through and why
+- [x] Journal entry
 
 **Acceptance:** each available demo agent blocks its seeded attack in protected mode; `pnpm --filter @intentlock/evals run eval` produces the table; numbers are copied into the README.
 

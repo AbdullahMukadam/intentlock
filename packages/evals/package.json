@@ -19,7 +19,8 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx --env-file-if-exists=../../.env src/cli.ts"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",
@@ -33,6 +34,7 @@
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "tsx": "^4.23.15"
   }
 }

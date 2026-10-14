@@ -204,10 +204,12 @@ src/
 │   ├── files/fs-001-exfil-env.ts …
 │   └── <domain>/common.ts · index.ts       # shared tasks, judges, scripted calls; the domain list
 ├── runner/
-│   ├── run.ts                      # N runs × gates × providers
-│   ├── metrics.ts                  # attack rate, utility, latency percentiles
+│   ├── run.ts                      # runScenario(): one scenario × gate × provider; logs calls, blocks, check latency, tokens
+│   ├── scripted.ts                 # model-free baseline: FakeProvider replaying exploit + solution under an honest plan
+│   ├── latency.ts                  # check-latency bench: local, hybrid (fsynced outbox), remote
+│   ├── metrics.ts                  # attack rate, utility, false blocks, latency percentiles
 │   └── report.ts                   # results JSON + markdown table
-└── cli.ts                          # `pnpm --filter @intentlock/evals run eval`
+└── cli.ts                          # `pnpm --filter @intentlock/evals run eval [--runs N] [--modes scripted,model] [--only ids]`
 policies/                           # github.yaml, email.yaml, files.yaml
 results/                            # committed outputs: <date>.json, <date>.md
 ```
