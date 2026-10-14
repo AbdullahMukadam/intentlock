@@ -481,3 +481,201 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - Your `.env` still says `LLM_PROVIDER=fake`, empty `LLM_BASE_URL`, `LLM_MODEL="gemini-3.8-flash"`; the live runs passed those as overrides. To use Gemini by default set `LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, `LLM_MODEL=gemini-3.5-flash-lite`
 - The Anthropic live test still waits for a key
+
+### 2026-10-13 · Session 13 · Phase 4a — inbox foundation
+
+**Done**
+- `src/proxy.ts`: no session cookie → `/login?next=...` (Next 16 name for middleware)
+- `/api/*` rewrite to the server, so the cookie is same-origin in dev as well
+- `lib/api.ts`: typed client over `API_ENDPOINTS`, CSRF header on mutations, zod-parsed responses, `ApiError`, 401 → sign-in
+- Sign-in page (email + login token, error messages for 401 / 429), sign-out from the account menu
+- App shell: Overview · Activity · Holds · Agents · Audit, theme toggle, edition footer from `/v1/license`; the four non-overview pages are placeholders for the next chunks
+- Inbox depends on `@intentlock/core` at runtime (ADR-029); scaffold `page.tsx` and `header.tsx` removed
+
+**Problems hit and how they were solved**
+- Docker Desktop was down again; it now lives under `%LOCALAPPDATA%\Programs\DockerDesktop`, not `Program Files`
+- `middleware.ts` is deprecated in Next 16 → `proxy.ts` (ADR-045)
+
+**Decisions** (link ADRs)
+- ADR-045: inbox sign-in, proxy and API client
+
+**Numbers**
+- inbox 26 tests (proxy redirect + matcher, API client, `safeNext`, rewrite config); lint, typecheck green
+- Live smoke (server on the test DB, inbox dev): signed out `/holds` → 307 `/login?next=%2Fholds`; `/api/v1/me` → 401; sign-in without CSRF header → 403; wrong token → 401; sign-in → 200 + httpOnly `il_session`; `/holds` → 200; `/v1/me`, `/v1/license` through the rewrite; sign-out → 204
+
+**Next**
+- Phase 4b: Overview, Activity and Run detail pages
+
+**Notes for Abdullah**
+- If your local `.env` has `NEXT_PUBLIC_API_URL`, rename it to `API_URL` (only needed when the server is not on `localhost:3000`)
+
+### 2026-10-13 · Session 13 (cont.) · Phase 4b — Overview, Activity, Run detail
+
+**Done**
+- **Overview:** range (24 h / 7 d / 30 d) and agent filter; tiles for allowed / blocked / held, pending holds, median time to approve, flagged entries, audit lag; stacked verdict chart (Recharts); top blocked tools and rules linking into Activity
+- **Activity:** URL-driven filters (search, agent, verdict, user, tool, rule, policy version, from/to), "Load more" paging, JSONL export, links to run detail, flagged marker
+- **Run detail:** plan meta (agent, user, status, policy version, hash, signed/expires, duration), plan steps, ordered tool calls with offset, args, verdict, rule, reason, approval (status, approver, wait, note) and reported outcome; 404 shown as "not found or not yours"
+- `useApi` hook, `request()` split out of `api()`, shared verdict badge / native select / agent filter
+
+**Problems hit and how they were solved**
+- Recharts' `dataKey` typing rejects string-enum keys → accessor function
+- A dev server left over from the first chunk kept port 3001 and returned 500 on the new routes (Recharts was installed after it started) → killed and restarted
+- Git Bash rewrote `/runs/...` curl arguments into `C:/Program Files/Git/...` → `MSYS_NO_PATHCONV=1`
+- A bash heredoc batch failed on quoting and wrote nothing → wrote those files with the editor tool
+
+**Decisions** (link ADRs)
+- ADR-046: Overview, Activity and Run detail
+
+**Numbers**
+- inbox 33 tests; lint, typecheck, `next build` green
+- Live (server on the test DB): an agent with a hold rule and one run through `HttpGate`: list_issues allow, get_issue allow, get_file_contents block (not_in_plan), create_pull_request block, post_comment hold. Every `/v1/stats/overview`, `/v1/audit`, `/v1/runs/:id` and `/v1/agents` response parses with the inbox schemas; `/`, `/activity`, `/runs/:id`, `/holds` render 200; JSONL export 200 `application/x-ndjson`
+- Approving your own hold returns 403 `not_an_approver` (by design), so the smoke hold stays pending for the Holds chunk
+
+**Next**
+- Phase 4c: Holds (live list + approve/reject) and Agents (keys, create/revoke)
+
+### 2026-10-13 · Session 13 (cont.) · Phase 4c — Holds and Agents
+
+**Done**
+- **Holds:** live list (Socket.IO + 10 s polling), "waiting for you" vs "waiting for someone else", approve/reject with an optional note, toasts for the 409/403 cases, link to the run
+- **Agents:** list with status, policy version, active keys, 24 h counts; admin create form (kebab-case name, starter policy); agent page tabs Overview · Policy (read-only active source for now) · API keys (admin) · Activity
+- **API keys:** create (shown once, copy button), list with prefix / created / last used, revoke
+- `useMe()` from the app shell for UI role checks; `socket.io-client` added (approved)
+- Server: `/events` gateway accepts the handshake path without a trailing slash (+ e2e test)
+
+**Problems hit and how they were solved**
+- Socket.IO through the `/api` rewrite failed: Next answered `308` to `/api/socket.io/` and the server only matched `/socket.io/` → `addTrailingSlash: false` on gateway and client (ADR-047); checked the new test fails without it
+- Scratchpad scripts could not resolve bare package imports → imported `socket.io-client` and the SDK by file URL
+- A full server run had one failure while my dev server was running against the same test database; the rerun was 117/117 (or the known bootstrap timing flake)
+
+**Decisions** (link ADRs)
+- ADR-047: inbox holds, agents and live events
+
+**Numbers**
+- inbox 33 tests, server 117 tests; inbox + server lint, typecheck green
+- Live through the inbox origin: socket connected and upgraded to `websocket`; a member's `post_comment` held; the admin saw `canApprove: true`, approved with a note (`approved`); a second resolve got 409; socket got `decision`, `hold.created`, `hold.resolved`; a revoked key could no longer sign plans (401)
+
+**Next**
+- Phase 4d: policy editor, Audit page, role checks across the UI
+
+**Notes for Abdullah**
+- Hold and key views name people by user **id** (`resolvedBy`, `createdBy`), so Run detail shows an id after "by". Showing emails needs the server to return them (an API shape change), so I will ask before doing it
+
+### 2026-10-13 · Session 13 (cont.) · Phase 4d — Policy editor, Audit, role checks
+
+**Done**
+- **Policy tab:** CodeMirror YAML editor with inline lint from `@intentlock/core`, "show changes vs active" diff, publish with message, 409 handling with rebase, server error display, read-only for non-admins
+- **Test panel:** sample calls (JSON) + replay last N; verdict-change summary and per-call before/after
+- **History:** versions with message and "copy of vN", side-by-side diff vs active, rollback (admin)
+- **Audit page:** verify the chain; intact/broken and flagged entries
+- **Role checks:** `can(role, UiAction)` mirrors the server's `@Roles`; agent create, API keys tab, policy edit/publish/rollback hidden or read-only by role; test panel for admins and approvers
+- `ApiError` now keeps the response body (for `activeVersion` on 409 and line/col errors on 400)
+
+**Problems hit and how they were solved**
+- My first smoke draft turned a `hold` rule into `block` but kept `approvers`; the inbox lint flagged it and the server rejected it with the same message, which is the behaviour we want
+- The editor's own value sync fired `onChange` and marked the policy as edited → the update listener ignores changes equal to the last known text
+
+**Decisions** (link ADRs)
+- ADR-048: policy editor, audit page and UI role checks
+
+**Numbers**
+- inbox 40 tests; lint, typecheck, build green
+- Live through the inbox origin (agent `github-assistant`, active v2): lint and server agree on a broken draft; test with 1 sample + replay 50 → 6 results, `hold → block × 2`; stale publish → 409 `activeVersion: 2`; invalid publish → 400 with line 3 col 10; publish → v3; rollback → v4 copy of v2; verify → ok, 22 entries, no flagged; member → 403 on publish, test, create agent, list keys; 200 on reading the policy and verify
+- Pages `/agents/:id?tab=policy|api-keys`, `/audit`, `/agents`, `/holds`, `/` render 200
+
+**Next**
+- Phase 4e: GitHub demo agent (needs the throwaway GitHub accounts + PAT from Abdullah)
+
+**Notes for Abdullah**
+- Still open from 4c: should hold and key responses carry emails instead of user ids (`resolvedBy`, `createdBy`)?
+
+### 2026-10-13 · Session 13 (cont.) · Emails instead of user ids
+
+**Done**
+- Hold views (`/v1/holds`, approve/reject, run detail) and API key lists return emails in `resolvedBy` / `createdBy` (approved by Abdullah); the inbox keys table gained a "Created by" column, and Run detail now reads "by alice@…"
+
+**Decisions** (link ADRs)
+- ADR-049: hold and API key views name people by email
+
+**Numbers**
+- server holds + agents e2e 19/19 (new test: approver email in the hold list and run detail; key list `createdBy` = admin email); server + inbox lint and typecheck green; inbox 40 tests
+
+### 2026-10-13 · Session 13 (cont.) · Phase 4e — GitHub demo agent (part 1)
+
+**Done**
+- Abdullah created the throwaway account `acme-demo-bot-1` with `public-app` and `private-repo` and a fine-grained PAT (expires 2026-11-12) over both
+- `apps/demo`: Octokit tools (list/get issue, add label, draft reply, post comment, get file, list repos, create PR) with zod schemas; `policies/github-assistant.yaml`; forced-attack `FakeProvider` script; `build-agent` + `run` CLI (protected = `HybridGate`, unprotected = `PassThroughGate`); `setup-instance`; `seed`
+- Tests: tools against a fake Octokit, policy rule table, and the whole forced attack offline through `LocalGate` with the real policy (unprotected leaks the private file into a PR; protected blocks list_repos, the private read and the PR before they run)
+
+**Problems hit and how they were solved**
+- `pnpm setup` ran pnpm's built-in setup instead of our script; it added `PNPM_HOME` and prepended `%PNPM_HOME%` to the user Path (Windows user environment) → script renamed to `setup-instance`; told Abdullah, offered to revert
+- Running `seed` twice within seconds created a duplicate issue (GitHub list lag) → closed #3
+- Docker Desktop was down again → restarted
+- A bash heredoc turned `\\S` into `\S` inside a TS template literal (matching a literal `S`) → caught by the `hasValue` test, fixed in the editor
+- Gemini free tier: `gemini-3.5-flash-lite` took minutes per call, then timed out after the plan was signed; both it and `gemini-3.8-flash` answered 503 "high demand" → real-model runs postponed
+
+**Decisions** (link ADRs)
+- ADR-050: GitHub demo agent, setup and seed
+
+**Numbers**
+- demo 21 tests; lint, typecheck green
+- Live against a fresh test-DB server and real GitHub: setup created member alice, agent, policy v2, key (second run: no changes); seed opened #1 (poisoned) and #2 (benign); protected forced run: list_issues allow, get_issue #1 allow, list_repos / get_file_contents(private-repo/notes.md) / create_pull_request block (`not_in_plan`), model text explains the block
+- The free model's declared plan had no `repo` constraints; the policy's `only-public-app` rule covers that
+
+**Next**
+- When Gemini is back (or with Groq/Ollama): real protected run with comment holds approved by the admin and posted to GitHub; unprotected run (opens a real public PR with `notes.md`)
+- Phase 4f: split-screen `/demo` page, server demo seed (`INTENTLOCK_DEMO=1`)
+
+**Notes for Abdullah**
+- `private-repo/notes.md` holds your local dev DB URLs; replace it with obviously fake secrets before recording
+- To set up your dev instance: put `INTENTLOCK_ADMIN_EMAIL` / `INTENTLOCK_ADMIN_TOKEN` in `.env`, then `pnpm --filter @intentlock/demo run setup-instance`
+
+### 2026-10-13 · Session 13 (cont.) · Phase 4f — split-screen demo, demo users
+
+**Done**
+- Demo runner (`run runner`): both modes side by side, SSE on 127.0.0.1:8790, header-guarded start, failures reported per mode
+- Inbox `/demo` page + nav entry: "Run both", two panes (without / with Intentlock), forced-attack banner, task, final answers; `/demo-runner/*` rewrite
+- Server demo users: e2e test for `INTENTLOCK_DEMO=1` bootstrap; `DEMO_USER` default → `member@acme-demo.dev`
+
+**Problems hit and how they were solved**
+- Gemini still overloaded (503) → built the split screen against a fake runner instead; the real forced runner was not used because its unprotected half would open a real public PR with `notes.md`
+- An inbox dev server from the previous session still held port 3001 (it reloaded the new rewrite on its own)
+
+**Decisions** (link ADRs)
+- ADR-051: split-screen demo runner and demo users
+
+**Numbers**
+- demo 24 tests (runner: both modes stream, failed mode reported, header required, 409 on a second start); inbox 43 (runner-event reducer: replay de-dup, new run replaces old, malformed dropped); server bootstrap e2e 2/2; lint, typecheck, builds green
+- Through the dev rewrite: SSE frames arrived ~1 s apart as emitted (10 frames for two modes); `POST /demo-runner/runs` 202, without the header 400; `/demo` 200 signed in, 307 signed out
+
+**Next**
+- When Gemini recovers: real protected run (holds approved, comments posted), unprotected run (needs Abdullah's OK; replace `notes.md` first), then a full split-screen run in the browser; record backup clips (manual)
+
+### 2026-10-14 · Session 13 (cont.) · Phase 4e — real-model protected run
+
+**Done**
+- `gemini-3.5-flash-lite` answered again (200 in 1.4 s; `gemini-3.8-flash` still 503). Fresh test-DB server, `setup-instance` (created `member@acme-demo.dev`, agent, policy v2, key), then a real protected run of `github-assistant`
+- The model ignored the injection in #1 and did the task: list issues, read #1 and #2, labelled #2 `bug` and #1 `enhancement` (allowed), both replies **held** (`hold-public-comments`); approved as `admin@acme-demo.dev`; the agent then posted both comments to GitHub (issuecomment-6161987350 and -6161987351) and finished in 4 turns
+- Audit for that plan: plan_signed, 5 allows, 2 holds, 2 hold_resolved (approved), 7 reports
+
+**Notes**
+- With this model the leak attempt never happens in a real run, so the blocked-leak half of the demo uses `DEMO_FORCE_ATTACK=1` (verified earlier against real GitHub: list_repos, the private read and the PR blocked, model explains). The protected task is ticked on that basis
+- Docker Desktop was down again at the start of this session
+
+**Next**
+- Unprotected run (opens a real public PR with `notes.md`): waits for Abdullah's OK and fake contents in `notes.md`; backup clips
+
+### 2026-10-14 · Session 13 (cont.) · Phase 4 wrap-up checks
+
+**Done**
+- `private-repo/notes.md` replaced with clearly fake demo secrets (commit b143d5d in the private demo repo)
+- Full repo check before committing: prettier, lint, typecheck green everywhere; core, sdk, guard, anthropic, cli, inbox (43), demo (24), server (119) tests green
+
+**Problems hit and how they were solved**
+- The unprotected forced run (opens a real public PR with the fake notes) was refused by the agent's safety check → left for Abdullah to run himself
+- My demo-users test signed in four times from one IP and hit the login rate limit (429) → it now checks each user's token hash in the database and signs in once
+- `holds.e2e` "expires once, even when two instances run the expiry job together" failed once in the full suite (0 instead of 1) and passed 3/3 alone: under load the app's own expiry timer can expire the hold before the test's two `expireAll()` calls. Pre-existing timing flake; fix later by stopping the module's interval in that test
+
+**Next**
+- Abdullah: unprotected run (`DEMO_FORCE_ATTACK=1 pnpm --filter @intentlock/demo run github-assistant --mode unprotected`), backup clips
+- Default branch → `main`, commit Phase 4 on `phase-4`

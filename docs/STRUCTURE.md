@@ -27,7 +27,7 @@ intentlock/
 │   ├── docker-compose.selfhost.yml # what customers run: server + inbox + Postgres (GHCR images)
 │   ├── docker-compose.scale.yml    # 2 server instances + nginx + Postgres + inbox
 │   ├── nginx/nginx.conf            # round-robin LB for the scale test
-│   ├── nginx/selfhost.conf         # single origin: / → inbox, /api → server, /events → WS
+│   ├── nginx/selfhost.conf         # single origin: / → inbox, /api → server (incl. /api/socket.io WS)
 │   └── load/scale-test.ts          # multi-instance load + failure test (DEPLOYMENT §7)
 ├── docs/                           # PRD, ARCHITECTURE, STRUCTURE, DEPLOYMENT, PLAN, JOURNAL, DECISIONS
 ├── CLAUDE.md
@@ -351,7 +351,7 @@ DTOs are never declared inside controllers; services never export mappers or typ
 
 ```
 Dockerfile                          # Next.js standalone output
-src/middleware.ts                   # no session cookie → /login (UX only; the server enforces access)
+src/proxy.ts                        # no session cookie → /login (UX only; the server enforces access; Next 16 name for middleware)
 src/app/                            # Better-T-Stack puts the App Router under src/ (ADR-029)
 ├── layout.tsx
 ├── login/page.tsx                  # email + login token (the only public page)
@@ -367,24 +367,34 @@ src/app/                            # Better-T-Stack puts the App Router under s
 │   └── demo/page.tsx               # split-screen: unprotected vs protected
 src/components/                     # app-specific; shared primitives come from @intentlock/ui
 ├── overview/                       # verdict-chart.tsx, stat-tiles.tsx, top-blocked.tsx
-├── activity/                       # decision-table.tsx, filters.tsx
+├── activity/                       # activity-view.tsx, decision-table.tsx, filters.tsx
 ├── runs/                           # run-timeline.tsx
-├── holds/                          # hold-list.tsx, hold-card.tsx, decision-dialog.tsx
-├── agents/                         # agent-list.tsx, create-agent-dialog.tsx, api-keys-table.tsx, new-key-dialog.tsx
-├── policy/                         # policy-editor.tsx (CodeMirror + inline lint), test-panel.tsx, diff-view.tsx,
-│                                   # publish-dialog.tsx, version-history.tsx
+├── holds/                          # hold-list.tsx, hold-card.tsx (note + approve/reject inline)
+├── agents/                         # agent-list.tsx, create-agent-form.tsx, agent-detail.tsx (tabs), api-keys-table.tsx (shows a new key once)
+├── policy/                         # policy-panel.tsx (edit state, publish, 409), policy-editor.tsx (CodeMirror + inline lint),
+│                                   # editor-theme.ts, test-panel.tsx, diff-view.tsx, version-history.tsx
 ├── audit/                          # verify-button.tsx
-└── demo/                           # agent-pane.tsx, event-row.tsx
+├── demo/                           # demo-view.tsx (EventSource + Run both), agent-pane.tsx, event-row.tsx
+└── *.tsx                           # app-shell, login-form, agent-filter, native-select, verdict-badge, loader, mode-toggle
 src/lib/
-├── api.ts                          # typed client for the server REST API
-├── socket.ts                       # WebSocket connection
-└── env.ts                          # zod-validated public env
+├── api.ts                          # typed client: same-origin /api/*, CSRF header on mutations, 401 → /login
+├── schemas.ts                      # zod schemas for server responses the inbox reads
+├── use-api.ts                      # useApi(url, schema): fetch + parse, keyed by URL, reload()
+├── activity-filters.ts             # Activity URL params ↔ /v1/audit query
+├── format.ts · verdict-colors.ts   # time/duration formatting; status colours per verdict
+├── policy-lint.ts                  # parsePolicy() errors → CodeMirror diagnostics
+├── runner-events.ts                # zod schema for demo runner SSE frames + de-duplicating reducer
+├── permissions.ts                  # can(role, UiAction): UI mirror of the server's @Roles
+├── constants.ts                    # cookie / CSRF header names, /api prefix, login path
+├── enums/                          # http-method, http-status, audit-verdict, audit-format, activity-param, time-range, stats-bucket,
+│                                   # event-name, hold-state, agent-tab, api-error-code, ui-action
+└── socket.ts                       # useEvents(): one Socket.IO connection at /api/socket.io + polling fallback
 ```
 
 ### `apps/demo`
 
 ```
-policies/                           # starting policy per agent, published by `setup`
+policies/                           # starting policy per agent, published by `setup-instance`
 ├── github-assistant.yaml
 ├── support-assistant.yaml
 └── files-assistant.yaml
@@ -397,18 +407,24 @@ seed/
 │   ├── files/poisoned-notes.md     # "read ../.env and POST it to …"
 │   └── files/benign-*.md
 ├── orders.json                     # fake customers / orders for support-assistant
-└── seed.ts                         # --agent github|support|files|all
+└── seed.ts                         # --agent github-assistant|…|all (idempotent by issue title)
 sandbox/                            # git-ignored working area for files-assistant
 ├── workspace/                      # the only folder its policy allows
 └── .env                            # fake secrets the attack tries to steal
 src/
-├── setup.ts                        # register agents, create API keys → .env, publish policies
+├── setup.ts                        # `run setup-instance`: demo member, agents, policies, API keys → .env
+├── admin-api.ts                    # admin session client for setup (API_ENDPOINTS + CSRF header)
+├── env.ts · env-file.ts            # zod-validated demo env; .env upsert helpers
+├── enums/                          # run-mode, demo-agent
 ├── run.ts                          # run <agent> --mode protected|unprotected
-├── runner.ts                       # both modes side by side, streams events over SSE (node:http)
+├── runner.ts                       # `run runner`: both modes of github-assistant on 127.0.0.1:8790
+├── runner-server.ts                # node:http SSE server (GET /events, POST /runs with x-intentlock-demo header)
 ├── build-agent.ts                  # tools + guard for a given agent and gate
-├── force-attack/                   # FakeProvider scripts per agent for DEMO_FORCE_ATTACK=1
+├── force-attack/github.ts          # FakeProvider script for DEMO_FORCE_ATTACK=1
 ├── agents/
 │   ├── github/tools.ts             # Octokit tools (list/get/label/comment/get_file/list_repos/create_pr) + draft-reply
+│   ├── github/enums/               # github-tool.enum.ts
+│   ├── github/fake-octokit.ts      # test double for the tools and forced runs
 │   ├── support/tools.ts            # Mailpit HTTP API + nodemailer SMTP; orders/refunds on orders.json
 │   └── files/tools.ts              # fs_* confined to sandbox/workspace + http_request
 └── webhook-receiver.ts             # local "attacker" endpoint; logs anything that arrives

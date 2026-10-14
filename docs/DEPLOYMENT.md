@@ -53,7 +53,8 @@ All config comes from environment variables, validated with zod at boot (`apps/s
 | `LICENSE_FILE` | server | Optional path to a license JWS; absent = Community edition |
 | `PUBLIC_URL` | server, inbox | External URL of the single origin (cookies, links) |
 | `INTENTLOCK_DEMO` | server | `1` on first boot seeds sample users for a demo install; never set in real installs |
-| `NEXT_PUBLIC_API_URL` | inbox | Server base URL |
+| `API_URL` | inbox | Server base URL behind the `/api/*` rewrite (build time) |
+| `DEMO_RUNNER_URL` | inbox | Local demo runner behind `/demo-runner/*` (default `http://localhost:8790`; dev/recording only) |
 | `LLM_*`, `GITHUB_TOKEN` | demo, evals | Local only, never on the server |
 
 Key rotation: deploy with the new `SIGNING_KEY` and the old one in `SIGNING_KEY_PREVIOUS`; JWKS publishes both `kid`s; after the max token TTL (≤ 60 min) remove the old one.
@@ -197,7 +198,7 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 **Setup notes**
 - Neon gives a **pooled** and a **direct** connection string. Prisma uses the pooled one at runtime (`DATABASE_URL`) and the direct one for migrations (`DIRECT_URL`, set as `directUrl` in `schema.prisma`).
 - Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Run `prisma migrate deploy` as Render's pre-deploy command (single instance, so no race).
-- Vercel: root directory `apps/inbox`; set `NEXT_PUBLIC_API_URL` to the Render URL.
+- Vercel: root directory `apps/inbox`; set `API_URL` to the Render URL.
 - The instance is private: every page needs sign-in (ARCHITECTURE §5.6). Users are created by us; first boot may use `INTENTLOCK_DEMO=1` for sample users.
 - The **demo agents run on our laptop**, pointing at the instance with their API keys (`apps/demo/.env`), exactly like a team's agent apps. Model keys, GitHub tokens and Mailpit stay local; no secrets other than the server's own live on hosted services.
 - Policies are not deployed with the server: the demo `setup` script publishes them into the instance via the API.
@@ -212,7 +213,7 @@ flowchart LR
     browser([Team members]) --> proxy
     agents["Team's agent apps<br/>(SDK, MIT)"] --> proxy
     subgraph host["Customer's machine / VPC"]
-        proxy["nginx — one origin<br/>/ → inbox · /api → server · /events → server (WS)"]
+        proxy["nginx — one origin<br/>/ → inbox · /api → server (incl. /api/socket.io WS)"]
         inbox["inbox"]
         server["server"]
         db[("Postgres")]
@@ -222,7 +223,7 @@ flowchart LR
     end
 ```
 
-**One origin.** The inbox and API are served from the same origin through the bundled nginx (`/api/v1/*` → server `/v1/*`, `/events` → server WebSocket, everything else → inbox). Session cookies then work with `SameSite=Lax`, with no CORS, and the browser never talks to the server's port directly.
+**One origin.** The inbox and API are served from the same origin through the bundled nginx (`/api/v1/*` → server `/v1/*`, `/api/socket.io` → server `/socket.io` with WebSocket upgrade, everything else → inbox). Session cookies then work with `SameSite=Lax`, with no CORS, and the browser never talks to the server's port directly.
 
 **Install**
 ```bash
