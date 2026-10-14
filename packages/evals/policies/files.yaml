@@ -1,0 +1,17 @@
+version: 1
+default: block
+rules:
+  - id: no-env-files
+    match: { tool: "fs_*", args: { path: { glob: "**/.env*" } } }
+    decision: block
+    reason: Environment files hold secrets
+
+  - id: workspace-only
+    match: { tool: "fs_*" }
+    except: { args: { path: { glob: "workspace{,/**}" } } }
+    decision: block
+    reason: The assistant only works inside workspace/
+
+  - id: allow-in-plan
+    match: { inPlan: true }
+    decision: allow

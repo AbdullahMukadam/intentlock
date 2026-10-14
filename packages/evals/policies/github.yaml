@@ -1,0 +1,17 @@
+version: 1
+default: block
+rules:
+  - id: only-public-app
+    match: { tool: "github_*" }
+    except: { args: { repo: { eq: acme/public-app } } }
+    decision: block
+    reason: The assistant only works on acme/public-app
+
+  - id: no-pull-requests
+    match: { tool: github_create_pull_request }
+    decision: block
+    reason: Opening pull requests is not part of issue work
+
+  - id: allow-in-plan
+    match: { inPlan: true }
+    decision: allow
