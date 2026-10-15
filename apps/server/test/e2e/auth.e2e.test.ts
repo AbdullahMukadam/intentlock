@@ -1,8 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
-import { sha256Hex } from "../../src/common/utils/crypto.util.js";
-import { bootstrapOrg } from "../../src/org/utils/bootstrap-org.util.js";
 import {
   createOrg,
   createTestApp,
@@ -197,41 +195,5 @@ describe("users (admin only)", () => {
       AuditKind.USER_CREATED,
     ]);
     expect(await verifyAuditChain(prisma)).toEqual({ ok: true, count: 3 });
-  });
-});
-
-describe("bootstrap", () => {
-  it("creates the org and admin once, even when two instances race", async () => {
-    await resetDb(prisma);
-    const opts = { orgName: "Acme", adminEmail: "Boss@Acme.dev", demo: false };
-    const results = await Promise.all([bootstrapOrg(prisma, opts), bootstrapOrg(prisma, opts)]);
-    expect(results.filter(Boolean)).toHaveLength(1);
-    expect(await prisma.organization.count()).toBe(1);
-    const token = results.find(Boolean)!.tokens["boss@acme.dev"]!;
-    await login("boss@acme.dev", token).expect(200);
-  });
-
-  it("with demo on, adds an approver, a member and an intern, each with a login token", async () => {
-    await resetDb(prisma);
-    const result = await bootstrapOrg(prisma, {
-      orgName: "Acme",
-      adminEmail: "boss@acme.dev",
-      demo: true,
-    });
-    const users = await prisma.user.findMany({
-      select: { email: true, role: true, groups: true },
-      orderBy: { email: "asc" },
-    });
-    expect(users).toEqual([
-      { email: "approver@acme.dev", role: UserRole.APPROVER, groups: [] },
-      { email: "boss@acme.dev", role: UserRole.ADMIN, groups: [] },
-      { email: "intern@acme.dev", role: UserRole.MEMBER, groups: ["intern"] },
-      { email: "member@acme.dev", role: UserRole.MEMBER, groups: [] },
-    ]);
-    const hashes = await prisma.user.findMany({ select: { email: true, cliTokenHash: true } });
-    for (const { email, cliTokenHash } of hashes) {
-      expect(cliTokenHash).toBe(sha256Hex(result!.tokens[email]!));
-    }
-    await login("member@acme.dev", result!.tokens["member@acme.dev"]!).expect(200);
   });
 });

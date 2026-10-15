@@ -3,4 +3,6 @@ export enum LoggerContext {
   LICENSE = "License",
   KEYS = "Keys",
   HOLDS = "Holds",
+  MAIL = "Mail",
+  SETUP = "Setup",
 }

@@ -235,7 +235,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST · GET | `/v1/invites` | `{ email, role, groups? }` → `{ invite, link, emailed }` / pending invites | Auth: session (admin). Link shown once; 7 days |
 | POST | `/v1/invites/:id/resend` | → `{ invite, link, emailed }` | Auth: session (admin). New token and expiry; the old link stops working |
 | DELETE | `/v1/invites/:id` | → 204 | Auth: session (admin). Revoke |
-| POST | `/v1/invites/lookup` | `{ token }` → `{ email, role, orgName, expiresAt }` | Auth: none. 404 when unknown, used, revoked or expired |
+| POST | `/v1/invites/lookup` | `{ token }` → `{ email, role, orgName, expiresAt }` | Auth: none. 400 `link_invalid` when unknown, used, revoked or expired (same for accept and reset) |
 | POST | `/v1/invites/accept` | `{ token, password }` → sets session cookie, `{ user }` | Auth: none. Creates the user; fails if license `maxUsers` reached |
 | GET | `/v1/agents` | → `Agent[]` with key counts, active policy version, 24 h decision counts | Auth: session |
 | POST | `/v1/agents` | `{ name, description? }` → `Agent` (created with the starter policy as v1) | Auth: session (admin). Fails if license `maxAgents` reached |

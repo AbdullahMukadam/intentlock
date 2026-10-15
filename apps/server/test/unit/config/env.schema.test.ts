@@ -20,4 +20,12 @@ describe("loadEnv", () => {
     expect(loadEnv({ ...base, TRUST_PROXY: "1" }).TRUST_PROXY).toBe(1);
     expect(() => loadEnv({ ...base, TRUST_PROXY: "yes" })).toThrow(/TRUST_PROXY/);
   });
+
+  it("needs SMTP_FROM with SMTP_URL and strips a trailing slash from PUBLIC_URL", () => {
+    const base = { DATABASE_URL: "postgresql://x@localhost/db" };
+    expect(() => loadEnv({ ...base, SMTP_URL: "smtp://localhost:1025" })).toThrow(/SMTP_FROM/);
+    expect(loadEnv({ ...base, PUBLIC_URL: "https://il.acme.dev/" }).PUBLIC_URL).toBe(
+      "https://il.acme.dev",
+    );
+  });
 });

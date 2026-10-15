@@ -2,12 +2,19 @@ import {
   BadRequestException,
   ConflictException,
   HttpStatus,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
+import { ADMIN_RESET_TTL_MS } from "../auth/constants/password-reset.constants.js";
+import { issueResetToken } from "../auth/utils/issue-reset-token.util.js";
+import { AppPage } from "../common/enums/app-page.enum.js";
+import { appLink } from "../common/utils/app-link.util.js";
+import { ENV, type Env } from "../config/config.module.js";
+import { MailService } from "../mail/mail.service.js";
 import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
 import { LicensedResource } from "../license/enums/licensed-resource.enum.js";
 import { LicenseService } from "../license/license.service.js";
@@ -26,6 +33,8 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly license: LicenseService,
+    private readonly mail: MailService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async create(admin: SessionUser, input: { email: string; role: Role; groups: string[] }) {
@@ -34,7 +43,12 @@ export class UsersService {
       const user = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
         await this.license.assertWithinLimit(tx, LicensedResource.USERS);
         const created = await tx.user.create({
-          data: { ...input, orgId: admin.orgId, cliTokenHash: sha256Hex(token) },
+          data: {
+            ...input,
+            orgId: admin.orgId,
+            cliTokenHash: sha256Hex(token),
+            cliTokenCreatedAt: new Date(),
+          },
         });
         await this.audit.append(
           admin.orgId,
@@ -65,7 +79,10 @@ export class UsersService {
   }
 
   async list(orgId: string) {
-    const users = await orgDb(this.prisma, orgId).user.findMany({ orderBy: { createdAt: "asc" } });
+    const users = await orgDb(this.prisma, orgId).user.findMany({
+      orderBy: { createdAt: "asc" },
+      include: { identities: { select: { provider: true } } },
+    });
     return users.map(toPublicUser);
   }
 
@@ -102,6 +119,7 @@ export class UsersService {
       const updated = await tx.user.update({
         where: { id: target.id },
         data: { role: patch.role, groups: patch.groups, disabledAt },
+        include: { identities: { select: { provider: true } } },
       });
       if (patch.disabled) await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
@@ -120,7 +138,7 @@ export class UsersService {
     await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
       await tx.user.update({
         where: { id: target.id },
-        data: { cliTokenHash: sha256Hex(token) },
+        data: { cliTokenHash: sha256Hex(token), cliTokenCreatedAt: new Date() },
       });
       await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
@@ -130,6 +148,27 @@ export class UsersService {
       );
     });
     return { loginToken: token };
+  }
+
+  async createResetLink(admin: SessionUser, email: string) {
+    const target = await this.find(admin.orgId, email);
+    const { token, expiresAt } = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+      const issued = await issueResetToken(tx, {
+        orgId: admin.orgId,
+        userId: target.id,
+        createdBy: admin.id,
+        ttlMs: ADMIN_RESET_TTL_MS,
+      });
+      await this.audit.append(
+        admin.orgId,
+        [{ kind: AuditKind.PASSWORD_RESET_CREATED, actor: admin.id, payload: { email } }],
+        tx,
+      );
+      return issued;
+    });
+    const link = appLink(this.env, AppPage.RESET, token);
+    const emailed = await this.mail.sendPasswordReset(email, link, "24 hours");
+    return { link, expiresAt, emailed };
   }
 
   private async find(orgId: string, email: string) {

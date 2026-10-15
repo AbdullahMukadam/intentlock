@@ -34,6 +34,11 @@ export class UsersController {
     return this.users.update(admin, email, body);
   }
 
+  @Post(API_ENDPOINTS.USER_RESET_LINK)
+  resetLink(@CurrentUser() admin: SessionUser, @Param() { email }: UserEmailParamsDto) {
+    return this.users.createResetLink(admin, email);
+  }
+
   @Post(API_ENDPOINTS.USER_TOKEN)
   reissueToken(@CurrentUser() admin: SessionUser, @Param() { email }: UserEmailParamsDto) {
     return this.users.reissueToken(admin, email);

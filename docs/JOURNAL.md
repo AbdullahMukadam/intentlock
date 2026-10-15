@@ -870,3 +870,32 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes for Abdullah**
 - README "Self-host in 10 minutes", `.env.example` and `deploy/selfhost.env.example` still describe `BOOTSTRAP_ADMIN_EMAIL`; they change with the server code in the next chunk
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5b — setup, passwords, invites, resets, mail
+
+**Done**
+- Setup: boot creates the org and prints a one-time setup code (a new one on each boot until setup is done); `GET /v1/setup/status`, `POST /v1/setup` (first admin + session, optional team name, 409 afterwards); `INTENTLOCK_DEMO=1` creates the sample users at setup with printed passwords. `BOOTSTRAP_ADMIN_EMAIL` removed; the dev seed creates the admin with a random password
+- Password sign-in (`node:crypto` scrypt N=2^15, r=8, p=1, parameters stored with the hash; dummy-hash verify for unknown users; 12+ characters, not containing the email); `POST /v1/auth/login` takes a password or a CLI token; sessions record ip and user agent; `GET /v1/auth/methods`
+- Invites: create (link once + email), list pending, resend (new token), revoke, public lookup + accept (password path); single use under a `WHERE acceptedAt IS NULL` guard; `maxUsers` checked at accept
+- Password resets: admin `POST /v1/users/:email/reset-link` (24 h), self-service forgot (1 h, only with SMTP, same 202 either way), reset ends all sessions
+- `MailService` over `nodemailer` (failed send → `emailed: false`); Mailpit SMTP published on `127.0.0.1:1025` in the dev compose
+- Route-enumeration test lists the new public routes; README, `.env.example`, self-host env example and compose, PRD FR13b updated
+
+**Problems hit and how they were solved**
+- Adding password sign-in tests to `auth.e2e.test.ts` pushed that file past the real 20/min per-IP login limit (429 in a later test) → moved them to `password-login.e2e.test.ts` (its own app, its own in-memory limiter) instead of loosening the limit
+- `check.e2e` "never overshoots maxCalls" timed out once at 5 s in a full run; it passed alone (1.3 s), after the auth files, and in a second full run, so it was load, not a regression. Watch it
+- Mailpit's SMTP port was not published (the demo uses its HTTP API) → added `127.0.0.1:1025`; a real invite email arrived in Mailpit
+
+**Decisions**
+- Invalid, used, revoked or expired invite and reset links all answer 400 `link_invalid` (ARCHITECTURE §5.1 updated)
+- The old `POST /v1/users` and `/token` routes stay until the CLI and demo switch over (next chunk), so nothing breaks in between
+
+**Numbers**
+- Server tests 154 (was 122): new suites setup (6), invites (11), password reset (7), password login (3), unit password (3), mail (2), env (+1)
+
+**Next**
+- OAuth (Google, GitHub) with fake provider endpoints, invite accept via OAuth; account endpoints; CLI `login`/`users invite`/`users reset-link`; demo `setup-instance` with a password; remove the old user routes
+
+**Notes for Abdullah**
+- Until the inbox sign-in page changes (chunk 4) the inbox only signs in with a CLI token, and fresh or newly seeded databases only have passwords, so use the existing dev database (its old login tokens are now CLI tokens) for inbox work in between
+- `docker compose up -d mailpit` recreates Mailpit with the new SMTP port (its mailbox is in memory)

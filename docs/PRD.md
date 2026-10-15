@@ -96,7 +96,7 @@ Nothing in the inbox is visible without signing in. Every agent run is tied to a
 ### Team, sign-in and approval inbox
 - FR13a · Users have an email, a role (`admin | approver | member`) and optional groups (labels used by policies, e.g. `intern`, `oncall`).
 - FR13e · **Nothing is public except the sign-in page.** Every page and API route requires a session unless explicitly marked public (sign-in, health, JWKS) or agent-only (API key). The WebSocket requires a session too. Admins and approvers see all activity; members see their own runs.
-- FR13b · On first boot the server creates the admin from `BOOTSTRAP_ADMIN_EMAIL` and prints a one-time login token. Admins add, disable and re-issue tokens for users via `intentlock users ...` (inbox team page = stretch).
+- FR13b · On first boot the server prints a one-time setup code; the inbox setup page uses it to create the first admin. Accounts are invite-only: admins invite, disable and create reset links in the inbox Team page or with `intentlock users ...`; people sign in with a password or Google/GitHub (ADR-058).
 - FR13c · Sign-in: email + personal login token → httpOnly session cookie. Tokens are stored hashed; sessions expire.
 - FR13d · Agent apps authenticate with API keys (created by admins); humans authenticate with sessions. Approve/reject accept sessions only, never API keys.
 - FR14 · Lists pending holds live (WebSocket), with tool, args, user, plan goal, and time waiting. Approvers see holds they may approve; members see their own.

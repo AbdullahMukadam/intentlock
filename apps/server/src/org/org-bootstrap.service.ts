@@ -15,19 +15,10 @@ export class OrgBootstrapService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    const result = await bootstrapOrg(this.prisma, {
-      orgName: this.env.ORG_NAME,
-      adminEmail: this.env.BOOTSTRAP_ADMIN_EMAIL,
-      demo: this.env.INTENTLOCK_DEMO,
-    });
+    const result = await bootstrapOrg(this.prisma, { orgName: this.env.ORG_NAME });
     if (!result) return;
-    if (!result.adminId) {
-      this.log.warn(
-        "Organization created without an admin: set BOOTSTRAP_ADMIN_EMAIL on an empty database",
-      );
-    }
-    for (const [email, token] of Object.entries(result.tokens)) {
-      this.log.warn(`One-time login token for ${email}: ${token}`);
-    }
+    this.log.warn(
+      `One-time setup code: ${result.setupCode} (open ${this.env.PUBLIC_URL}/setup to create the first admin)`,
+    );
   }
 }

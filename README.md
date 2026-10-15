@@ -41,17 +41,17 @@ curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/de
 curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
 ```
 
-1. **Configure.** In `.env`, set `ORG_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `PUBLIC_URL` and `POSTGRES_PASSWORD` (`openssl rand -hex 24`). Then add a signing key and back it up:
+1. **Configure.** In `.env`, set `ORG_NAME`, `PUBLIC_URL` and `POSTGRES_PASSWORD` (`openssl rand -hex 24`); optionally `SMTP_*` to email invites and `GOOGLE_*` / `GITHUB_*` for "Continue with Google/GitHub". Then add a signing key and back it up:
    ```bash
    echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
    ```
 2. **Start.** Migrations run once as a one-off `migrate` service before the server starts.
    ```bash
    docker compose -f docker-compose.selfhost.yml up -d
-   docker compose -f docker-compose.selfhost.yml logs server | grep "login token"
+   docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"
    ```
-3. **Sign in** at `PUBLIC_URL` (default `http://localhost:8080`) with the admin email and the one-time token.
-4. **Add teammates** with the [CLI](packages/cli) (`intentlock login --url http://localhost:8080/api --email <admin>`, then `intentlock users add bob@acme.dev --role approver` and `intentlock users token bob@acme.dev`).
+3. **Create the first admin.** Open `PUBLIC_URL` (default `http://localhost:8080`); it shows the setup page. Paste the setup code and choose your email and password.
+4. **Invite teammates** from the Team page: each invite gives you a link to send (and emails it when SMTP is set). They set a password or continue with Google/GitHub. From the [CLI](packages/cli): `intentlock users invite bob@acme.dev --role approver`.
 5. **Register an agent** in the inbox (Agents → New), create an API key, and give your agent app `INTENTLOCK_URL=<PUBLIC_URL>/api` and `INTENTLOCK_API_KEY`. Wire it in as below, then watch its first block appear under Activity.
 6. **License (optional).** Put the license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Without one you run the Community edition.
 

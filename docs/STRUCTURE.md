@@ -262,9 +262,10 @@ src/
 │   ├── oauth/                      # oauth.controller/service: Google + GitHub start/callback (PKCE, signed state cookie), provider config
 │   └── utils/                      # session-cookie.util.ts, password.util.ts (scrypt hash/verify, strength rules)
 ├── setup/                          # setup.module/controller/service: GET status, POST setup (setup code from the logs, ADR-058)
-├── invites/                        # invites.module/controller/service: create, list, resend, revoke (admin); lookup, accept (public)
+│                                   # org/utils: bootstrap-org (org + setup code on boot), create-demo-users (INTENTLOCK_DEMO)
+├── invites/                        # invites.controller (admin: create, list, resend, revoke), invite-accept.controller (public: lookup, accept), invites.service
 ├── account/                        # account.module/controller/service: password, sessions, identities, CLI token (signed-in user)
-├── mail/                           # mail.module, mail.service.ts (nodemailer, on when SMTP_URL is set; never blocks), templates/
+├── mail/                           # mail.module, mail.service.ts (nodemailer, on when SMTP_URL is set; a failed send returns false, never throws)
 ├── users/                          # users.module/controller/service (admin only): list, update, reset link
 │   ├── dto/                        # update-user, user-email-params (*.dto.ts)
 │   ├── enums/                      # user-role (matches the Prisma Role enum, tested), user-error
