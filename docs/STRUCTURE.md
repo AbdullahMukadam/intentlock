@@ -252,16 +252,21 @@ src/
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
 ├── org/                            # org.module.ts, org-bootstrap.service.ts (runs on boot)
 │   └── utils/                      # bootstrap-org.util.ts (also used by the seed), org-db.util.ts (org-scoped client)
-├── auth/                           # auth.module/controller/service (login, logout, me; login rate limit)
+├── auth/                           # auth.module/controller/service (methods, login, logout, me, password forgot/reset; rate limits)
 │   ├── sessions.service.ts         # the one session check, shared by SessionGuard and the WebSocket handshake
 │   ├── constants/                  # session.constants.ts
 │   ├── types/                      # resolved-session.type.ts
-│   ├── dto/                        # login.dto.ts
+│   ├── dto/                        # login, forgot-password, reset-password
 │   ├── enums/                      # auth-error, login-throttler
 │   ├── guards/                     # session.guard.ts (default deny)
-│   └── utils/                      # session-cookie.util.ts
-├── users/                          # users.module/controller/service (admin only)
-│   ├── dto/                        # create-user, update-user, user-email-params (*.dto.ts)
+│   ├── oauth/                      # oauth.controller/service: Google + GitHub start/callback (PKCE, signed state cookie), provider config
+│   └── utils/                      # session-cookie.util.ts, password.util.ts (scrypt hash/verify, strength rules)
+├── setup/                          # setup.module/controller/service: GET status, POST setup (setup code from the logs, ADR-058)
+├── invites/                        # invites.module/controller/service: create, list, resend, revoke (admin); lookup, accept (public)
+├── account/                        # account.module/controller/service: password, sessions, identities, CLI token (signed-in user)
+├── mail/                           # mail.module, mail.service.ts (nodemailer, on when SMTP_URL is set; never blocks), templates/
+├── users/                          # users.module/controller/service (admin only): list, update, reset link
+│   ├── dto/                        # update-user, user-email-params (*.dto.ts)
 │   ├── enums/                      # user-role (matches the Prisma Role enum, tested), user-error
 │   ├── schemas/                    # user-fields.schema.ts
 │   └── utils/                      # to-public-user.util.ts

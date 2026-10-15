@@ -847,3 +847,26 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - The self-host install pulls `ghcr.io/abdullahmukadam/intentlock-server|inbox`, which do not exist until CI (or you) pushes them; until then use `up --build` from a clone
 - Server image size is mostly Prisma's engines and `node_modules`; not trimmed yet
+
+### 2026-10-15 · Session 17 · Phase 5.5a — accounts ADR, endpoints, migration
+
+**Done**
+- ADR-058 (accounts and sign-in; supersedes ADR-020, amends ADR-032): setup code, scrypt passwords, CLI tokens, invites, resets, Google/GitHub OAuth, mail, public routes, audit kinds. ARCHITECTURE §2/§5.1/§5.3/§5.6/§8, DEPLOYMENT §2/§9/§10, USAGE §3 and STRUCTURE updated
+- `API_ENDPOINTS`: setup, auth methods/OAuth/password, account, invites, user reset link (old `USER_TOKEN` kept until the server and CLI switch over)
+- Migration `20261015120000_accounts_sign_in`: `Organization.setupCodeHash`; `User.passwordHash`, `cliTokenHash` (renamed from `loginTokenHash`, existing tokens keep working), `cliTokenCreatedAt`; `Session.ip`/`userAgent`; `Identity`, `Invite`, `PasswordReset`
+
+**Problems hit and how they were solved**
+- `prisma migrate dev --create-only` refuses to run non-interactively → generated the SQL with `migrate diff --from-schema <old> --to-schema <new>`, hand-edited the drop+add into `RENAME COLUMN`, applied with `migrate deploy`; `migrate diff --from-config-datasource --exit-code` confirms no drift
+- Python on Windows wrote the migration with CRLF → stripped
+
+**Decisions**
+- ADR-058. One pending invite per email is checked in the service, not a partial unique index (Prisma does not model it, and the race only yields two valid invites for the same email)
+
+**Numbers**
+- Tests: core 147, server 122 (unchanged); server typecheck, lint, prettier green
+
+**Next**
+- Phase 5.5 server: setup, password sign-in, invites, resets, SMTP (`nodemailer`) with integration tests; then the route-enumeration test update
+
+**Notes for Abdullah**
+- README "Self-host in 10 minutes", `.env.example` and `deploy/selfhost.env.example` still describe `BOOTSTRAP_ADMIN_EMAIL`; they change with the server code in the next chunk

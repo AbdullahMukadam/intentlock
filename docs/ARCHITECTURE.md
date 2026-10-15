@@ -53,7 +53,7 @@ File-level layout, naming conventions and import rules are in `STRUCTURE.md`.
 | `apps/inbox` | Sign-in; dashboard (overview, activity, run detail); approvals; policy editor; agents + API keys; audit verify | `core` (pure validation in the browser), Next.js, Tailwind, shadcn/ui, CodeMirror, Recharts | HTTP + WS |
 | `apps/demo` | Three demo agents (GitHub, support inbox, files/ops), seed scripts, split-screen runner | `guard`, `sdk` (+ `anthropic` optional), `@octokit/rest` | GitHub, Mailpit, local sandbox, model API |
 
-**Allowed runtime dependencies** (ask before adding others): `zod`, `jose`, `canonicalize`, `minimatch`, `yaml`, `openai` (used only as an OpenAI-compatible HTTP client with a custom `baseURL`), `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk`, `@nestjs/*`, `@prisma/client`, `prisma`, `@prisma/adapter-pg` + `pg` (Prisma 7 driver adapter, ADR-029), `socket.io` / `@nestjs/websockets` / `socket.io-client` (inbox), `pino`, `next`, `react`, `tailwindcss`, shadcn/ui components, `@octokit/rest`, `commander` (CLI), `codemirror` + `@codemirror/lang-yaml` + `@codemirror/lint` + `@codemirror/merge` (policy editor), `recharts` (dashboard). Dev: `vitest`, `tsx`, `tsup`, `eslint`, `prettier`, `typescript`, `turbo`.
+**Allowed runtime dependencies** (ask before adding others): `zod`, `jose`, `canonicalize`, `minimatch`, `yaml`, `openai` (used only as an OpenAI-compatible HTTP client with a custom `baseURL`), `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk`, `@nestjs/*`, `@prisma/client`, `prisma`, `@prisma/adapter-pg` + `pg` (Prisma 7 driver adapter, ADR-029), `socket.io` / `@nestjs/websockets` / `socket.io-client` (inbox), `pino`, `next`, `react`, `tailwindcss`, shadcn/ui components, `@octokit/rest`, `commander` (CLI), `nodemailer` (server, optional SMTP, ADR-058), `codemirror` + `@codemirror/lang-yaml` + `@codemirror/lint` + `@codemirror/merge` (policy editor), `recharts` (dashboard). Dev: `vitest`, `tsx`, `tsup`, `eslint`, `prettier`, `typescript`, `turbo`.
 
 ## 3. Core concepts and formats
 
@@ -210,17 +210,33 @@ Rules:
 
 ### 5.1 REST API (v1)
 
-Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <apiKey>` (keys created by admins, stored as SHA-256 hashes); **people** use an httpOnly session cookie from `/v1/auth/login` (§5.6). The **Auth** column says which an endpoint accepts. Request/response bodies validated with zod (via a Nest pipe).
+Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <apiKey>` (keys created by admins, stored as SHA-256 hashes); **people** use an httpOnly session cookie from sign-in, setup or an accepted invite (§5.6). The **Auth** column says which an endpoint accepts. Request/response bodies validated with zod (via a Nest pipe).
 
 | Method | Path | Body → Response | Notes |
 | --- | --- | --- | --- |
-| POST | `/v1/auth/login` | `{ email, token }` → sets session cookie, `{ user }` | Auth: none. Rate-limited per email + IP |
+| GET | `/v1/setup/status` | → `{ setupRequired }` | Auth: none. Inbox shows `/setup` while true |
+| POST | `/v1/setup` | `{ code, email, password, orgName? }` → sets session cookie, `{ user }` | Auth: none. Setup code from the server logs; 409 `setup_complete` once an admin exists |
+| GET | `/v1/auth/methods` | → `{ password, google, github, passwordReset }` | Auth: none. Which sign-in buttons to show; `passwordReset` = SMTP configured |
+| POST | `/v1/auth/login` | `{ email, password }` or `{ email, token }` (CLI token) → sets session cookie, `{ user }` | Auth: none. Rate-limited per email + IP |
+| GET | `/v1/auth/oauth/:provider` | `?mode=signin\|link\|invite&invite=` → 302 to Google/GitHub | Auth: none (`link` needs a session). Sets the signed state cookie (PKCE + `state`) |
+| GET | `/v1/auth/oauth/:provider/callback` | `?code=&state=` → 302 to the inbox, session cookie on success | Auth: none. Existing users only, matched by verified email; else `/login?error=no_account` |
+| POST | `/v1/auth/password/forgot` | `{ email }` → 202 | Auth: none. Only when SMTP is configured; same answer whether or not the email exists |
+| POST | `/v1/auth/password/reset` | `{ token, password }` → 204 | Auth: none. Single use; ends all the user's sessions |
 | POST | `/v1/auth/logout` | → 204 | Auth: session |
 | GET | `/v1/me` | → `{ email, role, groups }` | Auth: session |
-| POST | `/v1/users` | `{ email, role, groups? }` → `{ user, loginToken }` | Auth: session (admin). Token shown once. Fails if license `maxUsers` reached |
-| GET | `/v1/users` | → `User[]` | Auth: session (admin) |
+| GET | `/v1/account` | → `{ email, role, groups, hasPassword, identities, cliToken }` | Auth: session |
+| POST | `/v1/account/password` | `{ currentPassword?, newPassword }` → 204 | Auth: session. Current password required when one is set; ends the user's other sessions |
+| GET · DELETE | `/v1/account/sessions` | → own sessions (`current`, `ip`, `userAgent`, times) / 204 = sign out all others | Auth: session |
+| DELETE | `/v1/account/identities/:provider` | → 204 | Auth: session. 409 if it is the last sign-in method |
+| POST · DELETE | `/v1/account/cli-token` | → `{ token }` (shown once, replaces the old one) / 204 | Auth: session |
+| GET | `/v1/users` | → `User[]` with sign-in methods | Auth: session (admin) |
 | PATCH | `/v1/users/:email` | `{ role?, groups?, disabled? }` → `User` | Auth: session (admin); disabling ends their sessions |
-| POST | `/v1/users/:email/token` | → `{ loginToken }` | Auth: session (admin); re-issue, old token invalid |
+| POST | `/v1/users/:email/reset-link` | → `{ link, expiresAt, emailed }` | Auth: session (admin). 24 h, single use |
+| POST · GET | `/v1/invites` | `{ email, role, groups? }` → `{ invite, link, emailed }` / pending invites | Auth: session (admin). Link shown once; 7 days |
+| POST | `/v1/invites/:id/resend` | → `{ invite, link, emailed }` | Auth: session (admin). New token and expiry; the old link stops working |
+| DELETE | `/v1/invites/:id` | → 204 | Auth: session (admin). Revoke |
+| POST | `/v1/invites/lookup` | `{ token }` → `{ email, role, orgName, expiresAt }` | Auth: none. 404 when unknown, used, revoked or expired |
+| POST | `/v1/invites/accept` | `{ token, password }` → sets session cookie, `{ user }` | Auth: none. Creates the user; fails if license `maxUsers` reached |
 | GET | `/v1/agents` | → `Agent[]` with key counts, active policy version, 24 h decision counts | Auth: session |
 | POST | `/v1/agents` | `{ name, description? }` → `Agent` (created with the starter policy as v1) | Auth: session (admin). Fails if license `maxAgents` reached |
 | GET · PATCH · DELETE | `/v1/agents/:id` | `{ name?, description?, disabled? }` → `Agent` | Auth: session (PATCH/DELETE admin). Disabling blocks new plans for the agent |
@@ -269,9 +285,10 @@ Socket.IO namespace `/events` on the engine path `/socket.io` (browsers reach it
 // all queries are scoped by it through one Prisma helper, so multi-tenancy is a later change, not a rewrite.
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  setupCodeHash String?                    // sha256 of the setup code; null once the first admin exists
+  createdAt     DateTime @default(now())
 }
 
 model Agent {
@@ -307,13 +324,57 @@ model User {
   email          String
   role           Role      @default(member)
   groups         String[]  @default([])     // policy labels, e.g. intern, oncall
-  loginTokenHash String?                    // sha256 of the personal login token
+  passwordHash   String?                    // scrypt$N$r$p$salt$hash; null = OAuth-only
+  cliTokenHash   String?                    // sha256 of the CLI token
+  cliTokenCreatedAt DateTime?
   disabledAt     DateTime?
   createdAt      DateTime  @default(now())
+  identities     Identity[]
   @@unique([orgId, email])
 }
 
 enum Role { admin approver member }
+
+model Identity {                            // a linked Google / GitHub account
+  id        String           @id @default(cuid())
+  orgId     String
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  provider  IdentityProvider
+  subject   String                          // provider's stable user id (Google `sub`, GitHub numeric id)
+  email     String                          // verified email at link time
+  createdAt DateTime         @default(now())
+  @@unique([orgId, provider, subject])
+  @@unique([userId, provider])
+}
+
+enum IdentityProvider { google github }
+
+model Invite {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       Role
+  groups     String[]  @default([])
+  tokenHash  String    @unique
+  expiresAt  DateTime                       // 7 days; resend replaces token and expiry
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  invitedBy  String                         // userId
+  createdAt  DateTime  @default(now())
+  @@index([orgId, email])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  orgId     String
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime                        // 24 h from an admin, 1 h self-service
+  usedAt    DateTime?
+  createdBy String?                         // admin userId; null = forgot-password
+  createdAt DateTime  @default(now())
+}
 
 model PolicySet {
   id              String          @id @default(cuid())
@@ -356,6 +417,8 @@ model Session {
   orgId     String
   userId    String
   expiresAt DateTime                        // 12 h, sliding
+  ip        String?
+  userAgent String?
   createdAt DateTime @default(now())
 }
 
@@ -413,7 +476,7 @@ model AuditEntry {
   seq        Int      @id @default(autoincrement())
   orgId      String
   at         DateTime @default(now())            // server receive time
-  kind       String   // plan_signed | check | hold_resolved | report | client_gap | policy_published | policy_rolled_back | agent_* | api_key_* | auth_* | user_*
+  kind       String   // plan_signed | check | hold_resolved | report | client_gap | policy_published | policy_rolled_back | agent_* | api_key_* | auth_* | user_* | setup_* | invite_* | password_* | identity_* | cli_token_*
   origin     String   @default("server")         // server | client
   actor      String?                              // userId for human actions; agentId for agent actions
   user       String?                              // team member the agent acted for
@@ -471,9 +534,24 @@ Ed25519 keypair generated on first boot if `SIGNING_KEY` is unset (dev only) and
 
 ### 5.6 Team, sign-in and authorization
 
-**Bootstrap.** On first boot with an empty database the server creates the Organization (`ORG_NAME`) and an admin user from `BOOTSTRAP_ADMIN_EMAIL`, and prints a one-time login token to the logs. After that, admins manage people with `intentlock users add|list|disable|token` (the CLI calls the API with the admin's session) — an inbox team page is stretch.
+Accounts and sign-in follow ADR-058 (which supersedes ADR-020's login tokens).
 
-**Login tokens, not passwords.** A login token is 32 random bytes (base64url) shown once; only its SHA-256 is stored. Sign-in exchanges email + token for a session cookie (`httpOnly`, `Secure`, `SameSite=Lax`, 12 h sliding). This avoids building password storage, reset and email delivery in v0.1; SSO (OIDC/SAML) is a future paid feature.
+**Setup.** On boot with an empty database the server creates the Organization (`ORG_NAME`) and prints a one-time **setup code** to the logs (only its SHA-256 is stored; each boot while setup is pending prints a fresh one). The inbox shows `/setup` while `GET /v1/setup/status` says so; `POST /v1/setup` with the code, email and password creates the first admin and signs them in. After that the route answers 409 forever. With `INTENTLOCK_DEMO=1`, completing setup also creates the sample users (§8) and prints their passwords once.
+
+**Invite-only accounts.** Nobody signs up. An admin invites an email with a role and groups (inbox Team page or `intentlock users invite`); the link `PUBLIC_URL/invite/<token>` is shown once to copy and emailed when SMTP is configured. It is valid for 7 days, single use, and can be resent (new token) or revoked. The invitee sets a password or continues with Google/GitHub using the invited email; the user is created at that moment, which is when `maxUsers` is checked.
+
+**Sign-in methods.**
+- **Email + password:** scrypt (`node:crypto`, per-hash salt, parameters stored with the hash), constant-time verify, same 401 for unknown email, wrong password and disabled user. At least 12 characters, not containing the email.
+- **Google / GitHub** (OAuth authorization code + PKCE + `state` in a signed 10-minute cookie, via `fetch` + `jose`): only for existing active users, matched by provider + subject or, the first time, by the provider's **verified** email (Google ID token `email_verified`; GitHub `/user/emails` primary + verified), which links the identity. Unknown email → `/login?error=no_account`. Enabled per provider when its client id and secret are set. Generic OIDC/SAML remain the Enterprise `sso` feature.
+- **CLI token:** one per user, created in account settings and shown once (SHA-256 stored), for `intentlock login --token` (people without a password use this).
+
+Every method ends in the same session cookie (`httpOnly`, `Secure` on https, `SameSite=Lax`, 12 h sliding).
+
+**Password resets.** An admin creates a reset link for a user (24 h, copy or email). "Forgot password" on the sign-in page exists only when SMTP is configured (1 h link, the same answer whether or not the email exists). A reset is single use and ends all of that user's sessions.
+
+**Account settings** (every user): change password (current password required when one exists; ends the other sessions), active sessions with "sign out other sessions", link/unlink Google and GitHub (the last sign-in method cannot be removed), CLI token.
+
+**Mail.** One `MailService` over `nodemailer`, enabled by `SMTP_URL`. A send failure never blocks the action; the link is still returned to the admin.
 
 **Authorization rules**
 | Action | Who |
@@ -481,12 +559,13 @@ Ed25519 keypair generated on first boot if `SIGNING_KEY` is unset (dev only) and
 | Sign plans, check, create holds, report, audit batches | API key (agent app); the plan's `user` must be an active user of the org |
 | Approve / reject a hold | Signed-in user satisfying the hold's `ApproverSpec`; never the requester unless `self: true` |
 | See holds | Approvers: holds they may approve. Members: their own |
-| Users, API keys | Admins |
+| Users, invites, reset links, API keys | Admins |
+| Own password, sessions, linked providers, CLI token | The signed-in user |
 | Audit view, verify, license info | Any signed-in user |
 
-**Default deny — nothing is public except the sign-in page.**
-- NestJS: a global guard requires a valid session on every route. Routes opt out explicitly with `@Public()` (sign-in, health, JWKS) or `@AgentAuth()` (API-key routes). A new route is protected unless someone deliberately opens it; a test lists all routes and fails if an unexpected one is public.
-- Next.js: middleware redirects any request without a session cookie to `/login`. This is for user experience only; the server enforces access on every request.
+**Default deny — nothing is public except signing in.**
+- NestJS: a global guard requires a valid session on every route. Routes opt out explicitly with `@Public()` (setup, sign-in incl. OAuth start/callback, invite lookup/accept, password forgot/reset, health, JWKS) or `@AgentAuth()` (API-key routes). A new route is protected unless someone deliberately opens it; a test lists all routes and fails if an unexpected one is public.
+- Next.js: middleware redirects any request without a session cookie to `/login` (except `/login`, `/setup`, `/invite/*`, `/reset/*`). This is for user experience only; the server enforces access on every request.
 - WebSocket: the handshake validates the session cookie; events are filtered per user.
 
 **What each role can see and do**
@@ -501,7 +580,7 @@ Ed25519 keypair generated on first boot if `SIGNING_KEY` is unset (dev only) and
 
 **Single origin:** the inbox and API are served from one origin (bundled nginx in self-host; a Next.js rewrite in the hosted demo), so the cookie never crosses sites — see `DEPLOYMENT.md` §10.
 
-**Hardening:** login rate limit (per email and per IP), constant-time token comparison, CSRF protection on cookie-authenticated mutations (`SameSite=Lax` + an `X-Intentlock-CSRF` header the inbox sends), sessions revoked when a user is disabled or their token re-issued. All auth events are audited.
+**Hardening:** rate limits on every public auth route (sign-in per email and per IP; setup, invites, resets and OAuth per IP), constant-time comparison of passwords and tokens, invite/reset/setup tokens stored only as SHA-256 and sent in request bodies (not paths), CSRF protection on cookie-authenticated mutations (`SameSite=Lax` + an `X-Intentlock-CSRF` header the inbox sends), sessions revoked when a user is disabled, resets their password or changes it (other sessions). All auth events are audited.
 
 ### 5.7 Licensing (groundwork)
 
@@ -837,9 +916,9 @@ Three demo agents that cost nothing to run. Each is registered as an agent in ou
 
 **Policies:** each agent's starting policy lives in `apps/demo/policies/<agent>.yaml` and is published to the instance by the demo setup through the same publish API that `intentlock policy push` and the inbox editor use (409 on a stale base), so the demo also exercises the real policy flow. In the video, a rule is edited and tested live in the inbox policy editor.
 
-**Seeding:** `pnpm --filter @intentlock/demo seed --agent <name|all>` creates the poisoned issue / email / file plus benign ones, so every run is repeatable. `pnpm --filter @intentlock/demo run setup-instance` (not `setup`, which is a built-in pnpm command) signs in as `INTENTLOCK_ADMIN_EMAIL`, creates `DEMO_USER` as a member, registers the agents, publishes their policies when they changed, and creates one API key each (written to `apps/demo/.env`, git-ignored). It is idempotent.
+**Seeding:** `pnpm --filter @intentlock/demo seed --agent <name|all>` creates the poisoned issue / email / file plus benign ones, so every run is repeatable. `pnpm --filter @intentlock/demo run setup-instance` (not `setup`, which is a built-in pnpm command) signs in as `INTENTLOCK_ADMIN_EMAIL` (with `INTENTLOCK_ADMIN_PASSWORD` or a CLI token in `INTENTLOCK_ADMIN_TOKEN`), invites `DEMO_USER` as a member and accepts the invite with a random password if the user is missing, registers the agents, publishes their policies when they changed, and creates one API key each (written to `apps/demo/.env`, git-ignored). It is idempotent.
 
-**Instance demo data:** `INTENTLOCK_DEMO=1` on first boot (empty database) creates sample users next to the bootstrap admin: `approver@`, `member@` and `intern@` (group `intern`) on the admin's domain, each with a one-time login token in the logs. Never enabled by default. The demo agents act for `member@acme-demo.dev` by default (`DEMO_USER`).
+**Instance demo data:** with `INTENTLOCK_DEMO=1`, completing setup also creates sample users next to the first admin: `approver@`, `member@` and `intern@` (group `intern`) on the admin's domain, each with a random password printed once to the logs. Never enabled by default. The demo agents act for `member@acme-demo.dev` by default (`DEMO_USER`).
 
 **Running:** `pnpm --filter @intentlock/demo run github-assistant --mode protected|unprotected` (or `run run <agent> --mode …`). Unprotected uses `PassThroughGate` (no Intentlock at all); protected uses `HybridGate` against the instance.
 
