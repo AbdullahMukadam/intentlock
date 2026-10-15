@@ -227,6 +227,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
+    if (!drawer) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [drawer]);
+
+  useEffect(() => {
     api(API_ENDPOINTS.ME, Me).then(setMe, () => setFailed(true));
     api(API_ENDPOINTS.LICENSE, License).then(setLicense, () => undefined);
   }, []);

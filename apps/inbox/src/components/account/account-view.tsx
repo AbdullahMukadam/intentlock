@@ -298,13 +298,13 @@ function SessionsPanel() {
                       {s.current && <Badge tone="success">This device</Badge>}
                     </span>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
+                  <TableCell label="IP address" className="font-mono text-xs text-muted-foreground">
                     {s.ip ?? "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell label="Signed in" className="text-muted-foreground">
                     {formatRelative(s.createdAt)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell label="Expires" className="text-muted-foreground">
                     {formatRelative(s.expiresAt)}
                   </TableCell>
                 </TableRow>

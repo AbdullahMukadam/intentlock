@@ -98,10 +98,13 @@ function Results({ result }: { result: PolicyTestResult }) {
                 return (
                   <TableRow key={i} className={changed ? "bg-warning/8 font-medium" : undefined}>
                     <TableCell className="font-mono text-xs">{r.call.tool}</TableCell>
-                    <TableCell className="max-w-xs truncate font-mono text-xs text-muted-foreground">
+                    <TableCell
+                      label="Arguments"
+                      className="max-w-xs truncate font-mono text-xs text-muted-foreground"
+                    >
                       {JSON.stringify(r.call.args)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Active policy">
                       <span className="inline-flex items-center gap-1.5">
                         <VerdictBadge verdict={r.from.verdict} />
                         <span className="font-mono text-xs text-muted-foreground">
@@ -109,7 +112,7 @@ function Results({ result }: { result: PolicyTestResult }) {
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="This draft">
                       <span className="inline-flex items-center gap-1.5">
                         <VerdictBadge verdict={r.to.verdict} />
                         <span className="font-mono text-xs text-muted-foreground">

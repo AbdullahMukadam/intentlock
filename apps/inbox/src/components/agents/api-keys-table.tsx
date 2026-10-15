@@ -138,17 +138,17 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
                 {data.map((k) => (
                   <TableRow key={k.id}>
                     <TableCell className="font-medium">{k.name}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
+                    <TableCell label="Prefix" className="font-mono text-xs text-muted-foreground">
                       {k.prefix}…
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell label="Created" className="text-muted-foreground">
                       <span title={formatTime(k.createdAt)}>{formatRelative(k.createdAt)}</span>
                       <span className="block text-xs">by {k.createdBy}</span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell label="Last used" className="text-muted-foreground">
                       {k.lastUsedAt ? formatRelative(k.lastUsedAt) : "never"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Status">
                       {k.revokedAt ? (
                         <Badge>Revoked</Badge>
                       ) : (
@@ -158,7 +158,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell label="" className="text-right">
                       {!k.revokedAt && (
                         <Button
                           variant="ghost"

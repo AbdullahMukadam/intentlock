@@ -28,7 +28,11 @@ import { useApi } from "@/lib/use-api";
 const HEADERS = ["#", "Time", "Event", "Agent", "User", "Tool", "Verdict", "Rule", "Policy", "Run"];
 
 function Dash() {
-  return <span className="text-muted-foreground/60">—</span>;
+  return (
+    <span data-empty className="text-muted-foreground/60">
+      —
+    </span>
+  );
 }
 
 export function DecisionTable({
@@ -109,7 +113,7 @@ export function DecisionTable({
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.seq}>
-              <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
+              <TableCell label="#" className="font-mono text-xs text-muted-foreground tabular-nums">
                 <span className="inline-flex items-center gap-1">
                   {r.seq}
                   {r.flagged && (
@@ -120,23 +124,33 @@ export function DecisionTable({
                   )}
                 </span>
               </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums" title={formatTime(r.at)}>
+              <TableCell
+                label="Time"
+                className="text-muted-foreground tabular-nums"
+                title={formatTime(r.at)}
+              >
                 {formatShortTime(r.at)}
               </TableCell>
-              <TableCell className="capitalize">{humanize(r.kind)}</TableCell>
-              <TableCell>{r.agentId ? (names.get(r.agentId) ?? r.agentId) : <Dash />}</TableCell>
-              <TableCell>{r.user ?? <Dash />}</TableCell>
-              <TableCell className="font-mono text-xs">{r.tool ?? <Dash />}</TableCell>
-              <TableCell>
+              <TableCell label="Event" className="capitalize">
+                {humanize(r.kind)}
+              </TableCell>
+              <TableCell label="Agent">
+                {r.agentId ? (names.get(r.agentId) ?? r.agentId) : <Dash />}
+              </TableCell>
+              <TableCell label="User">{r.user ?? <Dash />}</TableCell>
+              <TableCell label="Tool" className="font-mono text-xs">
+                {r.tool ?? <Dash />}
+              </TableCell>
+              <TableCell label="Verdict">
                 <VerdictBadge verdict={r.verdict} />
               </TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">
+              <TableCell label="Rule" className="font-mono text-xs text-muted-foreground">
                 {r.ruleId ?? <Dash />}
               </TableCell>
-              <TableCell>
+              <TableCell label="Policy">
                 {r.policyVersion ? <Badge>v{r.policyVersion}</Badge> : <Dash />}
               </TableCell>
-              <TableCell>
+              <TableCell label="Run">
                 {r.planId ? (
                   <Link
                     href={`/runs/${r.planId}`}

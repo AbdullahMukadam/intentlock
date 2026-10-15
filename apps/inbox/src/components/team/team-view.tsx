@@ -332,13 +332,15 @@ function InvitesPanel({
                       </span>
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell label="Role">
                     <Badge tone={ROLE_TONE[invite.role]} className="capitalize">
                       {invite.role}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{invite.invitedBy ?? "—"}</TableCell>
-                  <TableCell>
+                  <TableCell label="Invited by" className="text-muted-foreground">
+                    {invite.invitedBy ?? "—"}
+                  </TableCell>
+                  <TableCell label="Expires">
                     {invite.expired ? (
                       <Badge tone="danger">Expired</Badge>
                     ) : (
@@ -348,7 +350,7 @@ function InvitesPanel({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell label="" className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => resend(invite)}>
                       <RotateCcw /> Resend
                     </Button>
@@ -467,12 +469,12 @@ export function TeamView() {
                           {self && <Badge>You</Badge>}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell label="Role">
                         <Badge tone={ROLE_TONE[m.role]} className="capitalize">
                           {m.role}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell label="Groups">
                         {editing === m.email ? (
                           <GroupsEditor
                             member={m}
@@ -488,15 +490,17 @@ export function TeamView() {
                             ))}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground/60">—</span>
+                          <span data-empty className="text-muted-foreground/60">
+                            —
+                          </span>
                         )}
                       </TableCell>
                       {isAdmin && (
-                        <TableCell>
+                        <TableCell label="Sign-in">
                           <SignIn member={m} />
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell label="Status">
                         {m.disabledAt ? (
                           <Badge>Disabled</Badge>
                         ) : (
@@ -507,7 +511,7 @@ export function TeamView() {
                         )}
                       </TableCell>
                       {isAdmin && (
-                        <TableCell className="w-12 text-right">
+                        <TableCell label="" className="w-12 text-right">
                           {!self && (
                             <MemberActions
                               member={m}

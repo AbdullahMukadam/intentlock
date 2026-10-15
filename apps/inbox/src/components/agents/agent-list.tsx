@@ -122,7 +122,7 @@ export function AgentList() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Status">
                       {a.disabledAt ? (
                         <Badge>Disabled</Badge>
                       ) : (
@@ -132,11 +132,13 @@ export function AgentList() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Policy">
                       {a.policyVersion ? <Badge>v{a.policyVersion}</Badge> : "—"}
                     </TableCell>
-                    <TableCell className="tabular-nums">{a.activeKeys}</TableCell>
-                    <TableCell>
+                    <TableCell label="API keys" className="tabular-nums">
+                      {a.activeKeys}
+                    </TableCell>
+                    <TableCell label="Last 24 h">
                       <span className="inline-flex gap-4 text-[13px]">
                         <Count value={a.last24h.allow} className="bg-success" />
                         <Count value={a.last24h.block} className="bg-destructive" />

@@ -16,7 +16,12 @@ export function verdictTone(verdict: string): Tone {
 }
 
 export function VerdictBadge({ verdict }: { verdict: string | null }) {
-  if (!verdict) return <span className="text-muted-foreground">—</span>;
+  if (!verdict)
+    return (
+      <span data-empty className="text-muted-foreground">
+        —
+      </span>
+    );
   return (
     <Badge tone={verdictTone(verdict)} className="capitalize">
       <span aria-hidden className="size-1.5 rounded-full bg-current" />

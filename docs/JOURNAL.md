@@ -986,3 +986,24 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Polish pass (Demo page, 375 px and dark mode on every page, keyboard focus); inbox form tests would need a component testing library (ask first); manual end-to-end walkthrough for the acceptance criteria
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5g — polish pass (phones, dark mode, focus)
+
+**Done**
+- Every inbox page screenshotted at 375 px and in dark mode against the seeded walkthrough instance, with page exceptions and console errors captured: none
+- Tables on phones become stacked cards (ADR-059 point 7): labelled cells, the identity cell as the title, empty cells hidden. Checked on Activity, Team, run detail
+- Keyboard: global focus-visible outline for links and disclosure toggles; the mobile drawer closes on Escape; every input and select has a label or `aria-label` (scripted check)
+- Walkthrough instance re-creation scripted in the scratch folder (setup → demo `setup-instance` → traffic → invites → an approver with a known password), because every server test run wipes the test database
+
+**Problems hit and how they were solved**
+- Docker Desktop had stopped again between sessions → restarted it before the server suite (175 passed) and the commit of the Team/Account/onboarding work
+- Policy editor in dark mode: CodeMirror's default highlight colors (dark blue keys) are unreadable on the dark background. A proper fix needs `@codemirror/language` + `@lezer/highlight` declared in the inbox (both already installed through `codemirror`); asked Abdullah instead of a CSS-filter workaround
+
+**Acceptance walkthrough so far** (Phase 5.5 criteria)
+- Fresh install shows `/setup`; the setup code from the logs creates the admin (UI and API); setup again answers 409
+- Admin invites by link (Team page and CLI); a teammate joins with a password; joining with Google/GitHub is covered by the fake-provider e2e suite (real OAuth apps pending from Abdullah)
+- Sign in again with the password; change password ends other sessions; link/unlink is in Account settings (e2e); a disabled user and an unknown Google account cannot sign in (e2e)
+- Signed out → redirected to `/login` (proxy test); route-enumeration test green; demo `setup-instance` works against a fresh instance and is idempotent
+
+**Next**
+- Abdullah's answers: dark-mode editor colors (dependency) and component tests (React Testing Library); then Phase 6

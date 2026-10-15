@@ -44,7 +44,11 @@ const CALL_HEADERS = [
 ];
 
 function Dash() {
-  return <span className="text-muted-foreground/60">—</span>;
+  return (
+    <span data-empty className="text-muted-foreground/60">
+      —
+    </span>
+  );
 }
 
 function Json({ value }: { value: unknown }) {
@@ -189,13 +193,19 @@ export function RunTimeline({ planId }: { planId: string }) {
             <TableBody>
               {plan.steps.map((s, i) => (
                 <TableRow key={i}>
-                  <TableCell className="w-10 text-muted-foreground tabular-nums">{i + 1}</TableCell>
-                  <TableCell className="font-mono text-xs font-medium">{s.tool}</TableCell>
-                  <TableCell>
+                  <TableCell label="#" className="w-10 text-muted-foreground tabular-nums">
+                    {i + 1}
+                  </TableCell>
+                  <TableCell label="Tool" className="font-mono text-xs font-medium">
+                    {s.tool}
+                  </TableCell>
+                  <TableCell label="Pinned arguments">
                     <Json value={s.args} />
                   </TableCell>
-                  <TableCell className="tabular-nums">{s.maxCalls}</TableCell>
-                  <TableCell>
+                  <TableCell label="Max calls" className="tabular-nums">
+                    {s.maxCalls}
+                  </TableCell>
+                  <TableCell label="Required">
                     {s.required ? <Badge tone="info">required</Badge> : <Dash />}
                   </TableCell>
                 </TableRow>
@@ -231,7 +241,10 @@ export function RunTimeline({ planId }: { planId: string }) {
               <TableBody>
                 {decisions.map((d) => (
                   <TableRow key={d.seq} className="align-top">
-                    <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
+                    <TableCell
+                      label="#"
+                      className="font-mono text-xs text-muted-foreground tabular-nums"
+                    >
                       <span className="inline-flex items-center gap-1">
                         {d.seq}
                         {d.flagged && (
@@ -243,31 +256,32 @@ export function RunTimeline({ planId }: { planId: string }) {
                       </span>
                     </TableCell>
                     <TableCell
+                      label="Time"
                       className="text-muted-foreground tabular-nums"
                       title={formatTime(d.at)}
                     >
                       +{formatDuration((new Date(d.at).getTime() - start) / 1000)}
                     </TableCell>
-                    <TableCell className="font-mono text-xs font-medium">
+                    <TableCell label="Tool" className="font-mono text-xs font-medium">
                       {d.tool ?? <Dash />}
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Arguments">
                       <Json value={d.args} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Verdict">
                       <VerdictBadge verdict={d.verdict} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Rule / reason">
                       {d.ruleId ? (
                         <span className="font-mono text-xs">{d.ruleId}</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">{d.reason ?? "—"}</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell label="Approval">
                       <Approval hold={d.holdId ? holdById.get(d.holdId) : undefined} />
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell label="Outcome" className="text-xs">
                       {(d.callId && outcomeByCall.get(d.callId)) ?? <Dash />}
                     </TableCell>
                   </TableRow>
