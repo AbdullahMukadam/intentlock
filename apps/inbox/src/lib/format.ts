@@ -67,3 +67,10 @@ export function formatShortTime(iso: string, now = new Date()) {
         minute: "2-digit",
       });
 }
+
+export function parseGroups(value: string) {
+  return value
+    .split(",")
+    .map((g) => g.trim().toLowerCase())
+    .filter(Boolean);
+}

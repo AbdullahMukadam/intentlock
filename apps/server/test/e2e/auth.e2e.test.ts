@@ -116,12 +116,28 @@ describe("users (admin only)", () => {
     expect(JSON.stringify(list.body)).not.toMatch(/Hash/);
   });
 
-  it("is forbidden to members and approvers", async () => {
+  it("shows members and approvers a read-only list without sign-in details", async () => {
+    const { user: target } = await createUserWithPassword(prisma, orgId);
     for (const role of [UserRole.MEMBER, UserRole.APPROVER]) {
       const { user } = await createUser(prisma, orgId, role);
+      const cookie = await sessionCookie(prisma, user);
+      const list = await http().get("/v1/users").set("Cookie", cookie).expect(200);
+      expect(list.body[0]).toEqual({
+        email: target.email,
+        role: UserRole.MEMBER,
+        groups: [],
+        disabledAt: null,
+      });
       await http()
-        .get("/v1/users")
-        .set("Cookie", await sessionCookie(prisma, user))
+        .patch(`/v1/users/${target.email}`)
+        .set("Cookie", cookie)
+        .set(CSRF)
+        .send({ disabled: true })
+        .expect(403);
+      await http()
+        .post(`/v1/users/${target.email}/reset-link`)
+        .set("Cookie", cookie)
+        .set(CSRF)
         .expect(403);
     }
   });

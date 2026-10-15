@@ -209,3 +209,51 @@ export const AuditVerifyResult = z.object({
   flagged: z.array(z.object({ seq: z.number(), flagged: z.string() })),
 });
 export type AuditVerifyResult = z.infer<typeof AuditVerifyResult>;
+
+export const TeamMember = z.object({
+  email: z.string(),
+  role: Role,
+  groups: z.array(z.string()),
+  disabledAt: z.string().nullable(),
+  hasPassword: z.boolean().optional(),
+  providers: z.array(z.string()).optional(),
+  createdAt: z.string().optional(),
+});
+export type TeamMember = z.infer<typeof TeamMember>;
+export const TeamMembers = z.array(TeamMember);
+
+export const InviteView = z.object({
+  id: z.string(),
+  email: z.string(),
+  role: Role,
+  groups: z.array(z.string()),
+  invitedBy: z.string().nullable(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  expired: z.boolean(),
+});
+export type InviteView = z.infer<typeof InviteView>;
+export const InviteViews = z.array(InviteView);
+export const IssuedLink = z.object({ link: z.string(), emailed: z.boolean() });
+export type IssuedLink = z.infer<typeof IssuedLink>;
+export const InviteCreated = IssuedLink.extend({ invite: InviteView });
+
+export const Account = z.object({
+  email: z.string(),
+  role: Role,
+  groups: z.array(z.string()),
+  hasPassword: z.boolean(),
+  identities: z.array(z.object({ provider: z.string(), email: z.string(), createdAt: z.string() })),
+  cliToken: z.object({ createdAt: z.string() }).nullable(),
+});
+export type Account = z.infer<typeof Account>;
+export const AccountSessions = z.array(
+  z.object({
+    current: z.boolean(),
+    ip: z.string().nullable(),
+    userAgent: z.string().nullable(),
+    createdAt: z.string(),
+    expiresAt: z.string(),
+  }),
+);
+export const CliToken = z.object({ token: z.string() });

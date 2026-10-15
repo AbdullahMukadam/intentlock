@@ -382,6 +382,9 @@ src/app/                            # Better-T-Stack puts the App Router under s
 │   ├── agents/page.tsx             # agents list, create
 │   ├── agents/[id]/page.tsx        # tabs: overview · policy · api keys · activity
 │   ├── audit/page.tsx              # verify chain
+│   ├── team/page.tsx               # members, roles, groups, invites, reset links (admins); read-only list for others
+│   ├── account/page.tsx            # profile, password, linked Google/GitHub, sessions, CLI token
+│   ├── welcome/page.tsx            # onboarding: agent → API key → env + snippet → waits for the first decision
 │   └── demo/page.tsx               # split-screen: unprotected vs protected
 src/components/                     # app-specific; shared primitives come from @intentlock/ui
 ├── overview/                       # verdict-chart.tsx, stat-tiles.tsx, top-blocked.tsx
@@ -393,9 +396,13 @@ src/components/                     # app-specific; shared primitives come from 
 │                                   # editor-theme.ts, test-panel.tsx, diff-view.tsx, version-history.tsx
 ├── audit/                          # verify-button.tsx
 ├── demo/                           # demo-view.tsx (EventSource + Run both), agent-pane.tsx, event-row.tsx
+├── team/                           # team-view.tsx (members + invites tables, actions menu), invite-member-form.tsx
+├── account/                        # account-view.tsx (password, sign-in methods, sessions, CLI token panels)
+├── onboarding/                     # onboarding-wizard.tsx (stepper, four steps, live wait for a decision)
 ├── auth/                           # auth-layout, form-field (incl. password field), provider-buttons + provider-icons,
 │                                   # setup-form, invite-form, reset-form
-└── *.tsx                           # app-shell, brand-mark, login-form, agent-filter, native-select, verdict-badge, loader
+└── *.tsx                           # app-shell, brand-mark, page-header, empty-state, detail-grid, secret-reveal, code-block,
+                                    # login-form, agent-filter, native-select, verdict-badge, loader
 src/lib/
 ├── api.ts                          # typed client: same-origin /api/*, CSRF header on mutations, 401 → /login
 ├── schemas.ts                      # zod schemas for server responses the inbox reads
@@ -407,6 +414,8 @@ src/lib/
 ├── permissions.ts                  # can(role, UiAction): UI mirror of the server's @Roles
 ├── constants.ts                    # cookie / CSRF header names, /api prefix, login/setup paths, query params
 ├── auth-messages.ts                # OAuth ?error= codes → sentences
+├── fill-series.ts                  # zero buckets for empty hours/days in the stats series
+├── user-agent.ts                   # "Chrome on Windows" labels for the sessions table
 ├── enums/                          # http-method, http-status, audit-verdict, audit-format, activity-param, time-range, stats-bucket,
 │                                   # event-name, hold-state, agent-tab, api-error-code, ui-action, oauth-error-code,
 │                                   # sign-in-provider, theme-name

@@ -965,3 +965,24 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Team page, account settings, onboarding wizard; then the rest of the polish pass (Demo page, 375 px on every page, dark mode on every page, keyboard focus)
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5f — Team, Account settings, onboarding
+
+**Done**
+- **Team** (`/team`): members table (avatar, role pill, groups, sign-in methods, status) with an admin actions menu (role, edit groups inline, create reset link, disable/enable; none on your own row); invite form in its own panel; pending invites with resend and revoke; invite and reset links shown in a copy callout that says whether they were emailed. `GET /v1/users` is now open to every signed-in user: admins get sign-in methods, others a read-only list (email, role, groups, status); changes and reset links stay admin-only (e2e test updated)
+- **Account settings** (`/account`): profile, change or set password, sign-in methods (password, Google, GitHub: link through the OAuth start in `link` mode, unlink disabled for the last method), active sessions ("Chrome on Windows", IP, times, "This device") with "Sign out other sessions", CLI token create/replace/revoke with the `intentlock login --token` line; `?linked=` and `?error=` from the OAuth redirect shown as a callout
+- **Onboarding** (`/welcome`, where `/setup` now lands): stepper; create agent → create API key (shown once) → `.env` + 5-line `HybridGate` snippet with copy buttons → waits live (socket + 3 s poll) for the agent's first decision and links to the run, Team and the dashboard. The Overview shows a "Connect your first agent" callout to admins while no agent exists
+- Team and Account settings in the sidebar (Configure / General) and the user menu; breadcrumbs for `/welcome` and run pages
+
+**Problems hit and how they were solved**
+- Running the server e2e suite wiped the walkthrough instance on the test database (it shares `TEST_DATABASE_URL`) → truncated, restarted the server for a fresh setup code, recreated the admin and re-seeded the demo agents and traffic
+- The onboarding snippet was checked for real through the inbox's `/api` proxy: plan signed, `say_hello` allowed by `allow-in-plan`, the client decision uploaded. Creating a fourth agent hit the Community limit of 3, which the wizard reports as such
+- My cleanup after the first snippet attempt ran `rm -rf .intentlock` inside `apps/demo`, which is the demo's local outbox; anything unsent from earlier demo runs there is lost. Later checks write their outbox to the scratch folder
+- A failed first snippet run (no API key) ended with Node's `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` on Windows; the successful runs exit 0. Not investigated yet
+
+**Numbers**
+- Inbox tests 63 (was 48: user-agent labels, bucket filling, change labels, format helpers, team permission); server auth suite updated; typecheck, lint, prettier green
+- Screenshots: Team as admin and as approver, Account settings, `/welcome` step 1, Overview with the get-started callout
+
+**Next**
+- Polish pass (Demo page, 375 px and dark mode on every page, keyboard focus); inbox form tests would need a component testing library (ask first); manual end-to-end walkthrough for the acceptance criteria

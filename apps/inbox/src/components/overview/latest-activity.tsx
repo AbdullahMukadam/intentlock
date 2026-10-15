@@ -136,7 +136,7 @@ export function LatestActivity({ agentId, agents }: { agentId: string; agents: A
                       </span>
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {who || (row.ruleId ? `rule ${row.ruleId}` : `#${row.seq}`)}
+                      {who || (row.ruleId ? `rule ${row.ruleId}` : `entry #${row.seq}`)}
                     </span>
                   </span>
                 </>

@@ -34,12 +34,18 @@ export class UsersService {
     @Inject(ENV) private readonly env: Env,
   ) {}
 
-  async list(orgId: string) {
-    const users = await orgDb(this.prisma, orgId).user.findMany({
+  async list(me: SessionUser) {
+    const users = await orgDb(this.prisma, me.orgId).user.findMany({
       orderBy: { createdAt: "asc" },
       include: { identities: { select: { provider: true } } },
     });
-    return users.map(toPublicUser);
+    if (me.role === UserRole.ADMIN) return users.map(toPublicUser);
+    return users.map((u) => ({
+      email: u.email,
+      role: u.role,
+      groups: u.groups,
+      disabledAt: u.disabledAt,
+    }));
   }
 
   async update(

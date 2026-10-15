@@ -18,13 +18,17 @@ import {
   ChevronsUpDown,
   Hand,
   LayoutGrid,
+  ListChecks,
   LogOut,
   Menu,
   Monitor,
   Moon,
   PlaySquare,
+  Rocket,
+  Settings,
   ShieldCheck,
   Sun,
+  Users,
   X,
 } from "lucide-react";
 import type { Route } from "next";
@@ -57,15 +61,26 @@ const NAV: { section: string; items: NavItem[] }[] = [
   },
   {
     section: "Configure",
-    items: [{ href: "/agents", label: "Agents", icon: Bot }],
+    items: [
+      { href: "/agents", label: "Agents", icon: Bot },
+      { href: "/team", label: "Team", icon: Users },
+    ],
   },
   {
-    section: "Tools",
-    items: [{ href: "/demo", label: "Demo", icon: PlaySquare }],
+    section: "General",
+    items: [
+      { href: "/account", label: "Account settings", icon: Settings },
+      { href: "/demo", label: "Demo", icon: PlaySquare },
+    ],
   },
 ];
 
 const ALL_ITEMS = NAV.flatMap((s) => s.items);
+const CRUMBS: (Omit<NavItem, "href"> & { href: string })[] = [
+  ...ALL_ITEMS,
+  { href: "/welcome", label: "Get started", icon: Rocket },
+  { href: "/runs", label: "Run", icon: ListChecks },
+];
 
 const MeContext = createContext<Me | null>(null);
 
@@ -132,6 +147,10 @@ function UserCard({ me }: { me: Me }) {
             <div className="capitalize">{me.role}</div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/account" />}>
+          <Settings /> Account settings
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <ThemeItems />
         <DropdownMenuSeparator />
@@ -216,7 +235,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <p className="p-8 text-center text-sm text-muted-foreground">Can't reach the server.</p>;
   if (!me) return <Loader />;
 
-  const current = ALL_ITEMS.find((i) => isActive(pathname, i.href));
+  const current = CRUMBS.find((i) => isActive(pathname, i.href));
 
   return (
     <div className="flex min-h-svh bg-background">
@@ -262,7 +281,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {current && <current.icon className="size-4 shrink-0 text-muted-foreground" />}
               <span className="text-muted-foreground">Intentlock</span>
               <span className="text-muted-foreground/60">/</span>
-              <span className="truncate font-medium">{current?.label ?? "Run"}</span>
+              <span className="truncate font-medium">{current?.label}</span>
             </nav>
           </header>
           <main className="flex-1 px-4 py-6 md:px-8 md:py-8">

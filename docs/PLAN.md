@@ -223,9 +223,9 @@ Added on 2026-10-15 after Phase 6 had started (README, licenses, Dockerfiles and
 - [x] Reference design from Abdullah → shared tokens (colors, type, spacing, radius) in `packages/ui`; app shell and navigation rebuilt to match
 - [x] Sign-in page: email + password, "Continue with Google / GitHub" (shown only when enabled), error states; `/setup` first-run page; `/invite/[token]` and `/reset/[token]` pages
 - [x] **Overview dashboard** redesigned to the reference: same data (allowed/blocked/held over time, pending holds, time-to-approve, top blocked tools and rules, flagged, audit lag), plus agent filter and time range
-- [ ] **Team page** (admin): members with role, groups, status, sign-in methods; invite, change role/groups, disable, reset link, resend/revoke invite; others see a read-only list
-- [ ] **Account settings**: profile, change password, linked providers, active sessions, CLI tokens
-- [ ] **Onboarding**: after setup, a first-agent wizard: create agent → API key shown once → copyable env + 5-line snippet → waits live for the agent's first decision and links to it
+- [x] **Team page** (admin): members with role, groups, status, sign-in methods; invite, change role/groups, disable, reset link, resend/revoke invite; others see a read-only list
+- [x] **Account settings**: profile, change password, linked providers, active sessions, CLI tokens
+- [x] **Onboarding**: after setup, a first-agent wizard: create agent → API key shown once → copyable env + 5-line snippet → waits live for the agent's first decision and links to it
 - [ ] **Polish pass** on every page: consistent tables, forms and dialogs; empty, loading and error states; dark mode; works at 375 px width; keyboard focus and labels
 - [ ] Inbox tests for the new forms and role-based visibility; manual walkthrough recorded in the journal
 

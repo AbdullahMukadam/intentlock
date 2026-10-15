@@ -10,6 +10,7 @@ import { ApiError, api } from "@/lib/api";
 import { LOGIN_PATH } from "@/lib/constants";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { OAuthMode } from "@/lib/enums/oauth-mode.enum";
 import { formatDate } from "@/lib/format";
 import { AuthMethods, InviteInfo, LoginResponse } from "@/lib/schemas";
 
@@ -87,7 +88,9 @@ export function InviteForm({ token, error: oauthError }: { token: string; error:
             {invite.role}
           </Badge>
         </div>
-        {methods && <ProviderButtons methods={methods} query={{ mode: "invite", invite: token }} />}
+        {methods && (
+          <ProviderButtons methods={methods} query={{ mode: OAuthMode.INVITE, invite: token }} />
+        )}
         {methods && (methods.google || methods.github) && <Divider>or set a password</Divider>}
         <form action={submit} className="grid gap-4">
           <input

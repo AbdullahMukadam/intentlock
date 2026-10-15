@@ -13,4 +13,8 @@ export enum ApiErrorCode {
   LINK_INVALID = "link_invalid",
   USER_LIMIT_REACHED = "user_limit_reached",
   USER_EXISTS = "user_exists",
+  INVITE_EXISTS = "invite_exists",
+  CANNOT_DEMOTE_OR_DISABLE_SELF = "cannot_demote_or_disable_self",
+  WRONG_PASSWORD = "wrong_password",
+  LAST_SIGN_IN_METHOD = "last_sign_in_method",
 }

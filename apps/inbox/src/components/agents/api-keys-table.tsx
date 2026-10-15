@@ -21,12 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from "@intentlock/ui/components/table";
-import { Check, Copy, KeyRound, Plus, TriangleAlert } from "lucide-react";
+import { KeyRound, Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { EmptyState } from "@/components/empty-state";
+import { SecretReveal } from "@/components/secret-reveal";
 import { api, apiUrl } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { formatRelative, formatTime } from "@/lib/format";
@@ -34,48 +35,6 @@ import { ApiKeyViews, NewApiKey } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
 const HEADERS = ["Name", "Prefix", "Created", "Last used", "Status", ""];
-
-export function SecretReveal({
-  title,
-  description,
-  secret,
-  onDone,
-}: {
-  title: string;
-  description: string;
-  secret: string;
-  onDone: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div role="status" className="grid gap-3 rounded-xl border border-success/30 bg-success/8 p-4">
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <code className="min-w-0 flex-1 rounded-md border bg-card px-3 py-2 font-mono text-xs break-all">
-          {secret}
-        </code>
-        <Button
-          variant="outline"
-          onClick={() =>
-            navigator.clipboard.writeText(secret).then(
-              () => setCopied(true),
-              () => toast.error("Copy failed; select the text and copy it by hand."),
-            )
-          }
-        >
-          {copied ? <Check /> : <Copy />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
-        <Button variant="ghost" onClick={onDone}>
-          Done
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function ApiKeysTable({ agentId }: { agentId: string }) {
   const { data, error, reload } = useApi(

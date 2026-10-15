@@ -7,8 +7,12 @@ import { apiUrl } from "@/lib/api";
 import { type AgentSummary, AgentSummaries } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
+export function useAgentList() {
+  return useApi(apiUrl(API_ENDPOINTS.AGENTS), AgentSummaries).data;
+}
+
 export function useAgents() {
-  return useApi(apiUrl(API_ENDPOINTS.AGENTS), AgentSummaries).data ?? [];
+  return useAgentList() ?? [];
 }
 
 export function AgentFilter({

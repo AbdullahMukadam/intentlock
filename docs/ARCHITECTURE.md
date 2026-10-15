@@ -229,7 +229,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET · DELETE | `/v1/account/sessions` | → own sessions (`current`, `ip`, `userAgent`, times) / 204 = sign out all others | Auth: session |
 | DELETE | `/v1/account/identities/:provider` | → 204 | Auth: session. 409 if it is the last sign-in method |
 | POST · DELETE | `/v1/account/cli-token` | → `{ token }` (shown once, replaces the old one) / 204 | Auth: session |
-| GET | `/v1/users` | → `User[]` with sign-in methods | Auth: session (admin) |
+| GET | `/v1/users` | → `User[]` | Auth: session. Admins get sign-in methods too; others get email, role, groups and status (read-only team list) |
 | PATCH | `/v1/users/:email` | `{ role?, groups?, disabled? }` → `User` | Auth: session (admin); disabling ends their sessions |
 | POST | `/v1/users/:email/reset-link` | → `{ link, expiresAt, emailed }` | Auth: session (admin). 24 h, single use |
 | POST · GET | `/v1/invites` | `{ email, role, groups? }` → `{ invite, link, emailed }` / pending invites | Auth: session (admin). Link shown once; 7 days |
@@ -559,7 +559,7 @@ Every method ends in the same session cookie (`httpOnly`, `Secure` on https, `Sa
 | Sign plans, check, create holds, report, audit batches | API key (agent app); the plan's `user` must be an active user of the org |
 | Approve / reject a hold | Signed-in user satisfying the hold's `ApproverSpec`; never the requester unless `self: true` |
 | See holds | Approvers: holds they may approve. Members: their own |
-| Users, invites, reset links, API keys | Admins |
+| Users (change, disable), invites, reset links, API keys | Admins; everyone can see the team list |
 | Own password, sessions, linked providers, CLI token | The signed-in user |
 | Audit view, verify, license info | Any signed-in user |
 

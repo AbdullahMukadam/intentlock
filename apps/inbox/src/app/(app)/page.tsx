@@ -3,10 +3,12 @@
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Panel, PanelBody } from "@intentlock/ui/components/panel";
 import { Skeleton } from "@intentlock/ui/components/skeleton";
-import { Hand, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
+import { buttonVariants } from "@intentlock/ui/components/button";
+import { ArrowRight, Hand, Rocket, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
-import { AgentFilter, useAgents } from "@/components/agent-filter";
+import { AgentFilter, useAgentList } from "@/components/agent-filter";
 import { useMe } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { NativeSelect } from "@/components/native-select";
@@ -18,9 +20,11 @@ import { VerdictChart } from "@/components/overview/verdict-chart";
 import { PageHeader } from "@/components/page-header";
 import { apiUrl } from "@/lib/api";
 import { AuditVerdict } from "@/lib/enums/audit-verdict.enum";
+import { UiAction } from "@/lib/enums/ui-action.enum";
 import { TimeRange } from "@/lib/enums/time-range.enum";
 import { fillSeries } from "@/lib/fill-series";
 import { firstName } from "@/lib/format";
+import { can } from "@/lib/permissions";
 import { Overview } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
@@ -67,7 +71,8 @@ function LoadingGrid() {
 
 export default function OverviewPage() {
   const me = useMe();
-  const agents = useAgents();
+  const agentList = useAgentList();
+  const agents = agentList ?? [];
   const [agentId, setAgentId] = useState("");
   const [range, setRange] = useState(TimeRange.DAY);
   const [span, setSpan] = useState(() => window(TimeRange.DAY));
@@ -113,6 +118,25 @@ export default function OverviewPage() {
           </>
         }
       />
+      {agentList?.length === 0 && can(me.role, UiAction.CREATE_AGENT) && (
+        <div className="flex flex-col gap-4 rounded-xl border bg-panel bg-hatch p-1 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-4 rounded-lg border bg-card p-4 shadow-xs">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Rocket className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Connect your first agent</p>
+              <p className="text-[13px] text-muted-foreground">
+                Register an agent, create its API key and watch its first checked call arrive. About
+                two minutes.
+              </p>
+            </div>
+            <Link href="/welcome" className={buttonVariants()}>
+              Get started <ArrowRight />
+            </Link>
+          </div>
+        </div>
+      )}
       {error ? (
         <Panel>
           <PanelBody className="p-0">
