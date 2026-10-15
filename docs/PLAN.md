@@ -12,6 +12,7 @@
 | 3 · Agent guard + providers | Wed 14 | Provider-agnostic `createGuard()`; OpenAI-compatible (free models) + Anthropic adapters |
 | 4 · Inbox + GitHub demo | Thu 15 | Signed-in dashboard, holds, policy editor, agents + keys; GitHub attack reproduced and blocked |
 | 5 · More agents + evals | Fri 16 | Support and files demo agents; 30-scenario eval suite with attack rate, utility, latency |
+| 5.5 · Improvements | before Ship | Setup page + invites, email/password and Google/GitHub sign-in, team and account pages, onboarding, dashboard and UI redesign |
 | 6 · Ship | Sat 17 | Deployed private instance, demo video, README, npm publish, resume bullet |
 | 7 · Stretch | after | MCP proxy, docs site |
 
@@ -196,6 +197,42 @@
 
 ---
 
+## Phase 5.5 · Improvements (before Ship) — `apps/server`, `apps/inbox`, `packages/cli`, `apps/demo`
+
+Added on 2026-10-15 after Phase 6 had started (README, licenses, Dockerfiles and the self-host bundle are already done). Supersedes ADR-020 (login tokens instead of passwords). Decisions taken with Abdullah: setup page + invites, OAuth only for existing users, invite/reset links copied from the inbox with optional SMTP, and all four UI areas plus a dashboard redesign from a reference design he will provide.
+
+**Decide and document first**
+- [ ] ADR: accounts and sign-in (supersedes ADR-020): passwords hashed with `node:crypto` scrypt (no new dependency); Google (OIDC) and GitHub OAuth via authorization code + PKCE + `state`, implemented with `fetch` + `jose` (already a dependency), matched only to existing active users by the provider's **verified** email; invite and reset links are single-use, hashed, expiring tokens; optional SMTP via `nodemailer` (new dependency, approved); Google/GitHub sign-in is available in Community, generic OIDC/SAML stays an Enterprise feature; ARCHITECTURE §5.6, DEPLOYMENT §2 and USAGE updated in the same change
+- [ ] Add every new route to `API_ENDPOINTS` first; mark only setup, sign-in, OAuth start/callback, invite accept and reset as `@Public()`; route-enumeration test updated deliberately
+
+**Server: accounts**
+- [ ] Prisma migration: `passwordHash` (nullable) on `User`; `Identity` (provider, subject, email, userId, orgId; unique per provider + subject); `Invite` (email, role, groups, tokenHash, expiresAt, acceptedAt, invitedBy); `PasswordReset` (tokenHash, expiresAt, usedAt); every table has `orgId`
+- [ ] Setup: on an empty database the server prints a one-time **setup code** (replaces the bootstrap login token); `POST setup` with code + email + password creates the org and first admin, then the route answers 409 forever; `GET setup/status` tells the inbox whether to show `/setup`
+- [ ] Email + password sign-in: scrypt with per-user salt, constant-time verify, same rate limits as today, generic error message (no user enumeration), sessions unchanged; minimum length 12 and a check against the email itself
+- [ ] Invites (admin): create → link shown once (and emailed when SMTP is configured); accept → set password or continue with Google/GitHub, which creates the user with the invited role and groups; expiry 7 days, single use, counts against `maxUsers` at accept time; resend and revoke
+- [ ] Password reset: admin creates a reset link for a user (copy or email); `forgot password` on the sign-in page only when SMTP is configured, always answering the same message
+- [ ] OAuth: `GET auth/oauth/:provider` → redirect with PKCE + `state` (signed, short-lived cookie); callback exchanges the code, reads the verified email (Google ID token / GitHub `/user/emails` primary + verified), signs in the matching active user or redirects to `/login?error=no_account`; link/unlink from account settings (never unlink the last sign-in method); providers enabled only when `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` are set; callback URL built from `PUBLIC_URL`
+- [ ] Account: change password (needs the current one, revokes other sessions), list sessions and sign out others, linked providers
+- [ ] SMTP (`SMTP_URL`, `SMTP_FROM`) behind one `MailService`; Mailpit in dev; mail failures never block the action (the link is still shown)
+- [ ] Every new auth event audited (setup, password sign-in, OAuth sign-in, invite created/accepted/revoked, reset, password changed, provider linked/unlinked)
+- [ ] CLI: `intentlock login` prompts for the password; OAuth-only users create a CLI token in account settings (reuses the hashed login-token mechanism, now named "CLI token"); `users token` becomes `users invite` / `users reset-link`
+- [ ] Demo `setup-instance` and the seeds sign in with the admin's password (`INTENTLOCK_ADMIN_PASSWORD`) or CLI token; `INTENTLOCK_DEMO=1` sample users get passwords printed once
+- [ ] Integration tests: setup once then 409; wrong setup code; password sign-in ok / wrong / disabled user; rate limit; invite accept (password and OAuth paths), expired, reused, revoked, over the user limit; OAuth with unverified email, unknown email, wrong `state`, replayed code (fake provider endpoints); reset link single use; change password revokes other sessions; unlink last method refused; every new non-public route 401 without a session
+
+**Inbox: UI**
+- [ ] Reference design from Abdullah → shared tokens (colors, type, spacing, radius) in `packages/ui`; app shell and navigation rebuilt to match
+- [ ] Sign-in page: email + password, "Continue with Google / GitHub" (shown only when enabled), error states; `/setup` first-run page; `/invite/[token]` and `/reset/[token]` pages
+- [ ] **Overview dashboard** redesigned to the reference: same data (allowed/blocked/held over time, pending holds, time-to-approve, top blocked tools and rules, flagged, audit lag), plus agent filter and time range
+- [ ] **Team page** (admin): members with role, groups, status, sign-in methods; invite, change role/groups, disable, reset link, resend/revoke invite; others see a read-only list
+- [ ] **Account settings**: profile, change password, linked providers, active sessions, CLI tokens
+- [ ] **Onboarding**: after setup, a first-agent wizard: create agent → API key shown once → copyable env + 5-line snippet → waits live for the agent's first decision and links to it
+- [ ] **Polish pass** on every page: consistent tables, forms and dialogs; empty, loading and error states; dark mode; works at 375 px width; keyboard focus and labels
+- [ ] Inbox tests for the new forms and role-based visibility; manual walkthrough recorded in the journal
+
+**Acceptance:** a fresh install shows `/setup`, the setup code from the logs creates the admin, who invites a teammate by link; the teammate joins with a password and another with GitHub or Google; both sign in again, change their password or link a provider; a disabled user and an uninvited Google account cannot sign in; every inbox page matches the reference design and works signed in, signed out redirects to sign-in, and the route-enumeration test is green; the demo `setup-instance` still works.
+
+---
+
 ## Phase 6 · Ship (Sat 17)
 
 - [ ] README: one-line pitch, demo GIF, 60-second quickstart, architecture diagram, eval table, limitations, roadmap
@@ -218,7 +255,7 @@
 ## Phase 7 · Stretch (only after Phase 6)
 
 - [ ] `packages/mcp-proxy`: stdio proxy, enforces gate on `tools/call`, works in front of the GitHub MCP server
-- [ ] Inbox team page (list, add, disable, re-issue token) for admins
+- ~~Inbox team page (list, add, disable, re-issue token) for admins~~ moved to Phase 5.5
 - [ ] Visual policy rule builder (paid feature candidate)
 - [ ] Second-admin approval for policy changes (paid feature candidate)
 - [ ] Per-tool argument redaction in the dashboard (paid feature candidate)
