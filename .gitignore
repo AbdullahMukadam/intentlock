@@ -60,7 +60,10 @@ temp
 # Intentlock runtime files and secrets
 .next
 .intentlock/
-keys/
+/keys/
 *.pem
 apps/demo/sandbox/
 apps/server/src/generated/
+
+# Self-host bundle local files
+deploy/license/
