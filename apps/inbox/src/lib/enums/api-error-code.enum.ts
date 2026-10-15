@@ -6,4 +6,11 @@ export enum ApiErrorCode {
   VALIDATION_FAILED = "validation_failed",
   STALE_BASE_VERSION = "stale_base_version",
   INVALID_POLICY = "invalid_policy",
+  INVALID_CREDENTIALS = "invalid_credentials",
+  SETUP_COMPLETE = "setup_complete",
+  INVALID_SETUP_CODE = "invalid_setup_code",
+  PASSWORD_TOO_WEAK = "password_too_weak",
+  LINK_INVALID = "link_invalid",
+  USER_LIMIT_REACHED = "user_limit_reached",
+  USER_EXISTS = "user_exists",
 }

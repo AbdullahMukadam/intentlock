@@ -1,82 +1,143 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Panel, PanelBody, PanelHeader, PanelTitle } from "@intentlock/ui/components/panel";
+import { cn } from "@intentlock/ui/lib/utils";
+import { ChartColumn } from "lucide-react";
+import { useState } from "react";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { AuditVerdict } from "@/lib/enums/audit-verdict.enum";
+import { EmptyState } from "@/components/empty-state";
 import { StatsBucket } from "@/lib/enums/stats-bucket.enum";
+import { fillSeries } from "@/lib/fill-series";
 import type { Overview } from "@/lib/schemas";
-import { VERDICT_COLORS } from "@/lib/verdict-colors";
 
-const STACK = [AuditVerdict.ALLOW, AuditVerdict.HOLD, AuditVerdict.BLOCK] as const;
+import { changeLabel } from "./kpi-panel";
+
+type Row = { label: string; total: number; allow: number; block: number; hold: number };
 
 function bucketLabel(bucket: string, size: string) {
   const d = new Date(bucket);
   return size === StatsBucket.HOUR
     ? d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
 }
 
-export function VerdictChart({ overview }: { overview: Overview }) {
-  if (overview.series.length === 0) {
-    return (
-      <p className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-        No decisions in this range.
-      </p>
-    );
-  }
-  const data = overview.series.map((s) => ({
-    ...s,
-    label: bucketLabel(s.bucket, overview.bucket),
-  }));
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: { payload: Row }[] }) {
+  const row = payload?.[0]?.payload;
+  if (!active || !row) return null;
   return (
-    <ResponsiveContainer width="100%" height={256}>
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-        <CartesianGrid vertical={false} stroke="var(--border)" />
-        <XAxis
-          dataKey="label"
-          tickLine={false}
-          axisLine={false}
-          tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-        />
-        <YAxis
-          allowDecimals={false}
-          tickLine={false}
-          axisLine={false}
-          tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-        />
-        <Tooltip
-          cursor={{ fill: "var(--muted)" }}
-          contentStyle={{
-            background: "var(--popover)",
-            color: "var(--popover-foreground)",
-            border: "1px solid var(--border)",
-            fontSize: 12,
-          }}
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        {STACK.map((verdict, i) => (
-          <Bar
-            key={verdict}
-            dataKey={(row: Overview["totals"]) => row[verdict]}
-            name={verdict}
-            stackId="verdicts"
-            fill={VERDICT_COLORS[verdict]}
-            stroke="var(--background)"
-            strokeWidth={2}
-            radius={i === STACK.length - 1 ? [4, 4, 0, 0] : 0}
-            maxBarSize={32}
+    <div className="rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground shadow-lg">
+      <div className="font-medium">
+        {row.label} · {row.total.toLocaleString()}
+      </div>
+      <div className="mt-1 flex gap-3 opacity-80">
+        <span>{row.allow} allowed</span>
+        <span>{row.block} blocked</span>
+        <span>{row.hold} held</span>
+      </div>
+    </div>
+  );
+}
+
+export function VerdictChart({
+  overview,
+  previousTotal,
+  periodLabel,
+}: {
+  overview: Overview;
+  previousTotal: number | undefined;
+  periodLabel: string;
+}) {
+  const [active, setActive] = useState<number | null>(null);
+  const t = overview.totals;
+  const total = t.allow + t.block + t.hold;
+  const change = changeLabel(total, previousTotal);
+  const data: Row[] = fillSeries(overview).map((s) => ({
+    label: bucketLabel(s.bucket, overview.bucket),
+    total: s.allow + s.block + s.hold,
+    allow: s.allow,
+    block: s.block,
+    hold: s.hold,
+  }));
+  const peak = data.reduce((best, row, i) => (row.total > (data[best]?.total ?? -1) ? i : best), 0);
+  const highlighted = active ?? peak;
+
+  return (
+    <Panel className="h-full">
+      <PanelHeader>
+        <PanelTitle>
+          <ChartColumn />
+          Decision volume
+        </PanelTitle>
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-4">
+        <div className="flex items-baseline gap-3">
+          <span className="text-[30px] leading-none font-semibold tracking-tight tabular-nums">
+            {total.toLocaleString()}
+          </span>
+          {change && (
+            <span className="text-xs text-muted-foreground">
+              <span
+                className={cn(
+                  "mr-1 font-medium",
+                  change.sign > 0 && "text-success",
+                  change.sign < 0 && "text-destructive",
+                )}
+              >
+                {change.text}
+              </span>
+              {periodLabel}
+            </span>
+          )}
+        </div>
+        {total === 0 ? (
+          <EmptyState
+            icon={ChartColumn}
+            title="No decisions in this range"
+            description="Once an agent signs a plan and calls a tool, its decisions are charted here."
+            className="min-h-60"
           />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+        ) : (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{ top: 8, right: 0, bottom: 0, left: -12 }}
+                onMouseMove={(state) =>
+                  setActive(typeof state.activeIndex === "number" ? state.activeIndex : null)
+                }
+                onMouseLeave={() => setActive(null)}
+              >
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={16}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                />
+                <YAxis
+                  orientation="right"
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  width={40}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                />
+                <Tooltip cursor={false} content={<ChartTooltip />} />
+                <Bar dataKey="total" radius={[6, 6, 6, 6]} maxBarSize={44}>
+                  {data.map((row, i) => (
+                    <Cell
+                      key={row.label + i}
+                      fill={i === highlighted ? "var(--chart-1)" : "var(--chart-2)"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </PanelBody>
+    </Panel>
   );
 }

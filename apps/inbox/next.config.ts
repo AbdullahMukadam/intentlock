@@ -6,6 +6,7 @@ const apiUrl = process.env.API_URL ?? "http://localhost:3000";
 const demoRunnerUrl = process.env.DEMO_RUNNER_URL ?? "http://localhost:8790";
 
 const nextConfig: NextConfig = {
+  devIndicators: { position: "bottom-right" },
   output: "standalone",
   outputFileTracingRoot: join(import.meta.dirname, "../.."),
   typedRoutes: true,

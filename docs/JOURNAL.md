@@ -926,3 +926,42 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - Real Google/GitHub OAuth apps: callback URL `<PUBLIC_URL>/api/v1/auth/oauth/google/callback` (Google "Web application" client) and `.../github/callback` (GitHub OAuth App); then set the four `*_CLIENT_ID/SECRET` variables
 - Your local `.env` needs `SMTP_FROM` if you set `SMTP_URL` (the server refuses to start otherwise); `.env.example` has both
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5d — design tokens, app shell, sign-in pages
+
+**Done**
+- Reference designs from Abdullah (a support dashboard and a team task board) → ADR-059: tokens in `packages/ui` (warm-neutral canvas, white sheet, grey panel, dark-navy primary, status colors, dark mode), Inter + JetBrains Mono via `next/font`, rounded 13–14 px buttons/inputs/cards/menus, new `Panel` and `Badge`
+- App shell rebuilt: sidebar (Monitor / Configure / Tools, white active chip, user card with theme + sign out, edition under the logo), content in a white rounded sheet with a breadcrumb bar, drawer below `md`
+- `/login` (password, Google/GitHub buttons when enabled, forgot password when SMTP is on, OAuth `?error=` messages, redirects to `/setup` on a fresh install), `/setup`, `/invite/[token]` (password or provider), `/reset/[token]`; the proxy leaves those four public; a 401 from `POST /v1/setup` no longer bounces to `/login`
+
+**Problems hit and how they were solved**
+- The Chrome extension tools were not available → screenshots with headless Edge over the DevTools protocol from a scratch Node script (sets the session cookie, emulates width and dark mode); Git Bash rewrote `/` URL arguments into Windows paths until `MSYS_NO_PATHCONV=1`
+- Typed routes rejected the new pages until `next typegen` ran
+- Next's dev badge covered the sidebar avatar → `devIndicators.position: bottom-right`
+
+**Numbers**
+- Inbox tests 48 (was 43: proxy public pages, setup 401 without redirect); typecheck, lint, prettier green
+- Checked by screenshot against a real server on the test database: `/setup` before setup, `/login`, `/invite/<token>` from a real invite, Overview and Agents signed in at 1280 px light and dark and at 390 px
+
+**Next**
+- Team page, account settings, onboarding wizard; then the Overview redesign and the polish pass (old pages still use native selects and dense text)
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5e — panels everywhere, dashboard redesign
+
+**Done**
+- Abdullah's review of the first pass: tables, the holds empty state and the dashboard did not follow the references' section anatomy. Every page now uses panels (grey hatched frame, header row with icon, title, count chip and actions, white body): Overview, Activity (filters in the panel header, "More filters" behind a disclosure), Holds (two panels, full-width hold rows, real empty states), Agents (create form opens as its own panel), agent detail (underline tabs, details grid, API keys with the create form in the panel header and a success callout for the new key), run detail, Audit
+- New shared pieces: `Table` and `Card` restyle in `packages/ui`; `EmptyState`, `PageHeader`, `DetailGrid`, restyled select and verdict pills in the inbox
+- Overview redesigned to the first reference (ADR-059 points 5–6): greeting, KPI panels with change vs the previous period and sparklines, volume bars with a highlighted bar and dark tooltip, live "Latest activity" feed, operations strip, top blocked tools and rules with bars
+- Fixed two Base UI console errors (`Button render={<a>}` / `<Link>` without `nativeButton={false}`), present before this pass
+
+**Problems hit and how they were solved**
+- An empty test database could not show whether the dashboard worked → ran the demo `setup-instance` against the test instance and a scratch traffic script (3 agents, allowed, blocked by plan and by policy, one hold)
+- The stats endpoint returns only non-empty buckets, so a day with one busy hour drew one fat bar → buckets are filled client-side across the range
+- KPI change text ran under the sparkline → value and sparkline share a row, the change line sits below
+- Screenshots now also print page exceptions and console errors (DevTools `Runtime` events), which is how the Base UI warnings were found
+
+**Numbers**
+- Inbox tests 48; typecheck, lint, prettier green. Screenshots at 1280 px of Overview, Activity, Holds, Agents, agent Overview/Policy/API keys, run detail, Audit, and Overview at 390 px; no console errors on those pages
+
+**Next**
+- Team page, account settings, onboarding wizard; then the rest of the polish pass (Demo page, 375 px on every page, dark mode on every page, keyboard focus)

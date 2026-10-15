@@ -2,11 +2,13 @@
 
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
-import { Download } from "lucide-react";
+import { Panel, PanelHeader, PanelTitle } from "@intentlock/ui/components/panel";
+import { Download, ListChecks } from "lucide-react";
 
 import { DecisionTable } from "@/components/activity/decision-table";
 import { Filters } from "@/components/activity/filters";
 import { useAgents } from "@/components/agent-filter";
+import { PageHeader } from "@/components/page-header";
 import { type ActivityFilters, toAuditQuery } from "@/lib/activity-filters";
 import { apiUrl } from "@/lib/api";
 import { AuditFormat } from "@/lib/enums/audit-format.enum";
@@ -18,16 +20,31 @@ export function ActivityView({ filters }: { filters: ActivityFilters }) {
     query: { ...toAuditQuery(filters), format: AuditFormat.JSONL },
   });
   return (
-    <div className="grid gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Activity</h1>
-        <Button variant="outline" render={<a href={exportUrl} download="intentlock-audit.jsonl" />}>
-          <Download />
-          Export JSONL
-        </Button>
-      </div>
-      <Filters key={`f${key}`} values={filters} agents={agents} />
-      <DecisionTable key={`t${key}`} filters={filters} agents={agents} />
+    <div className="grid gap-8">
+      <PageHeader
+        title="Activity"
+        description="Every decision and event in the tamper-evident audit log. Click a run to see its plan and each call in order."
+        actions={
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<a href={exportUrl} download="intentlock-audit.jsonl" />}
+          >
+            <Download />
+            Export JSONL
+          </Button>
+        }
+      />
+      <Panel>
+        <PanelHeader>
+          <PanelTitle>
+            <ListChecks />
+            Decisions
+          </PanelTitle>
+        </PanelHeader>
+        <Filters key={`f${key}`} values={filters} agents={agents} />
+        <DecisionTable key={`t${key}`} filters={filters} agents={agents} />
+      </Panel>
     </div>
   );
 }

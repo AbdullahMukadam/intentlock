@@ -6,6 +6,22 @@ export type Me = z.infer<typeof Me>;
 
 export const LoginResponse = z.object({ user: Me });
 
+export const SetupStatus = z.object({ setupRequired: z.boolean() });
+export const AuthMethods = z.object({
+  password: z.boolean(),
+  google: z.boolean(),
+  github: z.boolean(),
+  passwordReset: z.boolean(),
+});
+export type AuthMethods = z.infer<typeof AuthMethods>;
+export const InviteInfo = z.object({
+  email: z.string(),
+  role: Role,
+  orgName: z.string(),
+  expiresAt: z.string(),
+});
+export type InviteInfo = z.infer<typeof InviteInfo>;
+
 export const License = z.object({ edition: z.string(), licensee: z.string() });
 export type License = z.infer<typeof License>;
 

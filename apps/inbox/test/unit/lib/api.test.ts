@@ -70,11 +70,15 @@ describe("api", () => {
     expect(assign).toHaveBeenCalledWith("/login?next=%2Fholds");
   });
 
-  test("a failed sign-in does not redirect", async () => {
+  test("a failed sign-in or a wrong setup code does not redirect", async () => {
     fetchMock.mockResolvedValue(json(401, { error: "invalid_credentials" }));
     await expect(
       api(API_ENDPOINTS.AUTH_LOGIN, z.unknown(), { method: HttpMethod.POST }),
     ).rejects.toMatchObject({ status: 401, code: "invalid_credentials" });
+    fetchMock.mockResolvedValue(json(401, { error: "invalid_setup_code" }));
+    await expect(
+      api(API_ENDPOINTS.SETUP, z.unknown(), { method: HttpMethod.POST }),
+    ).rejects.toMatchObject({ status: 401, code: "invalid_setup_code" });
     expect(assign).not.toHaveBeenCalled();
   });
 });

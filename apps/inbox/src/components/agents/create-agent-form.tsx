@@ -2,10 +2,12 @@
 
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
-import { Input } from "@intentlock/ui/components/input";
+import { Panel, PanelBody, PanelHeader, PanelTitle } from "@intentlock/ui/components/panel";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { FormError, FormField } from "@/components/auth/form-field";
 import { ApiError, api } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
@@ -24,7 +26,7 @@ function message(error: unknown) {
   return "Could not create the agent.";
 }
 
-export function CreateAgentForm() {
+export function CreateAgentForm({ onCancel }: { onCancel?: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -46,37 +48,54 @@ export function CreateAgentForm() {
   }
 
   return (
-    <form action={submit} className="grid gap-2">
-      <div className="flex flex-wrap gap-2">
-        <Input
-          name="name"
-          aria-label="Agent name"
-          placeholder="github-assistant"
-          pattern={NAME_PATTERN}
-          title="kebab-case, e.g. github-assistant"
-          maxLength={64}
-          required
-          className="w-56"
-        />
-        <Input
-          name="description"
-          aria-label="Description"
-          placeholder="Description (optional)"
-          maxLength={500}
-          className="w-80"
-        />
-        <Button type="submit" disabled={busy}>
-          New agent
-        </Button>
-      </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <p className="text-xs text-muted-foreground">
-        New agents start with the starter policy: block everything except calls in the signed plan.
-      </p>
-    </form>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>
+          <Plus />
+          Register an agent
+        </PanelTitle>
+      </PanelHeader>
+      <PanelBody>
+        <form action={submit} className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+            <FormField
+              label="Name"
+              name="name"
+              placeholder="github-assistant"
+              pattern={NAME_PATTERN}
+              title="kebab-case, e.g. github-assistant"
+              maxLength={64}
+              required
+              autoFocus
+              hint="kebab-case; one per application, not per server"
+            />
+            <FormField
+              label="Description"
+              name="description"
+              placeholder="Triages issues in our public repo"
+              maxLength={500}
+              hint="Optional"
+            />
+          </div>
+          <FormError>{error}</FormError>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <p className="text-xs text-muted-foreground">
+              New agents start with the starter policy: block everything except calls in the signed
+              plan.
+            </p>
+            <div className="flex gap-2">
+              {onCancel && (
+                <Button type="button" variant="ghost" onClick={onCancel}>
+                  Cancel
+                </Button>
+              )}
+              <Button type="submit" disabled={busy}>
+                {busy ? "Creating…" : "Create agent"}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </PanelBody>
+    </Panel>
   );
 }

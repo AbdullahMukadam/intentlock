@@ -8,7 +8,7 @@ export const editorTheme = EditorView.theme({
     border: "1px solid var(--border)",
   },
   ".cm-content": {
-    fontFamily: "var(--font-geist-mono), monospace",
+    fontFamily: "var(--font-mono-code), monospace",
     caretColor: "var(--foreground)",
   },
   ".cm-gutters": {
