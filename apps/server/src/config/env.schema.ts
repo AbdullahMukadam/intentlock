@@ -11,6 +11,7 @@ const optional = z
 export const Env = z.object({
   NODE_ENV: z.enum(NodeEnv).default(NodeEnv.DEVELOPMENT),
   PORT: z.coerce.number().int().positive().default(3000),
+  TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
   DATABASE_URL: z.string().url(),
   SIGNING_KEY: optional,
   SIGNING_KEY_PREVIOUS: optional,
