@@ -108,7 +108,7 @@ describe("users (admin only)", () => {
       .send({ email: "New@Test.dev", role: UserRole.APPROVER, groups: ["oncall"] })
       .expect(201);
     expect(res.body.user).toMatchObject({ email: "new@test.dev", role: UserRole.APPROVER });
-    expect(res.body.user).not.toHaveProperty("loginTokenHash");
+    expect(res.body.user).not.toHaveProperty("cliTokenHash");
     await login("new@test.dev", res.body.loginToken).expect(200);
     await http()
       .post("/v1/users")
@@ -228,9 +228,9 @@ describe("bootstrap", () => {
       { email: "intern@acme.dev", role: UserRole.MEMBER, groups: ["intern"] },
       { email: "member@acme.dev", role: UserRole.MEMBER, groups: [] },
     ]);
-    const hashes = await prisma.user.findMany({ select: { email: true, loginTokenHash: true } });
-    for (const { email, loginTokenHash } of hashes) {
-      expect(loginTokenHash).toBe(sha256Hex(result!.tokens[email]!));
+    const hashes = await prisma.user.findMany({ select: { email: true, cliTokenHash: true } });
+    for (const { email, cliTokenHash } of hashes) {
+      expect(cliTokenHash).toBe(sha256Hex(result!.tokens[email]!));
     }
     await login("member@acme.dev", result!.tokens["member@acme.dev"]!).expect(200);
   });

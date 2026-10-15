@@ -38,7 +38,7 @@ export async function bootstrapOrg(
     for (const p of people) {
       const token = newSecret();
       const user = await tx.user.create({
-        data: { ...p, orgId: org.id, loginTokenHash: sha256Hex(token) },
+        data: { ...p, orgId: org.id, cliTokenHash: sha256Hex(token) },
       });
       if (p.role === UserRole.ADMIN) adminId = user.id;
       tokens[p.email] = token;

@@ -52,7 +52,7 @@ export async function createUser(
       email: `${role}-${++n}@test.dev`,
       role,
       groups,
-      loginTokenHash: sha256Hex(token),
+      cliTokenHash: sha256Hex(token),
     },
   });
   return { user, token };

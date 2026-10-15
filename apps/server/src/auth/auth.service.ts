@@ -21,8 +21,8 @@ export class AuthService {
   async login(email: string, token: string, ip: string | undefined) {
     // v0.1 has one organization, so the email alone identifies the user.
     const user = await this.prisma.user.findFirst({ where: { email } });
-    const matches = safeEqual(sha256Hex(token), user?.loginTokenHash ?? NO_MATCH_HASH);
-    if (!user || !user.loginTokenHash || user.disabledAt || !matches) {
+    const matches = safeEqual(sha256Hex(token), user?.cliTokenHash ?? NO_MATCH_HASH);
+    if (!user || !user.cliTokenHash || user.disabledAt || !matches) {
       const orgId = user?.orgId ?? (await this.prisma.organization.findFirst())?.id;
       if (orgId) {
         await this.audit.append(orgId, [

@@ -34,7 +34,7 @@ export class UsersService {
       const user = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
         await this.license.assertWithinLimit(tx, LicensedResource.USERS);
         const created = await tx.user.create({
-          data: { ...input, orgId: admin.orgId, loginTokenHash: sha256Hex(token) },
+          data: { ...input, orgId: admin.orgId, cliTokenHash: sha256Hex(token) },
         });
         await this.audit.append(
           admin.orgId,
@@ -120,7 +120,7 @@ export class UsersService {
     await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
       await tx.user.update({
         where: { id: target.id },
-        data: { loginTokenHash: sha256Hex(token) },
+        data: { cliTokenHash: sha256Hex(token) },
       });
       await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
