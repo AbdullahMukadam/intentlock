@@ -1007,3 +1007,12 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Abdullah's answers: dark-mode editor colors (dependency) and component tests (React Testing Library); then Phase 6
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5h — dark-mode editor colors, backlog
+
+**Done**
+- Policy editor and diff view: CodeMirror's default highlight style replaced by one built on `--code-*` tokens (keys, strings, numbers, atoms, comments, punctuation) with light and dark values in `packages/ui`; card background, rounded border, selection, matching bracket, fold placeholder and tooltip use the theme too. `@codemirror/language` and `@lezer/highlight` added to the inbox (approved by Abdullah; already in the lockfile through `codemirror`, same versions)
+- PLAN: new **Backlog** section with the inbox form tests (React Testing Library + a DOM environment, to be asked before adding); Phase 5.5 inbox-tests task ticked with that note; polish pass ticked
+
+**Numbers**
+- Inbox typecheck, lint and tests green; policy tab screenshotted light and dark

@@ -226,8 +226,8 @@ Added on 2026-10-15 after Phase 6 had started (README, licenses, Dockerfiles and
 - [x] **Team page** (admin): members with role, groups, status, sign-in methods; invite, change role/groups, disable, reset link, resend/revoke invite; others see a read-only list
 - [x] **Account settings**: profile, change password, linked providers, active sessions, CLI tokens
 - [x] **Onboarding**: after setup, a first-agent wizard: create agent → API key shown once → copyable env + 5-line snippet → waits live for the agent's first decision and links to it
-- [ ] **Polish pass** on every page: consistent tables, forms and dialogs; empty, loading and error states; dark mode; works at 375 px width; keyboard focus and labels
-- [ ] Inbox tests for the new forms and role-based visibility; manual walkthrough recorded in the journal
+- [x] **Polish pass** on every page: consistent tables, forms and dialogs; empty, loading and error states; dark mode; works at 375 px width; keyboard focus and labels
+- [x] Inbox tests for the new forms and role-based visibility; manual walkthrough recorded in the journal (logic and role checks are unit-tested; component tests of the forms moved to the Backlog)
 
 **Acceptance:** a fresh install shows `/setup`, the setup code from the logs creates the admin, who invites a teammate by link; the teammate joins with a password and another with GitHub or Google; both sign in again, change their password or link a provider; a disabled user and an uninvited Google account cannot sign in; every inbox page matches the reference design and works signed in, signed out redirects to sign-in, and the route-enumeration test is green; the demo `setup-instance` still works.
 
@@ -265,6 +265,12 @@ Added on 2026-10-15 after Phase 6 had started (README, licenses, Dockerfiles and
 - [ ] OpenTelemetry spans for checks
 - [ ] Cross-instance live events via Postgres `LISTEN/NOTIFY` (DEPLOYMENT §6.1)
 - [ ] Sharded audit chains with a Merkle-root global anchor (DEPLOYMENT §6.2)
+
+---
+
+## Backlog
+
+- [ ] **Inbox form tests:** component tests for the new forms (sign-in, setup, invite accept, password reset, team invite and member actions, account password/sessions/CLI token, onboarding). Needs React Testing Library (`@testing-library/react`, plus a DOM environment such as `jsdom` or `happy-dom` for Vitest) as new dev dependencies; ask Abdullah before adding them
 
 ---
 
