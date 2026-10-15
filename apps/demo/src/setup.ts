@@ -1,10 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { API_ENDPOINTS, Role } from "@intentlock/core";
 
-import { type AdminCall, adminSession } from "./admin-api.js";
+import { acceptInvite, type AdminCall, type AdminCredentials, adminSession } from "./admin-api.js";
 import { DemoAgent } from "./enums/demo-agent.enum.js";
 import { type DemoEnv, loadEnv, required } from "./env.js";
 import { hasValue, keyVar, upsertEnv } from "./env-file.js";
@@ -23,19 +24,33 @@ const SUPPORT_LEAD = { email: "lead@acme-demo.dev", groups: ["support-leads"] };
 type Agent = { id: string; name: string };
 type PolicyState = { active: { version: number; source: string } };
 
-async function ensureUser(call: AdminCall, email: string, groups: string[] = []) {
+async function ensureUser(call: AdminCall, baseUrl: string, email: string, groups: string[] = []) {
   const users = await call<{ email: string }[]>("GET", API_ENDPOINTS.USERS);
   if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
     console.log(`member ${email} already exists`);
     return;
   }
-  const { loginToken } = await call<{ loginToken: string }>(
+  const pending = await call<{ id: string; email: string }[]>("GET", API_ENDPOINTS.INVITES);
+  for (const invite of pending.filter((i) => i.email === email.toLowerCase())) {
+    await call("DELETE", API_ENDPOINTS.INVITE, { id: invite.id });
+  }
+  const { link } = await call<{ link: string }>(
     "POST",
-    API_ENDPOINTS.USERS,
+    API_ENDPOINTS.INVITES,
     {},
     { email, role: Role.enum.member, groups },
   );
-  console.log(`created member ${email} (login token, shown once: ${loginToken})`);
+  const password = randomBytes(18).toString("base64url");
+  await acceptInvite(baseUrl, link.split("/").pop() ?? "", password);
+  console.log(`created member ${email} (password, shown once: ${password})`);
+}
+
+function adminCredentials(env: DemoEnv): AdminCredentials {
+  if (env.INTENTLOCK_ADMIN_PASSWORD) return { password: env.INTENTLOCK_ADMIN_PASSWORD };
+  if (env.INTENTLOCK_ADMIN_TOKEN) return { token: env.INTENTLOCK_ADMIN_TOKEN };
+  throw new Error(
+    "Set INTENTLOCK_ADMIN_PASSWORD (or INTENTLOCK_ADMIN_TOKEN, a CLI token from account settings) in .env",
+  );
 }
 
 async function ensureAgent(call: AdminCall, agent: DemoAgent): Promise<Agent> {
@@ -96,10 +111,10 @@ async function main(env: DemoEnv) {
   const call = await adminSession(
     env.INTENTLOCK_URL,
     required(env, "INTENTLOCK_ADMIN_EMAIL"),
-    required(env, "INTENTLOCK_ADMIN_TOKEN"),
+    adminCredentials(env),
   );
-  await ensureUser(call, env.DEMO_USER);
-  await ensureUser(call, SUPPORT_LEAD.email, SUPPORT_LEAD.groups);
+  await ensureUser(call, env.INTENTLOCK_URL, env.DEMO_USER);
+  await ensureUser(call, env.INTENTLOCK_URL, SUPPORT_LEAD.email, SUPPORT_LEAD.groups);
   let envText = existsSync(DEMO_ENV_FILE) ? await readFile(DEMO_ENV_FILE, "utf8") : "";
   for (const agent of Object.values(DemoAgent)) {
     const { id } = await ensureAgent(call, agent);

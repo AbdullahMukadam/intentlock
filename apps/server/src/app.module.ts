@@ -1,12 +1,14 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 
+import { AccountModule } from "./account/account.module.js";
 import { AgentsModule } from "./agents/agents.module.js";
 import { ApiKeysModule } from "./agents/api-keys/api-keys.module.js";
 import { ApiKeyGuard } from "./agents/api-keys/guards/api-key.guard.js";
 import { AuditModule } from "./audit/audit.module.js";
 import { SessionGuard } from "./auth/guards/session.guard.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { OAuthModule } from "./auth/oauth/oauth.module.js";
 import { CsrfGuard } from "./common/guards/csrf.guard.js";
 import { RolesGuard } from "./common/guards/roles.guard.js";
 import { CheckModule } from "./check/check.module.js";
@@ -39,6 +41,8 @@ import { UsersModule } from "./users/users.module.js";
     AuthModule,
     SetupModule,
     InvitesModule,
+    OAuthModule,
+    AccountModule,
     UsersModule,
     AgentsModule,
     ApiKeysModule,

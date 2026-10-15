@@ -899,3 +899,30 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - Until the inbox sign-in page changes (chunk 4) the inbox only signs in with a CLI token, and fresh or newly seeded databases only have passwords, so use the existing dev database (its old login tokens are now CLI tokens) for inbox work in between
 - `docker compose up -d mailpit` recreates Mailpit with the new SMTP port (its mailbox is in memory)
+
+### 2026-10-15 · Session 17 (cont.) · Phase 5.5c — Google/GitHub sign-in, account, CLI and demo
+
+**Done**
+- OAuth (`auth/oauth/`): `GET /v1/auth/oauth/:provider` (PKCE S256, `state`, Google `nonce`, state in a 10-minute cookie signed with the server key, own `typ` and issuer) and the callback (cookie checked and cleared, code exchanged with `fetch`, Google ID token verified with `jose` against the JWKS, GitHub primary verified email from `/user/emails`). Modes: sign-in (match by provider + subject, else verified email, which links the identity; never creates a user), link (needs the session), invite (provider email must equal the invited email). Providers come from one injected `OAUTH_PROVIDERS` config, built from `GOOGLE_*` / `GITHUB_*`
+- Account: `GET /v1/account`, change password (current one needed when set; ends other sessions), sessions list / sign out others, unlink provider (never the last method), CLI token create/revoke
+- Removed `POST /v1/users` and `POST /v1/users/:email/token` (and `USER_TOKEN`, `user_created`, `user_token_reissued`); `GET /v1/users` shows `hasPassword` and `providers`
+- CLI: `login` prompts for a hidden password, or `--token [token]` for a CLI token; `users invite`, `users reset-link`, `users list` with a SIGN-IN column
+- Demo `setup-instance`: signs in with `INTENTLOCK_ADMIN_PASSWORD` (or `INTENTLOCK_ADMIN_TOKEN`), creates missing members by invite + accept with a random password printed once
+- Tests: fake Google/GitHub provider (`test/fixtures/fake-oauth.ts`, `node:http`, checks PKCE, single-use codes, signs ID tokens); OAuth suite (14), account suite (6); route list includes the OAuth routes
+
+**Problems hit and how they were solved**
+- Concurrency tests (license "concurrent creates", earlier check "overshoot") hung for 30 s and returned 500; Docker Desktop then crashed. After restarting Docker the same tests pass in about 1 s, so the earlier one-off check timeout was the same failing Docker, not the code
+- The OAuth suite makes more than 20 calls to the start and callback routes, past the real per-IP limit → the suite swaps in a resettable throttler store between tests (production limits unchanged)
+- A Python edit turned `\n` into a real newline in `packages/cli/src/bin.ts` → fixed with the Edit tool
+- Walkthrough: my first setup password contained the email's local part and was rejected as weak (the rule works); the second call then completed setup with another email
+
+**Numbers**
+- Tests: server 175, core 147, cli 16, demo 77, inbox 43; typecheck, lint, prettier green
+- Live walkthrough on a built server (port 3100, test database): setup code → admin, setup again 409, CLI login with a piped hidden password, `users invite` (email arrived in Mailpit), `users list`, `users reset-link`, demo `setup-instance` twice (second run idempotent, `apps/demo/.env` unchanged), `audit/verify` ok with 20 entries
+
+**Next**
+- Phase 5.5 inbox: sign-in page (password + Google/GitHub buttons), `/setup`, `/invite/[token]`, `/reset/[token]`
+
+**Notes for Abdullah**
+- Real Google/GitHub OAuth apps: callback URL `<PUBLIC_URL>/api/v1/auth/oauth/google/callback` (Google "Web application" client) and `.../github/callback` (GitHub OAuth App); then set the four `*_CLIENT_ID/SECRET` variables
+- Your local `.env` needs `SMTP_FROM` if you set `SMTP_URL` (the server refuses to start otherwise); `.env.example` has both

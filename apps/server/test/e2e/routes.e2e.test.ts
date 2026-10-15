@@ -18,6 +18,8 @@ const PUBLIC = [
   "POST /v1/setup",
   "GET /v1/auth/methods",
   "POST /v1/auth/login",
+  "GET /v1/auth/oauth/:provider",
+  "GET /v1/auth/oauth/:provider/callback",
   "POST /v1/auth/password/forgot",
   "POST /v1/auth/password/reset",
   "POST /v1/invites/lookup",

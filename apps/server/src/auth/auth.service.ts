@@ -18,6 +18,8 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { SELF_RESET_TTL_MS } from "./constants/password-reset.constants.js";
 import { AuthError } from "./enums/auth-error.enum.js";
 import { SignInMethod } from "./enums/sign-in-method.enum.js";
+import { OAUTH_PROVIDERS } from "./oauth/constants/oauth.constants.js";
+import type { OAuthProviders } from "./oauth/utils/oauth-providers.util.js";
 import { SessionsService } from "./sessions.service.js";
 import type { RequestMeta } from "./types/request-meta.type.js";
 import { assertStrongPassword } from "./utils/assert-strong-password.util.js";
@@ -35,13 +37,14 @@ export class AuthService {
     private readonly sessions: SessionsService,
     private readonly mail: MailService,
     @Inject(ENV) private readonly env: Env,
+    @Inject(OAUTH_PROVIDERS) private readonly providers: OAuthProviders,
   ) {}
 
   methods() {
     return {
       password: true,
-      google: Boolean(this.env.GOOGLE_CLIENT_ID && this.env.GOOGLE_CLIENT_SECRET),
-      github: Boolean(this.env.GITHUB_CLIENT_ID && this.env.GITHUB_CLIENT_SECRET),
+      google: this.providers.google !== null,
+      github: this.providers.github !== null,
       passwordReset: this.mail.enabled,
     };
   }

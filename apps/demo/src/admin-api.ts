@@ -11,7 +11,9 @@ export class AdminApiError extends Error {
   }
 }
 
-export async function adminSession(baseUrl: string, email: string, token: string) {
+export type AdminCredentials = { password: string } | { token: string };
+
+export async function adminSession(baseUrl: string, email: string, credentials: AdminCredentials) {
   let cookie = "";
 
   async function call<T>(
@@ -37,8 +39,17 @@ export async function adminSession(baseUrl: string, email: string, token: string
     return data as T;
   }
 
-  await call("POST", API_ENDPOINTS.AUTH_LOGIN, {}, { email, token });
+  await call("POST", API_ENDPOINTS.AUTH_LOGIN, {}, { email, ...credentials });
   return call;
 }
 
 export type AdminCall = Awaited<ReturnType<typeof adminSession>>;
+
+export async function acceptInvite(baseUrl: string, token: string, password: string) {
+  const res = await fetch(new URL(apiPath(API_ENDPOINTS.INVITE_ACCEPT), baseUrl), {
+    method: "POST",
+    headers: { [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  if (!res.ok) throw new AdminApiError(res.status, await res.json().catch(() => null));
+}

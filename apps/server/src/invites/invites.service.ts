@@ -20,7 +20,12 @@ import type { SessionUser } from "../common/types/auth.types.js";
 import { appLink } from "../common/utils/app-link.util.js";
 import { newSecret, sha256Hex } from "../common/utils/crypto.util.js";
 import { ENV, type Env } from "../config/config.module.js";
-import { type Invite, Prisma, type Role } from "../generated/prisma/client.js";
+import {
+  type IdentityProvider,
+  type Invite,
+  Prisma,
+  type Role,
+} from "../generated/prisma/client.js";
 import { LicensedResource } from "../license/enums/licensed-resource.enum.js";
 import { LicenseService } from "../license/license.service.js";
 import { MailService } from "../mail/mail.service.js";
@@ -163,6 +168,7 @@ export class InvitesService {
     userData: { passwordHash?: string },
     meta: RequestMeta,
     method: SignInMethod,
+    identity?: { provider: IdentityProvider; subject: string; email: string },
   ) {
     try {
       return await orgDb(this.prisma, invite.orgId).$transaction(async (tx) => {
@@ -181,6 +187,9 @@ export class InvitesService {
             ...userData,
           },
         });
+        if (identity) {
+          await tx.identity.create({ data: { ...identity, orgId: invite.orgId, userId: user.id } });
+        }
         await this.audit.append(
           invite.orgId,
           [

@@ -40,15 +40,29 @@ async function signedIn(routes: Parameters<typeof fakeContext>[0] = {}) {
 }
 
 describe("login", () => {
-  test("prompts for the token, sends the CSRF header and stores the session", async () => {
-    const { lines, requests } = await signedIn();
+  test("prompts for the password, sends the CSRF header and stores the session", async () => {
+    const { lines, requests, prompts } = await signedIn();
+    expect(prompts).toEqual(["Password: "]);
     expect(requests[0]).toMatchObject({
       method: "POST",
       path: "/v1/auth/login",
       headers: { "x-intentlock-csrf": "1" },
-      body: { email: "admin@acme.dev", token: "prompted-token" },
+      body: { email: "admin@acme.dev", password: "prompted-secret" },
     });
+    expect(requests[0]!.body).not.toHaveProperty("token");
     expect(lines.at(-1)).toBe("Signed in as admin@acme.dev (admin)");
+  });
+
+  test("signs in with a CLI token, given or prompted", async () => {
+    for (const [args, token] of [
+      [["--token", "cli-tok"], "cli-tok"],
+      [["--token"], "prompted-secret"],
+    ] as const) {
+      const fake = await fakeContext(loginRoute());
+      const argv = ["login", "--url", "http://il.test", "--email", "admin@acme.dev", ...args];
+      expect(await run(argv, fake.ctx)).toBe(0);
+      expect(fake.requests[0]!.body).toEqual({ email: "admin@acme.dev", token });
+    }
   });
 
   test("API commands refuse to run without a session", async () => {
@@ -59,35 +73,78 @@ describe("login", () => {
 });
 
 describe("users", () => {
-  test("add sends role and groups with the stored cookie and prints the token once", async () => {
+  test("invite sends role and groups with the stored cookie and prints the link once", async () => {
     const fake = await signedIn({
-      [`POST ${API_ENDPOINTS.USERS}`]: (body) =>
+      [`POST ${API_ENDPOINTS.INVITES}`]: (body) =>
         Response.json(
           {
-            user: { email: (body as { email: string }).email, role: "approver" },
-            loginToken: "tok-1",
+            invite: { email: (body as { email: string }).email, role: "approver" },
+            link: "http://il.test/invite/abc",
+            emailed: false,
           },
           { status: 201 },
         ),
     });
     expect(
       await run(
-        ["users", "add", "bob@acme.dev", "--role", "approver", "--groups", "oncall, intern"],
+        ["users", "invite", "bob@acme.dev", "--role", "approver", "--groups", "oncall, intern"],
         fake.ctx,
       ),
     ).toBe(0);
     expect(fake.requests.at(-1)).toMatchObject({
       method: "POST",
-      path: "/v1/users",
+      path: "/v1/invites",
       headers: { cookie: "il_session=abc123", "x-intentlock-csrf": "1" },
       body: { email: "bob@acme.dev", role: "approver", groups: ["oncall", "intern"] },
     });
-    expect(fake.lines.at(-1)).toBe("Login token (shown once): tok-1");
+    expect(fake.lines.slice(-2)).toEqual([
+      "Invite link (shown once): http://il.test/invite/abc",
+      "Not emailed (SMTP is not configured or failed); send the link yourself.",
+    ]);
+  });
+
+  test("reset-link posts to the url-encoded email and prints the link", async () => {
+    const fake = await signedIn({
+      [`POST /v1/users/bob%40acme.dev/reset-link`]: () =>
+        Response.json({ link: "http://il.test/reset/xyz", emailed: true }, { status: 201 }),
+    });
+    expect(await run(["users", "reset-link", "bob@acme.dev"], fake.ctx)).toBe(0);
+    expect(fake.lines.slice(-2)).toEqual([
+      "Reset link for bob@acme.dev (shown once): http://il.test/reset/xyz",
+      "Also emailed.",
+    ]);
+  });
+
+  test("list shows each person's sign-in methods", async () => {
+    const fake = await signedIn({
+      [`GET ${API_ENDPOINTS.USERS}`]: () =>
+        Response.json([
+          {
+            email: "a@acme.dev",
+            role: "admin",
+            groups: [],
+            hasPassword: true,
+            providers: ["github"],
+            disabledAt: null,
+          },
+          {
+            email: "b@acme.dev",
+            role: "member",
+            groups: [],
+            hasPassword: false,
+            providers: [],
+            disabledAt: null,
+          },
+        ]),
+    });
+    expect(await run(["users", "list"], fake.ctx)).toBe(0);
+    expect(fake.lines.at(-2)).toMatch(/a@acme\.dev\s+admin\s+-\s+password,github\s+active/);
+    expect(fake.lines.at(-1)).toMatch(/b@acme\.dev\s+member\s+-\s+-\s+active/);
   });
 
   test("rejects an unknown role before calling the server", async () => {
     const fake = await signedIn();
-    expect(await run(["users", "add", "x@acme.dev", "--role", "owner"], fake.ctx)).not.toBe(0);
+    expect(await run(["users", "invite", "x@acme.dev", "--role", "owner"], fake.ctx)).not.toBe(0);
     expect(fake.requests).toHaveLength(1);
   });
 

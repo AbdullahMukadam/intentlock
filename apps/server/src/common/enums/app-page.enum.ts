@@ -3,4 +3,5 @@ export enum AppPage {
   LOGIN = "/login",
   INVITE = "/invite",
   RESET = "/reset",
+  ACCOUNT = "/account",
 }

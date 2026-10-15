@@ -16,6 +16,7 @@ export async function fakeContext(routes: Record<string, Handler> = {}) {
   const dir = await mkdtemp(join(tmpdir(), "intentlock-cli-"));
   const lines: string[] = [];
   const requests: Recorded[] = [];
+  const prompts: string[] = [];
   const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -34,7 +35,10 @@ export async function fakeContext(routes: Record<string, Handler> = {}) {
     home: dir,
     cwd: dir,
     print: (line) => lines.push(line),
-    prompt: async () => "prompted-token",
+    prompt: async (question) => {
+      prompts.push(question);
+      return "prompted-secret";
+    },
   };
-  return { ctx, dir, lines, requests };
+  return { ctx, dir, lines, requests, prompts };
 }

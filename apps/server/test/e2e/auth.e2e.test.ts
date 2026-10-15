@@ -5,6 +5,7 @@ import {
   createOrg,
   createTestApp,
   createUser,
+  createUserWithPassword,
   CSRF,
   sessionCookie,
   verifyAuditChain,
@@ -96,26 +97,23 @@ describe("sessions", () => {
 });
 
 describe("users (admin only)", () => {
-  it("creates a user whose one-time token signs in; duplicates are 409", async () => {
+  it("lists users with their sign-in methods and no secrets", async () => {
     const { user: admin } = await createUser(prisma, orgId, UserRole.ADMIN);
-    const cookie = await sessionCookie(prisma, admin);
-    const res = await http()
-      .post("/v1/users")
-      .set("Cookie", cookie)
-      .set(CSRF)
-      .send({ email: "New@Test.dev", role: UserRole.APPROVER, groups: ["oncall"] })
-      .expect(201);
-    expect(res.body.user).toMatchObject({ email: "new@test.dev", role: UserRole.APPROVER });
-    expect(res.body.user).not.toHaveProperty("cliTokenHash");
-    await login("new@test.dev", res.body.loginToken).expect(200);
-    await http()
-      .post("/v1/users")
-      .set("Cookie", cookie)
-      .set(CSRF)
-      .send({ email: "new@test.dev", role: UserRole.MEMBER })
-      .expect(409);
-    const list = await http().get("/v1/users").set("Cookie", cookie).expect(200);
+    const { user } = await createUserWithPassword(prisma, orgId);
+    await prisma.identity.create({
+      data: { orgId, userId: user.id, provider: "github", subject: "42", email: user.email },
+    });
+    const list = await http()
+      .get("/v1/users")
+      .set("Cookie", await sessionCookie(prisma, admin))
+      .expect(200);
     expect(list.body).toHaveLength(2);
+    expect(list.body[1]).toMatchObject({
+      email: user.email,
+      hasPassword: true,
+      providers: ["github"],
+    });
+    expect(JSON.stringify(list.body)).not.toMatch(/Hash/);
   });
 
   it("is forbidden to members and approvers", async () => {
@@ -149,20 +147,6 @@ describe("users (admin only)", () => {
     await http().get("/v1/me").set("Cookie", cookie).expect(401);
   });
 
-  it("re-issuing a token ends sessions and invalidates the old token", async () => {
-    const { user: admin } = await createUser(prisma, orgId, UserRole.ADMIN);
-    const { user, token } = await createUser(prisma, orgId);
-    const theirs = await sessionCookie(prisma, user);
-    const res = await http()
-      .post(`/v1/users/${user.email}/token`)
-      .set("Cookie", await sessionCookie(prisma, admin))
-      .set(CSRF)
-      .expect(201);
-    await http().get("/v1/me").set("Cookie", theirs).expect(401);
-    await login(user.email, token).expect(401);
-    await login(user.email, res.body.loginToken).expect(200);
-  });
-
   it("an admin cannot disable or demote themselves", async () => {
     const { user: admin } = await createUser(prisma, orgId, UserRole.ADMIN);
     const cookie = await sessionCookie(prisma, admin);
@@ -180,19 +164,20 @@ describe("users (admin only)", () => {
     const { user: admin, token } = await createUser(prisma, orgId, UserRole.ADMIN);
     await login(admin.email, token).expect(200);
     await login(admin.email, "wrong").expect(401);
+    const { user } = await createUser(prisma, orgId);
     await http()
-      .post("/v1/users")
+      .patch(`/v1/users/${user.email}`)
       .set("Cookie", await sessionCookie(prisma, admin))
       .set(CSRF)
-      .send({ email: "a@test.dev", role: UserRole.MEMBER })
-      .expect(201);
+      .send({ groups: ["oncall"] })
+      .expect(200);
     const kinds = (await prisma.auditEntry.findMany({ orderBy: { seq: "asc" } })).map(
       (e) => e.kind,
     );
     expect(kinds).toEqual([
       AuditKind.AUTH_LOGIN,
       AuditKind.AUTH_LOGIN_FAILED,
-      AuditKind.USER_CREATED,
+      AuditKind.USER_UPDATED,
     ]);
     expect(await verifyAuditChain(prisma)).toEqual({ ok: true, count: 3 });
   });

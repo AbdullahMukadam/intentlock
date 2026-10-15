@@ -1,5 +1,6 @@
 import type { INestApplication, Type } from "@nestjs/common";
 import { Test, type TestingModuleBuilder } from "@nestjs/testing";
+import { type ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
 import { type PlanInput, verifyChain } from "@intentlock/core";
 import request from "supertest";
 
@@ -55,6 +56,7 @@ export async function createUser(
       role,
       groups,
       cliTokenHash: sha256Hex(token),
+      cliTokenCreatedAt: new Date(),
     },
   });
   return { user, token };
@@ -87,6 +89,19 @@ export class FakeMail {
     if (!this.enabled || this.fail) return Promise.resolve(false);
     this.sent.push({ to, subject, text });
     return Promise.resolve(true);
+  }
+}
+
+export class ResettableThrottlerStorage implements ThrottlerStorage {
+  private inner = new ThrottlerStorageService();
+
+  increment(...args: Parameters<ThrottlerStorage["increment"]>) {
+    return this.inner.increment(...args);
+  }
+
+  reset() {
+    this.inner.onApplicationShutdown();
+    this.inner = new ThrottlerStorageService();
   }
 }
 

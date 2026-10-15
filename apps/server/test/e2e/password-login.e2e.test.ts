@@ -60,6 +60,11 @@ describe("password sign-in", () => {
     await signIn(user.email, password).expect(401);
   });
 
+  it("answers 404 for a provider that is not configured", async () => {
+    const res = await http().get("/v1/auth/oauth/google").expect(404);
+    expect(res.body.error).toBe("provider_disabled");
+  });
+
   it("refuses a body with both a password and a token", async () => {
     const { user, token } = await createUser(prisma, orgId);
     await http()

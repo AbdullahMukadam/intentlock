@@ -23,7 +23,6 @@ export const API_ENDPOINTS = {
 
   USERS: "/v1/users",
   USER: "/v1/users/:email",
-  USER_TOKEN: "/v1/users/:email/token",
   USER_RESET_LINK: "/v1/users/:email/reset-link",
 
   INVITES: "/v1/invites",
