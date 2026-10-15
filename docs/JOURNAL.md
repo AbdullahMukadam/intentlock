@@ -814,3 +814,36 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - The two Gemini false blocks (`gh-u02`, `gh-u05`) are still unexplained; re-run after midnight Pacific
 - The clone URL in the README is `AbdullahMukadam/intentgate` (the current repo name); change it if the repo is renamed to `intentlock`
+
+### 2026-10-15 · Session 16 (cont.) · Phase 6b — Docker images and self-host bundle
+
+**Done**
+- `apps/server/Dockerfile` (multi-stage, `node:22-slim` + openssl, `pnpm deploy --prod`, runs as `node`, health check on `/health/ready`) and `apps/inbox/Dockerfile` (Next.js standalone, `API_URL` build arg); root `.dockerignore`
+- `deploy/docker-compose.selfhost.yml`: Postgres, one-off `migrate`, server, inbox, nginx (single origin, WebSocket upgrade, config inline); `deploy/selfhost.env.example`; README "Self-host in 10 minutes"; USAGE, DEPLOYMENT §2/§10 and STRUCTURE updated
+- Server: `TRUST_PROXY` hop count (Express `trust proxy`), `normalizePem` strips `\r`; `prisma` moved to runtime dependencies so the image can migrate
+
+**Problems hit and how they were solved**
+- **The server's `src/keys/` module was never committed**: the root `.gitignore` line `keys/` (meant for `/keys/` with the private keys) matched `apps/server/src/keys/` too, so a fresh clone of the server could not build. Local builds and tests worked because the files existed on disk. Anchored the pattern to `/keys/`; the module (`keys.service.ts`, controller, module, `verified-bundle.type.ts`, `normalize-pem.util.ts`) and its new test are now tracked. Prettier had been skipping them too (it honours `.gitignore`)
+- Prisma printed "failed to detect libssl" in the build stage → openssl in a shared base stage
+- `pnpm deploy` drops `dist/` (gitignored, so not in the pack list) → copied from the build stage
+- An awk one-liner for a one-line PEM wrote real newlines in Git Bash → documented a double-quoted multi-line `SIGNING_KEY` in `.env`, which Compose accepts; Windows `openssl` writes CRLF → `normalizePem` strips `\r`
+- The bundle and the dev compose would both be project `intentlock` and share the `pgdata` volume → bundle project is `intentlock-selfhost`
+- Overriding `USERPROFILE` for the CLI test also hid Docker's config, so `compose logs` returned nothing and the login token was empty → read the token first
+- Docker Desktop was down again after a restart → started it
+- A Python edit wrote CRLF into two server files → converted back; edits go through the Edit tool now
+
+**Decisions**
+- ADR-057: Docker images and the self-host bundle
+
+**Numbers**
+- Images: server 843 MB, inbox 387 MB (uncompressed). Server image build about 7 min cold on this laptop; inbox about 4 min
+- Bundle from a clone (`up -d --build --wait`): migrate exits 0, all services healthy; through nginx `/login` 200, `/` → 307 `/login` signed out, `/api/health/ready` 200, `/api/v1/agents` 401, `/api/socket.io` 200
+- README steps against the bundle: CLI `login --url http://localhost:8080/api`, `users add`, `agents create`, `keys create`; an `HttpGate` plan → `github_list_issues` allow, `github_create_pull_request` block (`not_in_plan`); `audit/verify` ok, 8 entries; login audit IP is the client (`172.19.0.1`), not nginx (`172.19.0.5`)
+- Tests: core 147, sdk 26, cli 13, inbox 43, guard 35, demo 77, evals 96, anthropic 6, server 122 (incl. 3 new); lint, typecheck, prettier green
+
+**Next**
+- Phase 6c: `deploy/docker-compose.scale.yml`, `deploy/load/scale-test.ts`, scale-test run; CI image build to GHCR + `prisma migrate deploy` release step
+
+**Notes for Abdullah**
+- The self-host install pulls `ghcr.io/abdullahmukadam/intentlock-server|inbox`, which do not exist until CI (or you) pushes them; until then use `up --build` from a clone
+- Server image size is mostly Prisma's engines and `node_modules`; not trimmed yet

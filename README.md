@@ -31,6 +31,32 @@ Then run the 30-scenario prompt-injection suite with the scripted (fully obedien
 pnpm --filter @intentlock/evals run eval --modes scripted --latency-checks 0 --out /tmp/intentlock-evals
 ```
 
+## Self-host in 10 minutes
+
+You need Docker with Compose v2.23 or newer. The bundle runs Postgres, the server, the inbox and nginx, serving the inbox and the API from one origin.
+
+```bash
+mkdir intentlock && cd intentlock
+curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
+curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
+```
+
+1. **Configure.** In `.env`, set `ORG_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `PUBLIC_URL` and `POSTGRES_PASSWORD` (`openssl rand -hex 24`). Then add a signing key and back it up:
+   ```bash
+   echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
+   ```
+2. **Start.** Migrations run once as a one-off `migrate` service before the server starts.
+   ```bash
+   docker compose -f docker-compose.selfhost.yml up -d
+   docker compose -f docker-compose.selfhost.yml logs server | grep "login token"
+   ```
+3. **Sign in** at `PUBLIC_URL` (default `http://localhost:8080`) with the admin email and the one-time token.
+4. **Add teammates** with the [CLI](packages/cli) (`intentlock login --url http://localhost:8080/api --email <admin>`, then `intentlock users add bob@acme.dev --role approver` and `intentlock users token bob@acme.dev`).
+5. **Register an agent** in the inbox (Agents → New), create an API key, and give your agent app `INTENTLOCK_URL=<PUBLIC_URL>/api` and `INTENTLOCK_API_KEY`. Wire it in as below, then watch its first block appear under Activity.
+6. **License (optional).** Put the license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Without one you run the Community edition.
+
+You are responsible for TLS in front of port 8080 (set `PUBLIC_URL` to the `https://` address so session cookies are marked secure), Postgres backups (the `pgdata` volume), and keeping `SIGNING_KEY` secret. To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
+
 ## Add it to your agent
 
 ```ts

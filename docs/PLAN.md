@@ -201,10 +201,10 @@
 - [ ] README: one-line pitch, demo GIF, 60-second quickstart, architecture diagram, eval table, limitations, roadmap
 - [x] Licenses: root `LICENSE` = Elastic License 2.0; `LICENSE` (MIT) inside `packages/core`, `sdk`, `guard`, `anthropic` with `"license": "MIT"` in their package.json; `"license": "Elastic-2.0"` elsewhere; README section explaining which is which
 - [x] Per-package READMEs; `CONTRIBUTING.md` (note: contributions to ELv2 parts need a CLA before the product is sold)
-- [ ] Self-host bundle: `deploy/docker-compose.selfhost.yml` (server + inbox + Postgres, images from GHCR) + README "Self-host in 10 minutes" (env, bootstrap admin, first login, add teammates, apply a license)
+- [x] Self-host bundle: `deploy/docker-compose.selfhost.yml` (server + inbox + Postgres, images from GHCR) + README "Self-host in 10 minutes" (env, bootstrap admin, first login, add teammates, apply a license)
 - [ ] Changesets or manual versioning; publish only the MIT packages `@intentlock/core`, `sdk`, `guard`, `anthropic` to npm at `0.1.0`; server and inbox ship as Docker images
 - [ ] Record the ≤ 4 min demo video against our deployed instance (local compose for live-update shots): GitHub split screen → hold approval → run detail → policy edit/test/publish → dashboard → support and files clips → audit verify → 5-line code
-- [ ] Dockerfiles for server (multi-stage, non-root) and inbox (Next.js standalone); `docker compose` full stack
+- [x] Dockerfiles for server (multi-stage, non-root) and inbox (Next.js standalone); `docker compose` full stack
 - [ ] `deploy/docker-compose.scale.yml` (2 server instances + nginx + Postgres + inbox) and `deploy/load/scale-test.ts`; run the scale test from DEPLOYMENT §7 and record real numbers
 - [ ] CI: build and push images to GHCR on main; `prisma migrate deploy` as a release step
 - [ ] Deploy **our own private instance** per DEPLOYMENT §9 (we self-host like any customer team): Neon (pooled + direct URLs), server on Render (Docker, `/health/ready`, pre-deploy migrations), inbox on Vercel with the `/api` rewrite; sign-in required, nothing public; run the demo `setup` against it; note the date free-tier limits were checked in the journal

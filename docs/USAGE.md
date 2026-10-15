@@ -45,12 +45,12 @@ Requires Node ≥ 22.
 
 ### 3.1 Run the server
 
-Self-host the server, inbox and Postgres with the compose bundle ([`DEPLOYMENT.md`](DEPLOYMENT.md) §10; `deploy/docker-compose.selfhost.yml` ships in Phase 6, until then run the server from the repo as in DEPLOYMENT §8). On first boot the server prints a one-time login token for `BOOTSTRAP_ADMIN_EMAIL`.
+Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#self-host-in-10-minutes); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time login token for `BOOTSTRAP_ADMIN_EMAIL`.
 
 ### 3.2 Sign in and add your team
 
 ```bash
-intentlock login --url https://intentlock.acme.dev --email admin@acme.dev
+intentlock login --url https://intentlock.acme.dev/api --email admin@acme.dev
 intentlock users add alice@acme.dev --role member
 intentlock users add bob@acme.dev --role approver --groups oncall
 intentlock users token alice@acme.dev          # login token Alice uses for the inbox

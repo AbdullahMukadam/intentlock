@@ -48,6 +48,7 @@ All config comes from environment variables, validated with zod at boot (`apps/s
 | `SIGNING_KEY_PREVIOUS` | server | Optional; old key still published in JWKS during rotation |
 | `API_KEY_PEPPER` | server | Optional extra secret for API key hashing |
 | `CORS_ORIGINS` | server | Only needed if the inbox is served from another origin (avoid; see §10) |
+| `TRUST_PROXY` | server | Number of reverse proxies in front of the server (default `0`); `1` behind the bundled nginx or Render, so `req.ip` is the client, not the proxy. Never higher than the real hop count, or clients can spoof their IP |
 | `ORG_NAME` | server | Name of the single organization, used on first boot |
 | `BOOTSTRAP_ADMIN_EMAIL` | server | First admin, created on first boot; a one-time login token is printed to the logs |
 | `LICENSE_FILE` | server | Optional path to a license JWS; absent = Community edition |
@@ -227,12 +228,16 @@ flowchart LR
 
 **Install**
 ```bash
-curl -O https://raw.githubusercontent.com/<owner>/intentlock/main/deploy/docker-compose.selfhost.yml
-cp .env.example .env        # set ORG_NAME, BOOTSTRAP_ADMIN_EMAIL, PUBLIC_URL, SIGNING_KEY (intentlock keygen)
+curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
+curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
+# set ORG_NAME, BOOTSTRAP_ADMIN_EMAIL, PUBLIC_URL, POSTGRES_PASSWORD; then:
+echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
 docker compose -f docker-compose.selfhost.yml up -d
-docker compose logs server | grep "login token"     # first admin login
+docker compose -f docker-compose.selfhost.yml logs server | grep "login token"     # first admin login
 ```
-Then: sign in at `PUBLIC_URL`, run `intentlock login` + `intentlock users add <email> --role approver`, create an API key for each agent app, and (optionally) drop a license file at `LICENSE_FILE`.
+Then: sign in at `PUBLIC_URL`, run `intentlock login --url <PUBLIC_URL>/api` + `intentlock users add <email> --role approver`, create an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "Self-host in 10 minutes".
+
+The bundle is one file: the nginx config is inline (`configs.content`, Compose ≥ 2.23), the server and inbox images come from GHCR (`ghcr.io/abdullahmukadam/intentlock-server|inbox`, tag `INTENTLOCK_VERSION`), and each service also has a `build:` section so `up --build` from a clone builds them locally. The server runs with `TRUST_PROXY=1` so login rate limits and audit see the client IP from nginx. The compose project is named `intentlock-selfhost` so it never shares volumes with the dev `docker-compose.yml`.
 
 **Operator responsibilities** (documented in the README): TLS in front of nginx, Postgres backups, keeping `SIGNING_KEY` secret, upgrading by pulling new image tags (migrations run as a one-off `migrate` service in the compose file before `server` starts).
 
