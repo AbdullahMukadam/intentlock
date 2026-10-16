@@ -241,7 +241,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 
 **Review and decide first**
 - [x] Error-handling review of every package (server, sdk, guard, anthropic, core, cli, demo, inbox, evals): each place an error is thrown, caught, swallowed, retried or returned; findings listed in the journal with file and line
-- [ ] ADR: error policy: which layer catches what; status codes for client errors, conflicts, transient failures (503 + `Retry-After`) and bugs (500); what is logged, at which level, with which fields; what a client may retry; the rule that a catch never widens a decision
+- [x] ADR: error policy (ADR-060): which layer catches what; status codes for client errors, conflicts, transient failures (503 + `Retry-After`) and bugs (500); what is logged, at which level, with which fields; what a client may retry; the rule that a catch never widens a decision
 
 **Lint**
 - [ ] Type-aware ESLint rules in `packages/config/eslint.js`: `no-floating-promises`, `no-misused-promises`, `only-throw-error`, `use-unknown-in-catch-callback-variable`; fix every finding
