@@ -247,7 +247,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 - [ ] Type-aware ESLint rules in `packages/config/eslint.js`: `no-floating-promises`, `no-misused-promises`, `only-throw-error`, `use-unknown-in-catch-callback-variable`; fix every finding
 
 **Server**
-- [ ] Crash fix: `events.service.ts` `recheckSessions()` runs on a timer with `void` and no catch, so a database error with an inbox socket open ends the process → catch and log it; add process-level `unhandledRejection` / `uncaughtException` handlers that log through pino before exiting; test with a failing session lookup
+- [x] Crash fix: `events.service.ts` `recheckSessions()` runs on a timer with `void` and no catch, so a database error with an inbox socket open ends the process → catch and log it; add process-level `unhandledRejection` / `uncaughtException` handlers that log through pino before exiting; test with a failing session lookup
 - [ ] OAuth: catch only `HttpException` around `invites.findValid` (a database error must not become `invite_invalid`); log the provider's error behind `oauth_failed`
 - [ ] Map database errors once in the global filter: transaction timeout, pool exhausted, connection lost (Prisma `P2024`, `P2028`, `P1001`, `P1017` and driver-adapter equivalents) → 503 `database_unavailable` with `Retry-After`; known unique violations → 409; e2e tests with an exhausted pool
 - [ ] Audit batch ingest (`audit/batch.service.ts`) holds the global chain lock for the whole batch, including signature checks, hashing and decision re-checks → do that work before taking the lock and hold it only to read the chain head and insert; tests that ordering, idempotency on `(planId, clientSeq)` and flagging are unchanged
@@ -267,7 +267,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 
 **CLI, demo, evals**
 - [ ] One top-level handler per entry point: readable message and non-zero exit code for network errors, 4xx with the server's error code, and 5xx with the request id. CLI: wrap `fetch` in `api-client.ts` and guard `JSON.parse` in `session-store.ts`, which today print a stack trace
-- [ ] Small: remove the comment in `server/main.ts` and catch only a missing `.env` there; `license.service.ts` logs why the license file could not be read
+- [x] Small: remove the comment in `server/main.ts` and catch only a missing `.env` there; `license.service.ts` logs why the license file could not be read
 
 **Acceptance:** review findings and the ADR are recorded; lint with the new rules is green; no known transient database failure returns a bare 500; every SDK error says why it failed; the inbox shows an error state when the server is down; `pnpm test && pnpm lint && pnpm typecheck` green; a remote-check burst of 50 plans × 20 concurrent checks across two instances returns no 500s (local scale stack; images are cached, no new downloads).
 

@@ -94,8 +94,11 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
     let jws: string;
     try {
       jws = await readFile(path, "utf8");
-    } catch {
-      this.fallback(LicenseStatus.INVALID, `cannot read ${path}`);
+    } catch (err) {
+      this.fallback(
+        LicenseStatus.INVALID,
+        `cannot read ${path} (${(err as NodeJS.ErrnoException).code ?? String(err)})`,
+      );
       return;
     }
     const result = await verifyLicense(jws, this.vendorKey, new Date());

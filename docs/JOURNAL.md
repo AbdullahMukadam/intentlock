@@ -1077,3 +1077,16 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - ADR: error policy (Phase 5.7, second task)
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — server crash fix
+
+**Done**
+- `EventsService.recheckSessions()` catches a failed session lookup per socket, logs a warning and disconnects that socket (fail closed: a session that can't be confirmed gets no live events; the inbox reconnects and the handshake checks it again). New `LoggerContext.EVENTS`
+- `main.ts`: `unhandledRejection` and `uncaughtException` are logged as `fatal` through pino, then the process exits 1 (the platform restarts it); only a missing `.env` is ignored (`FsErrorCode.NOT_FOUND`), so a malformed one fails loudly; the comment is gone
+- `license.service.ts`: the fallback reason says why the file could not be read (`ENOENT`, `EACCES`, …)
+
+**Numbers**
+- Server tests 177 (was 175: failed lookup disconnects only that socket and resolves; ended session disconnects); typecheck, lint, prettier green; built server boots and `/health/ready` answers on the dev database
+
+**Next**
+- ADR: error policy

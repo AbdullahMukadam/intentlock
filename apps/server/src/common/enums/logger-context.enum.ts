@@ -5,4 +5,5 @@ export enum LoggerContext {
   HOLDS = "Holds",
   MAIL = "Mail",
   SETUP = "Setup",
+  EVENTS = "Events",
 }
