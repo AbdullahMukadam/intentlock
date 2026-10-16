@@ -1,0 +1,86 @@
+name: intentlock-scale
+
+x-server: &server
+  image: ghcr.io/abdullahmukadam/intentlock-server:${INTENTLOCK_VERSION:-latest}
+  build:
+    context: ..
+    dockerfile: apps/server/Dockerfile
+
+x-server-env: &server-env
+  DATABASE_URL: postgresql://intentlock:intentlock@postgres:5432/intentlock
+  SIGNING_KEY: ${SIGNING_KEY:?set SIGNING_KEY (scale-test.ts generates one)}
+  ORG_NAME: Scale test
+  PUBLIC_URL: http://localhost:8090
+  LOG_LEVEL: warn
+  TRUST_PROXY: 1
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: intentlock
+      POSTGRES_PASSWORD: intentlock
+      POSTGRES_DB: intentlock
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intentlock"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *server
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    restart: "no"
+    environment:
+      DIRECT_URL: postgresql://intentlock:intentlock@postgres:5432/intentlock
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  server-1:
+    <<: *server
+    environment: *server-env
+    ports:
+      - "3101:3000"
+    networks:
+      default:
+        aliases: [server]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  server-2:
+    <<: *server
+    environment: *server-env
+    ports:
+      - "3102:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  inbox:
+    image: ghcr.io/abdullahmukadam/intentlock-inbox:${INTENTLOCK_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: apps/inbox/Dockerfile
+    depends_on:
+      - server-1
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8090:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      server-1:
+        condition: service_healthy
+      server-2:
+        condition: service_healthy
+      inbox:
+        condition: service_started
+
+volumes:
+  pgdata:

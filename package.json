@@ -17,6 +17,8 @@
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
+    "@intentlock/core": "workspace:*",
+    "@intentlock/sdk": "workspace:*",
     "@types/node": "catalog:",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
