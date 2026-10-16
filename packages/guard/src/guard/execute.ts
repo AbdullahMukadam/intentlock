@@ -5,14 +5,22 @@ import {
   ReportOutcome,
   Verdict,
 } from "@intentlock/core";
-import { type Gate, type HoldOutcome, HoldStatus } from "@intentlock/sdk";
+import { type Gate, type HoldOutcome, HoldStatus, HttpError } from "@intentlock/sdk";
 
 import type { ToolCallReq, ToolResult } from "../provider/types.js";
 import { EventType } from "./enums/event-type.enum.js";
 import { GuardBlockReason } from "./enums/guard-block-reason.enum.js";
+import { HttpStatus } from "./enums/http-status.enum.js";
 import type { EventSink } from "./events.js";
 import type { ToolImpl } from "./options.js";
-import { blockedResult, errorResult, okResult, rejectedResult, timeoutResult } from "./results.js";
+import {
+  blockedResult,
+  errorResult,
+  holdUnconfirmedResult,
+  okResult,
+  rejectedResult,
+  timeoutResult,
+} from "./results.js";
 
 export interface GuardSession {
   planId: string;
@@ -45,27 +53,61 @@ function refreshOnce(gate: Gate, session: GuardSession, expired: string): Promis
   return done;
 }
 
-async function safeCheck(gate: Gate, token: string, call: ToolCallReq): Promise<GateDecision> {
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function gateFailureReason(err: unknown): ClientBlockReason {
+  if (!(err instanceof HttpError)) return ClientBlockReason.SERVER_UNAVAILABLE;
+  return err.status === HttpStatus.UNAUTHORIZED
+    ? ClientBlockReason.API_KEY_REJECTED
+    : ClientBlockReason.GATE_REJECTED;
+}
+
+async function safeCheck(
+  ctx: ExecuteContext,
+  session: GuardSession,
+  token: string,
+  call: ToolCallReq,
+): Promise<GateDecision> {
   try {
-    return await gate.check(token, { tool: call.name, args: call.args, callId: call.id });
-  } catch {
-    return { verdict: Verdict.BLOCK, ruleId: null, reason: ClientBlockReason.SERVER_UNAVAILABLE };
+    return await ctx.gate.check(token, { tool: call.name, args: call.args, callId: call.id });
+  } catch (err) {
+    ctx.emit({
+      type: EventType.ERROR,
+      planId: session.planId,
+      tool: call.name,
+      reason: `check failed: ${messageOf(err)}`,
+    });
+    return { verdict: Verdict.BLOCK, ruleId: null, reason: gateFailureReason(err) };
   }
 }
 
 async function decide(ctx: ExecuteContext, session: GuardSession, call: ToolCallReq) {
   const token = session.token;
-  const first = await safeCheck(ctx.gate, token, call);
+  const first = await safeCheck(ctx, session, token, call);
   if (first.verdict !== Verdict.BLOCK || first.reason !== BlockReason.TOKEN_EXPIRED) return first;
   if (!(await refreshOnce(ctx.gate, session, token))) return first;
-  return safeCheck(ctx.gate, session.token, call);
+  return safeCheck(ctx, session, session.token, call);
 }
 
-async function waitSafely(ctx: ExecuteContext, holdId: string): Promise<HoldOutcome> {
+async function waitSafely(
+  ctx: ExecuteContext,
+  session: GuardSession,
+  call: ToolCallReq,
+  holdId: string,
+): Promise<HoldOutcome | null> {
   try {
     return await ctx.gate.waitForHold(holdId, { timeoutMs: ctx.holdTimeoutMs });
-  } catch {
-    return HoldStatus.EXPIRED;
+  } catch (err) {
+    ctx.emit({
+      type: EventType.ERROR,
+      planId: session.planId,
+      tool: call.name,
+      holdId,
+      reason: `hold wait failed: ${messageOf(err)}`,
+    });
+    return null;
   }
 }
 
@@ -149,7 +191,8 @@ async function executeOne(
     case Verdict.HOLD: {
       const holdId = decision.holdId;
       ctx.emit({ type: EventType.HOLD, ...base, ruleId: decision.ruleId, holdId, latencyMs });
-      const outcome = await waitSafely(ctx, holdId);
+      const outcome = await waitSafely(ctx, session, call, holdId);
+      if (outcome === null) return holdUnconfirmedResult(call.id, holdId);
       if (outcome === HoldStatus.APPROVED) {
         ctx.emit({ type: EventType.APPROVED, ...base, ruleId: decision.ruleId, holdId });
         return runImpl(ctx, session, call, impl);

@@ -5,7 +5,7 @@ import {
   type PlanInput,
   type PolicySet,
 } from "@intentlock/core";
-import { type Gate, LocalGate } from "@intentlock/sdk";
+import { type Gate, HttpError, LocalGate } from "@intentlock/sdk";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
 
@@ -335,30 +335,47 @@ describe("holds", () => {
     expect(events.map((e) => e.type)).toEqual([EventType.PLAN_SIGNED, EventType.HOLD, event]);
   });
 
-  test("a failing wait counts as a timeout", async () => {
+  test("a failing wait is reported as an error, not a timeout, and the call never runs", async () => {
     const gate = fakeGate(() => HOLD, {
       waitForHold: vi.fn(async () => {
-        throw new Error("down");
+        throw new Error("GET /v1/holds/h1/wait failed: ECONNRESET");
       }),
     });
     const { guard, ran, events } = setup([turn(call("h", "add_label")), done()], gate, explicit);
-    await guard.run({ user: USER, task: "Label", steps: [{ tool: "add_label" }] });
+    const result = await guard.run({ user: USER, task: "Label", steps: [{ tool: "add_label" }] });
     expect(ran).toEqual([]);
-    expect(events.at(-1)!.type).toBe(EventType.TIMEOUT);
+    expect(events.map((e) => e.type)).toEqual([
+      EventType.PLAN_SIGNED,
+      EventType.HOLD,
+      EventType.ERROR,
+    ]);
+    expect(events.at(-1)).toMatchObject({
+      holdId: "h1",
+      reason: "hold wait failed: GET /v1/holds/h1/wait failed: ECONNRESET",
+    });
+    expect(firstResults(result.messages)[0]!.content).toMatch(/approval could not be confirmed/);
   });
 });
 
 describe("gate failures and token refresh", () => {
-  test("check throws → block server_unavailable", async () => {
+  test.each([
+    [new Error("POST /v1/check failed: ECONNREFUSED"), "server_unavailable"],
+    [new HttpError(401, { error: "unauthorized" }), "api_key_rejected"],
+    [new HttpError(403, { error: "forbidden" }), "gate_rejected"],
+  ])("check throws %s → block with its reason and an error event", async (err, reason) => {
     const gate = fakeGate(() => {
-      throw new Error("ECONNREFUSED");
+      throw err;
     });
-    const { guard, ran } = setup([turn(call("c", "list_issues")), done()], gate, explicit);
+    const { guard, ran, events } = setup([turn(call("c", "list_issues")), done()], gate, explicit);
     const result = await guard.run(listInput);
     expect(firstResults(result.messages)[0]!.content).toMatch(
-      /^Blocked by Intentlock \(server_unavailable\)/,
+      new RegExp(`^Blocked by Intentlock \\(${reason}\\)`),
     );
     expect(ran).toEqual([]);
+    expect(events.find((e) => e.type === EventType.ERROR)).toMatchObject({
+      tool: "list_issues",
+      reason: `check failed: ${err.message}`,
+    });
   });
 
   test("expired token: one refresh shared by concurrent calls, the new token sticks", async () => {

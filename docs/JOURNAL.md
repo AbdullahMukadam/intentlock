@@ -1187,3 +1187,17 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - SDK tests 27 (one test grew: refused, timeout, 503 with code and request id, 401, 502 with HTML, unreadable 200); guard, evals, demo, anthropic and the server's hybrid suite green; lint and typecheck green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — guard keeps the cause of a block
+
+**Done**
+- `ClientBlockReason.API_KEY_REJECTED` (`api_key_rejected`) and `GATE_REJECTED` (`gate_rejected`) in `@intentlock/core` (approved by Abdullah with ADR-060)
+- Guard `safeCheck`: a gate error emits an `error` event (`check failed: <SDK message>`) and blocks with a reason that says what happened: 401 → `api_key_rejected`, other 4xx → `gate_rejected`, network / timeout / 5xx → `server_unavailable`. Still fail closed
+- Guard hold wait: a failed wait emits an `error` event with the hold id and cause, and the model gets "the approval could not be confirmed. Do not retry it." instead of the timeout message; the call never runs
+- USAGE §7: the two new block reasons and the failed-wait behaviour
+
+**Problems hit and how they were solved**
+- `evals` "scripted baseline with LocalGate" failed once at 5.16 s while every package's tests ran in parallel; alone it takes 1.8–2.3 s (30 scenarios). Unrelated to the guard change (LocalGate never throws there) → the baseline `describe` has a 30 s timeout
+
+**Numbers**
+- Guard tests 37 passing (was 35: the gate-failure case became three; the failed-wait case now checks the event and the result), 1 live test skipped without a model key; core, sdk, anthropic, evals, demo green; server hybrid and check suites green; lint, typecheck, prettier green

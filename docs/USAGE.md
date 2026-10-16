@@ -344,7 +344,9 @@ Common reasons:
 | `no_matching_rule` | No rule matched; `default: block`. |
 | *rule id* | A `block` rule matched; its `reason` is included. |
 | `token_expired` | Refreshed automatically by the guard; blocks only if refresh fails. |
-| `server_unavailable` | Could not reach the server when it was needed. |
+| `server_unavailable` | Could not reach the server when it was needed (network error, timeout or 5xx). |
+| `api_key_rejected` | The server answered 401: the API key is unknown or revoked, or the agent is disabled. |
+| `gate_rejected` | The server refused the check with another 4xx; the guard's `error` event has the server's error code. |
 | `audit_write_failed` / `audit_backlog` | The decision could not be made durable. |
 | `unknown_tool` / `invalid_args` | The model called a tool you did not register, or with bad arguments. |
 
@@ -352,7 +354,7 @@ Common reasons:
 
 1. The call pauses and a hold appears in the inbox (live) for eligible approvers.
 2. An approver opens it, sees the agent, the person, the tool and arguments, and approves or rejects.
-3. Approved → the tool runs. Rejected or timed out → the model gets an error telling it not to retry.
+3. Approved → the tool runs. Rejected or timed out → the model gets an error telling it not to retry. If the wait itself fails (server unreachable), the call does not run, the guard emits an `error` event with the cause, and the model is told the approval could not be confirmed.
 
 Approvals only come from signed-in people in the inbox; an agent's API key can never approve.
 

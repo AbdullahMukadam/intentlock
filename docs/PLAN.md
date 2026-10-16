@@ -256,7 +256,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 
 **SDK and guard**
 - [x] `GateUnavailableError` messages carry the cause (HTTP status or network code such as `ECONNRESET`), and the guard's `error` events pass it on; today the message is only `POST /v1/check failed`
-- [ ] Guard keeps the cause of a block: `safeCheck` emits an `error` event and maps 401/403 (revoked key, disabled agent) to their own client block reasons instead of `server_unavailable`; `waitSafely` reports a network failure as an error, not `expired`; still fail closed; tests
+- [x] Guard keeps the cause of a block: `safeCheck` emits an `error` event and maps 401/403 (revoked key, disabled agent) to their own client block reasons instead of `server_unavailable`; `waitSafely` reports a network failure as an error, not `expired`; still fail closed; tests
 - [ ] Provider failures: `runLoop` and the planner wrap LLM errors in a provider-agnostic `ProviderError` (status, retryable), emit an `error` event and keep the transcript so far; adapters map OpenAI/Anthropic errors to it; tests with `FakeProvider`
 - [ ] File outbox recovery: report corrupt lines and unreadable files through `onError` (only a missing file means "nothing to recover"); test
 - [ ] Retries only where they are safe (JWKS fetch, hold wait), with backoff; never for sign or check; the outbox upload already retries with backoff; tests
