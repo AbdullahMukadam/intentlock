@@ -315,7 +315,7 @@ Publishing creates a new immutable version. New plans use it immediately; runnin
 | `flushIntervalMs` | 5 000 | Upload interval. |
 | `maxUnacked` / `maxUnackedAgeMs` | 500 / 60 000 | If the server falls this far behind, calls block with `audit_backlog`. |
 | `handleSignals` | `true` | Flushes on `SIGTERM` / `SIGINT`. |
-| `onError` | — | Called with background errors (upload failures, JWKS reload). |
+| `onError` | — | Called with background errors: upload failures (retried with backoff), JWKS reload, hold-wait retries, and outbox lines or files that could not be recovered after a restart. |
 
 Call `gate.close()` when your process is done so the outbox flushes.
 

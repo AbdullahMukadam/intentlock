@@ -1213,3 +1213,19 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Guard tests 42 passing (was 37: planning provider failure, mid-run 429 with transcript, three OpenAI SDK error classes), anthropic 9 (+3 SDK error classes), each with 1 live test skipped; evals and demo green; lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — outbox recovery reports, safe retries
+
+**Done**
+- `FileOutbox` takes `onError` (wired from `HybridGate`): on recovery a line that is not a valid entry is still skipped but reported with file and line; an `.ack` or `.done` file that exists but cannot be read is reported and treated as missing (a missing ack only re-sends entries the server deduplicates); only `ENOENT` is silent. An unreadable entries file still fails `start()`, so checks block
+- Hold wait retries network errors and 5xx with backoff (the worker's `backoffMs`, capped at 5 s so an approval is seen soon after the network returns) until its deadline; 4xx is not retried; if the last attempt before the deadline failed it throws the error instead of returning `expired`; aborting stops at once. `HybridGate` reports each retry through `onError`
+- JWKS fetch: up to 3 attempts on network errors and 5xx (200 / 400 ms), bodies of skipped 5xx answers cancelled; jose already refetches on the next check after a failure
+- Sign, check, report, approve and reject stay unretried (ADR-060 point 7)
+- USAGE §6: what `onError` now receives
+
+**Problems hit and how they were solved**
+- My first version returned `expired` when the network stayed down until the deadline, the exact misreport this phase removes → it now throws the last error
+- `only-throw-error` caught `throw lastError` typed `unknown` → typed as `GateUnavailableError | null`
+
+**Numbers**
+- SDK tests 34 (was 27: torn line reported, unreadable ack, missing files silent, hold-wait retry then approved, 4xx not retried, failing at deadline throws, JWKS retry and give-up); guard, anthropic, evals, demo and the server's hybrid suite green; lint, typecheck, prettier green

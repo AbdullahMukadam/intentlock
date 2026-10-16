@@ -108,6 +108,32 @@ describe("HttpGate", () => {
     ).toBe("expired");
   });
 
+  test("waitForHold retries a network failure and then sees the approval", async () => {
+    let calls = 0;
+    const fetch = vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new TypeError("fetch failed");
+      return Response.json({ status: "approved" });
+    });
+    expect(await gate(fetch).waitForHold("h1", { timeoutMs: 30_000 })).toBe("approved");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("waitForHold does not retry a 4xx", async () => {
+    const fetch = vi.fn(async () => Response.json({ error: "not_found" }, { status: 404 }));
+    await expect(gate(fetch).waitForHold("h1", { timeoutMs: 30_000 })).rejects.toBeInstanceOf(
+      HttpError,
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("waitForHold that is still failing at its deadline throws instead of expiring", async () => {
+    const fetch = vi.fn(async () => new Response("", { status: 503 }));
+    await expect(gate(fetch).waitForHold("h1", { timeoutMs: 300 })).rejects.toBeInstanceOf(
+      GateUnavailableError,
+    );
+  });
+
   test("waitForHold stops when its signal aborts", async () => {
     const controller = new AbortController();
     controller.abort(new Error("cancelled"));
