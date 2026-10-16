@@ -1177,3 +1177,13 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes**
 - Two test files in this step were written with a heredoc, against Abdullah's request to use Write/Edit; checked with `file` (no CRLF) and from here on only Write/Edit
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — SDK errors say why
+
+**Done**
+- `packages/sdk/src/http/describe-failure.ts`: network failures name the low-level code (`POST /v1/check failed: ECONNRESET`) or the SDK's own timeout (`timed out after 5000 ms`); 5xx and 4xx name the server's error code and request id (`POST /v1/check answered 503 (database_unavailable, request …)`, `Intentlock server answered 401 (unauthorized)`). The original error stays on `cause`
+- A 5xx with an HTML body (nginx or Render 502/504) used to say only "unreadable response"; the status now wins
+- Nothing in the repo matched on the old message text. The guard passes these messages on wherever it already emits `error` events; `safeCheck` emitting one is the next task
+
+**Numbers**
+- SDK tests 27 (one test grew: refused, timeout, 503 with code and request id, 401, 502 with HTML, unreadable 200); guard, evals, demo, anthropic and the server's hybrid suite green; lint and typecheck green

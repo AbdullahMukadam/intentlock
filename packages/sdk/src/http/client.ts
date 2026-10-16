@@ -1,5 +1,6 @@
 import { HttpMethod } from "../enums/http-method.enum.js";
 import { GateUnavailableError, HttpError } from "../errors.js";
+import { describeNetworkError, describeServerAnswer } from "./describe-failure.js";
 
 export interface HttpClientOptions {
   baseUrl: string;
@@ -37,7 +38,8 @@ export class HttpClient {
     body?: unknown,
     opts: { signal?: AbortSignal; timeoutMs?: number } = {},
   ): Promise<T> {
-    const signals = [AbortSignal.timeout(opts.timeoutMs ?? this.#timeoutMs)];
+    const timeoutMs = opts.timeoutMs ?? this.#timeoutMs;
+    const signals = [AbortSignal.timeout(timeoutMs)];
     if (opts.signal) signals.push(opts.signal);
     let res: Response;
     try {
@@ -52,17 +54,25 @@ export class HttpClient {
       });
     } catch (err) {
       if (opts.signal?.aborted) throw opts.signal.reason;
-      throw new GateUnavailableError(`${method} ${path} failed`, { cause: err });
+      throw new GateUnavailableError(
+        `${method} ${path} failed: ${describeNetworkError(err, timeoutMs)}`,
+        { cause: err },
+      );
     }
-    let data: unknown;
+    let data: unknown = null;
+    let unreadable: unknown;
     try {
       const text = await res.text();
       data = text ? JSON.parse(text) : null;
     } catch (err) {
-      throw new GateUnavailableError(`${method} ${path}: unreadable response`, { cause: err });
+      unreadable = err;
     }
     if (res.status >= 500)
-      throw new GateUnavailableError(`${method} ${path} answered ${res.status}`);
+      throw new GateUnavailableError(`${method} ${path} ${describeServerAnswer(res.status, data)}`);
+    if (unreadable !== undefined)
+      throw new GateUnavailableError(`${method} ${path}: unreadable response`, {
+        cause: unreadable,
+      });
     if (!res.ok) throw new HttpError(res.status, data);
     return data as T;
   }

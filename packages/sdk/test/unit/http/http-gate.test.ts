@@ -25,6 +25,44 @@ describe("HttpGate", () => {
     ).rejects.toBeInstanceOf(GateUnavailableError);
   });
 
+  test("errors say why: network code, timeout, and the server's code and request id", async () => {
+    const refused = Object.assign(new TypeError("fetch failed"), {
+      cause: { code: "ECONNREFUSED" },
+    });
+    await expect(gate(() => Promise.reject(refused)).check("t", call)).rejects.toThrow(
+      "POST /v1/check failed: ECONNREFUSED",
+    );
+    const slow = new HttpGate({
+      baseUrl: "http://x/",
+      apiKey: "k",
+      timeoutMs: 20,
+      fetch: ((_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) =>
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason)),
+        )) as unknown as typeof globalThis.fetch,
+    });
+    await expect(slow.check("t", call)).rejects.toThrow(
+      "POST /v1/check failed: timed out after 20 ms",
+    );
+    await expect(
+      gate(async () =>
+        Response.json(
+          { statusCode: 503, error: "database_unavailable", requestId: "r-9" },
+          { status: 503 },
+        ),
+      ).check("t", call),
+    ).rejects.toThrow("POST /v1/check answered 503 (database_unavailable, request r-9)");
+    await expect(
+      gate(async () => Response.json({ error: "unauthorized" }, { status: 401 })).check("t", call),
+    ).rejects.toThrow("Intentlock server answered 401 (unauthorized)");
+    await expect(
+      gate(async () => new Response("<html>Bad Gateway</html>", { status: 502 })).check("t", call),
+    ).rejects.toThrow("POST /v1/check answered 502");
+    await expect(
+      gate(async () => new Response("<html>ok?</html>", { status: 200 })).check("t", call),
+    ).rejects.toThrow("POST /v1/check: unreadable response");
+  });
+
   test("4xx surfaces as HttpError with the server's body", async () => {
     const err = await gate(async () => Response.json({ error: "unauthorized" }, { status: 401 }))
       .check("t", call)
