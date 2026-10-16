@@ -16,6 +16,7 @@ import {
 import { Flag, ListFilter, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
 import { VerdictBadge } from "@/components/verdict-badge";
@@ -83,6 +84,8 @@ export function DecisionTable({
       );
       setMore((m) => [...m, ...page.entries]);
       setCursor(page.nextCursor);
+    } catch {
+      toast.error("Could not load more entries.");
     } finally {
       setLoadingMore(false);
     }

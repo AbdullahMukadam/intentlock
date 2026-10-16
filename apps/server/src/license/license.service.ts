@@ -41,7 +41,9 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     await this.load();
-    this.timer = setInterval(() => void this.load(), LICENSE_RECHECK_MS);
+    this.timer = setInterval(() => {
+      this.load().catch((err: unknown) => this.log.error(err));
+    }, LICENSE_RECHECK_MS);
     this.timer.unref();
   }
 

@@ -72,7 +72,7 @@ export function createRunner(start: StartRun): Server {
     if (req.method === "POST" && path === RUNNER_PATHS.RUNS) {
       if (req.headers[RUNNER_HEADER] !== "1") return res.writeHead(HTTP.BAD_REQUEST).end();
       if (running) return res.writeHead(HTTP.CONFLICT).end();
-      void runBoth();
+      runBoth().catch((err: unknown) => console.error(err));
       return res
         .writeHead(HTTP.ACCEPTED, { "content-type": "application/json" })
         .end(JSON.stringify({ runId }));

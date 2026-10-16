@@ -19,7 +19,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly sessions: SessionsService) {}
 
   onModuleInit() {
-    this.timer = setInterval(() => void this.recheckSessions(), SESSION_RECHECK_MS);
+    this.timer = setInterval(() => {
+      this.recheckSessions().catch((err: unknown) => this.log.error(err));
+    }, SESSION_RECHECK_MS);
     this.timer.unref();
   }
 

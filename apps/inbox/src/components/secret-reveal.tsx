@@ -30,7 +30,9 @@ export function SecretReveal({
         <Button
           variant="outline"
           onClick={() =>
-            navigator.clipboard.writeText(secret).then(
+            (
+              navigator.clipboard?.writeText(secret) ?? Promise.reject(new Error("no clipboard"))
+            ).then(
               () => setCopied(true),
               () => toast.error("Copy failed; select the text and copy it by hand."),
             )

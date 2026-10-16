@@ -115,7 +115,9 @@ export class AuthService {
       );
       return issued;
     });
-    void this.mail.sendPasswordReset(email, appLink(this.env, AppPage.RESET, token), "1 hour");
+    this.mail
+      .sendPasswordReset(email, appLink(this.env, AppPage.RESET, token), "1 hour")
+      .catch(() => false);
   }
 
   async resetPassword(token: string, password: string, meta: RequestMeta) {

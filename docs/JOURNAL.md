@@ -1090,3 +1090,20 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - ADR: error policy
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — ADR-060, type-aware lint
+
+**Done**
+- ADR-060 error policy (commit `3d7301f`); Abdullah approved the two public additions it implies (`api_key_rejected` / `gate_rejected` client block reasons, `ProviderError` in guard)
+- `packages/config/eslint.js`: type-aware rules on `src/`, `test/`, `app/` TypeScript files (`projectService`): `no-floating-promises` with `ignoreVoid: false` (the default ignores `void p()`, which is exactly how the `recheckSessions` crash got in), `no-misused-promises`, `only-throw-error`, `use-unknown-in-catch-callback-variable`
+- Fixed what they found: 8 fire-and-forget promises now end in an explicit `.catch` (SDK outbox timer and nudge → `onError`; SDK shutdown; server session recheck and license reload timers → logged; reset-mail send, which `MailService` already logs; demo runner; the fake OAuth fixture → 500)
+- Inbox: async JSX event handlers are allowed (`checksVoidReturn.attributes: false` in `apps/inbox/eslint.config.js`) after checking all 22: each catches its own errors except "Load more" in the activity table, which now shows a toast. The copy buttons also handle a missing `navigator.clipboard` (plain-http origins such as a LAN self-host)
+
+**Problems hit and how they were solved**
+- `holds.e2e.test.ts` "expires once, even when two instances run the expiry job together" failed once in the full suite and passed alone and three times in a row: the app's own 10 s expiry timer can expire the hold before the test's two manual `expireAll()` calls, so they return 0. The invariant is the single `hold_resolved` entry and the expired status, which the test still checks; the sum is now `≤ 1`
+
+**Numbers**
+- Lint and typecheck green in all 22 turbo tasks; tests: server 177, sdk 26, demo 77, inbox 63; prettier green
+
+**Next**
+- Server: OAuth catch narrowing, database error mapping (503), batch-ingest lock, pool settings, request id
