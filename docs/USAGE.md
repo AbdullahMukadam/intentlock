@@ -45,7 +45,7 @@ Requires Node ≥ 22.
 
 ### 3.1 Run the server
 
-Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#self-host-in-10-minutes); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time **setup code** to its logs (`docker compose logs server | grep "setup code"`). Open the inbox, which shows the setup page, paste the code and create the first admin with your email and a password.
+Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#60-second-quickstart); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time **setup code** to its logs (`docker compose logs server | grep "setup code"`). Open the inbox, which shows the setup page, paste the code and create the first admin with your email and a password.
 
 ### 3.2 Invite your team
 

@@ -10,7 +10,26 @@ Intentlock fixes the scope **per request**: the plan is signed before the inject
 
 ## 60-second quickstart
 
-No server, database or model key needed. Node ≥ 22, pnpm ≥ 10.26.
+You need Docker with Compose v2.23 or newer and `openssl`. This runs Postgres, the server, the inbox and nginx on `http://localhost:8080`.
+
+```bash
+mkdir intentlock && cd intentlock
+curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
+curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
+echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
+docker compose -f docker-compose.selfhost.yml up -d
+docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"
+```
+
+1. **Setup code.** The last command prints `One-time setup code: …`. Migrations run first, so give it a few seconds if nothing shows yet.
+2. **`/setup`.** Open `http://localhost:8080`; it shows the setup page. Paste the code, choose your email and a password (12+ characters). You are the admin, and the setup page is gone for good.
+3. **First agent.** The welcome wizard creates an agent and an API key, gives you the `.env` lines and a 5-line snippet, and waits live for the agent's first decision.
+4. **Invite.** Team → Invite takes an email, a role and groups and gives you a single-use link (7 days) to send. Your teammate opens it and sets a password.
+
+### Try it without a server
+
+No Docker, database or model key needed. Node ≥ 22, pnpm ≥ 10.26.
 
 ```bash
 git clone https://github.com/AbdullahMukadam/intentgate && cd intentgate
@@ -31,31 +50,19 @@ Then run the 30-scenario prompt-injection suite with the scripted (fully obedien
 pnpm --filter @intentlock/evals run eval --modes scripted --latency-checks 0 --out /tmp/intentlock-evals
 ```
 
-## Self-host in 10 minutes
+## Self-host for your team
 
-You need Docker with Compose v2.23 or newer. The bundle runs Postgres, the server, the inbox and nginx, serving the inbox and the API from one origin.
+The quickstart bundle is the production bundle; for a real install, edit `.env` before `up -d`:
 
-```bash
-mkdir intentlock && cd intentlock
-curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
-curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
-```
+- `ORG_NAME`, and `PUBLIC_URL` set to the `https://` address your team opens (session cookies are then marked secure; invite links and OAuth callbacks use it).
+- `SMTP_URL` and `SMTP_FROM` to email invites and enable "forgot password"; without them, links are only shown to copy.
+- `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` for "Continue with Google/GitHub" (existing and invited users only, matched by verified email). Callback: `<PUBLIC_URL>/api/v1/auth/oauth/<google|github>/callback`.
+- `INTENTLOCK_VERSION` pinned to a release tag instead of `latest`.
+- A license file in `./license/` with `LICENSE_FILE=/license/<file>`. Without one you run the Community edition.
 
-1. **Configure.** In `.env`, set `ORG_NAME`, `PUBLIC_URL` and `POSTGRES_PASSWORD` (`openssl rand -hex 24`); optionally `SMTP_*` to email invites and `GOOGLE_*` / `GITHUB_*` for "Continue with Google/GitHub". Then add a signing key and back it up:
-   ```bash
-   echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
-   ```
-2. **Start.** Migrations run once as a one-off `migrate` service before the server starts.
-   ```bash
-   docker compose -f docker-compose.selfhost.yml up -d
-   docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"
-   ```
-3. **Create the first admin.** Open `PUBLIC_URL` (default `http://localhost:8080`); it shows the setup page. Paste the setup code and choose your email and password.
-4. **Invite teammates** from the Team page: each invite gives you a link to send (and emails it when SMTP is set). They set a password or continue with Google/GitHub. From the [CLI](packages/cli): `intentlock users invite bob@acme.dev --role approver`.
-5. **Register an agent** in the inbox (Agents → New), create an API key, and give your agent app `INTENTLOCK_URL=<PUBLIC_URL>/api` and `INTENTLOCK_API_KEY`. Wire it in as below, then watch its first block appear under Activity.
-6. **License (optional).** Put the license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Without one you run the Community edition.
+Agent apps get `INTENTLOCK_URL=<PUBLIC_URL>/api` and an `INTENTLOCK_API_KEY` from Agents → API keys. Teammates can also be invited from the [CLI](packages/cli): `intentlock users invite bob@acme.dev --role approver`.
 
-You are responsible for TLS in front of port 8080 (set `PUBLIC_URL` to the `https://` address so session cookies are marked secure), Postgres backups (the `pgdata` volume), and keeping `SIGNING_KEY` secret. To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
+You are responsible for TLS in front of port 8080, Postgres backups (the `pgdata` volume), and keeping `SIGNING_KEY` secret and backed up (losing it invalidates every signed plan; leaking it lets anyone sign plans). To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first as a one-off `migrate` service. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
 
 ## Add it to your agent
 
@@ -154,13 +161,14 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 - **Hybrid mode trusts the host process.** Prompt injection cannot skip the guard, but a compromised host can. Server re-checks, the client hash chain and backpressure make that visible; use `HttpGate` where the host is untrusted.
 - **Revocation latency in hybrid mode** is the token TTL (5–15 min).
 - **Fail closed means the agent stops** when it needs the server and the server is down.
-- Not a prompt-injection detector, not multi-tenant, no streaming, no SSO in v0.1.
+- **Live inbox updates need one server instance** (or sticky sessions). Several instances are correct and tested, but WebSocket events are not fanned out across them yet; the inbox falls back to polling every 10 s.
+- Not a prompt-injection detector, not multi-tenant, no streaming responses. Sign-in is email + password or Google/GitHub; generic OIDC/SAML is not in v0.1.
 
 ## Roadmap
 
 - MCP proxy that enforces Intentlock in front of any MCP server
 - Taint tracking: hold writes that contain data read from private sources
-- Inbox team page; visual policy builder; second-admin approval for policy changes; argument redaction
+- Visual policy builder; second-admin approval for policy changes; argument redaction
 - Audit retention with verifiable export; OpenTelemetry spans; cross-instance live events; sharded audit chains
 
 ## Repository

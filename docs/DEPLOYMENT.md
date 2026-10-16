@@ -233,12 +233,13 @@ flowchart LR
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
 curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
-# set ORG_NAME, PUBLIC_URL, POSTGRES_PASSWORD (optional: SMTP_*, GOOGLE_*, GITHUB_*); then:
+# set ORG_NAME, PUBLIC_URL (optional: SMTP_*, GOOGLE_*, GITHUB_*); then:
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
 docker compose -f docker-compose.selfhost.yml up -d
 docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"     # for the setup page
 ```
-Then: open `PUBLIC_URL`, which shows the setup page; paste the setup code and create the first admin. Invite teammates from the Team page (copy the link, or it is emailed when SMTP is set), create an agent and an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "Self-host in 10 minutes".
+Then: open `PUBLIC_URL`, which shows the setup page; paste the setup code and create the first admin. Invite teammates from the Team page (copy the link, or it is emailed when SMTP is set), create an agent and an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "60-second quickstart" and "Self-host for your team".
 
 The bundle is one file: the nginx config is inline (`configs.content`, Compose ≥ 2.23), the server and inbox images come from GHCR (`ghcr.io/abdullahmukadam/intentlock-server|inbox`, tag `INTENTLOCK_VERSION`), and each service also has a `build:` section so `up --build` from a clone builds them locally. The server runs with `TRUST_PROXY=1` so login rate limits and audit see the client IP from nginx. The compose project is named `intentlock-selfhost` so it never shares volumes with the dev `docker-compose.yml`.
 
