@@ -21,6 +21,16 @@ describe("app", () => {
     await request(app.getHttpServer()).get("/health/ready").expect(200, { ok: true });
   });
 
+  it("gives every response a request id, keeping a safe incoming one", async () => {
+    const fresh = await request(app.getHttpServer()).get("/health").expect(200);
+    expect(fresh.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    const kept = await request(app.getHttpServer())
+      .get("/nope")
+      .set("X-Request-Id", "edge-123")
+      .expect(404);
+    expect(kept.headers["x-request-id"]).toBe("edge-123");
+  });
+
   it("boots and answers unknown routes with a JSON 404", async () => {
     const res = await request(app.getHttpServer()).get("/nope").expect(404);
     expect(res.body).toMatchObject({ statusCode: 404 });

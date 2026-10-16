@@ -10,6 +10,7 @@ import type { Logger } from "pino";
 
 import { DATABASE_RETRY_AFTER_SECONDS, RETRY_AFTER_HEADER } from "../constants/http.constants.js";
 import { ErrorCode } from "../enums/error-code.enum.js";
+import { currentRequestId } from "../middleware/request-id.middleware.js";
 import { dbErrorStatus } from "../utils/db-error.util.js";
 
 // Unknown errors become a bare 500 so messages and stack traces never leak.
@@ -33,7 +34,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       res
         .set(RETRY_AFTER_HEADER, String(DATABASE_RETRY_AFTER_SECONDS))
         .status(dbStatus)
-        .json({ statusCode: dbStatus, error: ErrorCode.DATABASE_UNAVAILABLE });
+        .json(withRequestId({ statusCode: dbStatus, error: ErrorCode.DATABASE_UNAVAILABLE }));
       return;
     }
     if (dbStatus === HttpStatus.CONFLICT) {
@@ -41,8 +42,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return;
     }
     this.log.error({ err: exception }, "unhandled error");
-    res
-      .status(HttpStatus.INTERNAL_SERVER_ERROR)
-      .json({ statusCode: HttpStatus.INTERNAL_SERVER_ERROR, error: ErrorCode.INTERNAL_ERROR });
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
+      withRequestId({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        error: ErrorCode.INTERNAL_ERROR,
+      }),
+    );
   }
+}
+
+function withRequestId<T extends object>(body: T): T & { requestId?: string } {
+  const requestId = currentRequestId();
+  return requestId ? { ...body, requestId } : body;
 }

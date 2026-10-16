@@ -1164,3 +1164,16 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Numbers**
 - Same throwaway benchmark right after the Docker restart: pool 10 → 1.6–2.0 s per round, 0/40 remote checks failed; pool 25 → 1.8–2.3 s, 0/40. A bigger pool does not help, so the default stays 10. These are faster than the 3.1–3.7 s measured earlier with the same code: run-to-run variance on this laptop is large, so only runs from the same sitting are comparable
 - Server tests 195 (was 191); lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — request id
+
+**Done**
+- `common/middleware/request-id.middleware.ts`: every request gets an id (a safe incoming `X-Request-Id` such as nginx's `$request_id`, letters/digits/`.`/`_`/`-` up to 64 characters, otherwise a UUID), returned in the `X-Request-Id` header and kept in `AsyncLocalStorage` for the rest of the request. Registered first in `configureApp`
+- `createLogger` adds `requestId` to every line logged inside a request (pino `mixin`); 500 and 503 bodies carry `requestId`, so a user's error can be found in the logs
+- STRUCTURE §common lists the new middleware, constants, enums and utils from this phase
+
+**Numbers**
+- Server tests 201 (was 195: middleware id generation, safe incoming id, injected id replaced, request id in 500/503 bodies, log lines inside and outside a request, header on a real route); lint, typecheck, prettier green
+
+**Notes**
+- Two test files in this step were written with a heredoc, against Abdullah's request to use Write/Edit; checked with `file` (no CRLF) and from here on only Write/Edit

@@ -239,16 +239,17 @@ src/
 ├── generated/prisma/               # Prisma client (git-ignored; `prisma generate` runs on postinstall)
 ├── config/                         # env.schema.ts (zod), config.module.ts, enums/ (node-env, log-level)
 ├── common/                         # cross-cutting, one concern per file (ADR-033)
-│   ├── constants/                  # auth.constants.ts (metadata keys, CSRF header)
+│   ├── constants/                  # auth.constants.ts (metadata keys, CSRF header), http.constants.ts (Retry-After, X-Request-Id), db.constants.ts
 │   ├── decorators/                 # public, agent-auth, roles, current-user, current-agent (*.decorator.ts)
-│   ├── enums/                      # auth-kind, error-code, logger-context, prisma-error-code (*.enum.ts)
-│   ├── filters/                    # http-exception.filter.ts
+│   ├── enums/                      # auth-kind, error-code, logger-context, prisma-error-code, driver-error-kind, pg-error-code, fs-error-code (*.enum.ts)
+│   ├── filters/                    # http-exception.filter.ts (ADR-060: 4xx pass through, transient DB → 503, bugs → 500)
 │   ├── guards/                     # csrf.guard.ts, roles.guard.ts
-│   ├── logger/                     # create-logger.util.ts, pino-logger.service.ts
+│   ├── logger/                     # create-logger.util.ts (adds requestId to every line), pino-logger.service.ts
+│   ├── middleware/                 # request-id.middleware.ts (X-Request-Id + AsyncLocalStorage)
 │   ├── pipes/                      # zod-validation.pipe.ts (global, fail closed)
 │   ├── schemas/                    # shared zod field schemas (email.schema.ts)
 │   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest), verdict-counts.type.ts
-│   └── utils/                      # crypto, zod-dto, auth-kind, ulid, to-json, decision (isHold/isBlock), verdict-counts (*.util.ts)
+│   └── utils/                      # crypto, zod-dto, auth-kind, ulid, to-json, decision (isHold/isBlock), verdict-counts, db-error (*.util.ts)
 ├── prisma/                         # prisma.module.ts, prisma.service.ts
 ├── org/                            # org.module.ts, org-bootstrap.service.ts (runs on boot)
 │   └── utils/                      # bootstrap-org.util.ts (also used by the seed), org-db.util.ts (org-scoped client)
