@@ -251,7 +251,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 - [x] OAuth: catch only `HttpException` around `invites.findValid` (a database error must not become `invite_invalid`); log the provider's error behind `oauth_failed`
 - [x] Map database errors once in the global filter: transaction timeout, connection lost, server shutdown (Prisma `P1001`, `P2028`, `P1017`, the driver adapter's `DatabaseNotReachable` and Postgres `57P01`-style codes) → 503 `database_unavailable` with `Retry-After`; unmapped unique violations → 409; unit tests with the error shapes probed from the real adapter (an e2e with a dead database is not possible because startup queries it; the scale-test burst in the acceptance covers real load, agreed with Abdullah)
 - [x] Audit batch ingest (ADR-061) (`audit/batch.service.ts`) holds the global chain lock for the whole batch, including signature checks, hashing and decision re-checks → do that work before taking the lock and hold it only to read the chain head and insert; tests that ordering, idempotency on `(planId, clientSeq)` and flagging are unchanged
-- [ ] Database pool and transaction limits from env (`DATABASE_POOL_MAX`, transaction `maxWait` / `timeout`) with defaults documented in DEPLOYMENT §2
+- [x] Database pool and transaction limits from env (`DATABASE_POOL_MAX`, `DATABASE_POOL_TIMEOUT_MS`, `DATABASE_TX_MAX_WAIT_MS`, `DATABASE_TX_TIMEOUT_MS`) with defaults documented in DEPLOYMENT §2
 - [ ] Request id on every request: in logs, in a response header and in 5xx bodies, so a user's error can be found in the logs
 
 **SDK and guard**

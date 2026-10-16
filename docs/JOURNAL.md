@@ -1150,3 +1150,17 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - New ingest + `createMany`: 3.1–3.7 s, 0–9 of 40 failed, all 990 stored
 - The remaining failures are the connection pool (default 10) and Prisma's 2 s `maxWait`: the 40 checks share one step counter row, so they queue on its row lock while holding connections → the pool-settings task
 - Server tests 191; lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — pool and transaction limits
+
+**Done**
+- Env `DATABASE_POOL_MAX` (10), `DATABASE_POOL_TIMEOUT_MS` (5000), `DATABASE_TX_MAX_WAIT_MS` (2000), `DATABASE_TX_TIMEOUT_MS` (5000), validated with zod; `PrismaService` passes them to `PrismaPg` (`max`, `connectionTimeoutMillis`) and Prisma's `transactionOptions`. Documented in DEPLOYMENT §2, `.env.example`, `deploy/selfhost.env.example`; passed through in `docker-compose.selfhost.yml`
+- Before this, a query with no free connection waited indefinitely (the `pg` pool default). Its timeout is a plain `Error("timeout exceeded when trying to connect")` that Prisma does not wrap, so `dbErrorStatus` recognises that exact message (`PG_POOL_TIMEOUT_MESSAGE`) as 503
+- Tests: env defaults and validation; the pool-timeout message; `db-pool.e2e.test.ts` builds the real `PrismaService` from env with a one-connection pool and checks that a query past `DATABASE_POOL_TIMEOUT_MS` and a transaction past `DATABASE_TX_MAX_WAIT_MS` both classify as 503
+
+**Problems hit and how they were solved**
+- Docker Desktop stopped again (`ECONNREFUSED`) → restarted it
+
+**Numbers**
+- Same throwaway benchmark right after the Docker restart: pool 10 → 1.6–2.0 s per round, 0/40 remote checks failed; pool 25 → 1.8–2.3 s, 0/40. A bigger pool does not help, so the default stays 10. These are faster than the 3.1–3.7 s measured earlier with the same code: run-to-run variance on this laptop is large, so only runs from the same sitting are comparable
+- Server tests 195 (was 191); lint, typecheck, prettier green

@@ -44,6 +44,9 @@ All config comes from environment variables, validated with zod at boot (`apps/s
 | --- | --- | --- |
 | `DATABASE_URL` | server | Pooled URL in production |
 | `DIRECT_URL` | server (migrations) | Direct, non-pooled URL for `prisma migrate deploy` |
+| `DATABASE_POOL_MAX` | server | Connections per instance (default `10`). Instances × this must stay under the database's connection limit (Neon free and poolers have their own) |
+| `DATABASE_POOL_TIMEOUT_MS` | server | How long a query waits for a free connection before the request answers 503 (default `5000`) |
+| `DATABASE_TX_MAX_WAIT_MS`, `DATABASE_TX_TIMEOUT_MS` | server | Prisma transaction limits: wait to start (default `2000`) and total run time (default `5000`); exceeding either answers 503 |
 | `SIGNING_KEY` | server | Ed25519 PKCS8 PEM; **same value on every instance**; platform secret store only |
 | `SIGNING_KEY_PREVIOUS` | server | Optional; old key still published in JWKS during rotation |
 | `API_KEY_PEPPER` | server | Optional extra secret for API key hashing |

@@ -1,6 +1,7 @@
 import { HttpStatus } from "@nestjs/common";
 
 import { Prisma } from "../../generated/prisma/client.js";
+import { PG_POOL_TIMEOUT_MESSAGE } from "../constants/db.constants.js";
 import { DriverErrorKind } from "../enums/driver-error-kind.enum.js";
 import { PgErrorCode } from "../enums/pg-error-code.enum.js";
 import { PrismaErrorCode } from "../enums/prisma-error-code.enum.js";
@@ -49,6 +50,9 @@ export function dbErrorStatus(
   e: unknown,
 ): HttpStatus.SERVICE_UNAVAILABLE | HttpStatus.CONFLICT | null {
   if (e instanceof Prisma.PrismaClientInitializationError) return HttpStatus.SERVICE_UNAVAILABLE;
+  if (e instanceof Error && e.message === PG_POOL_TIMEOUT_MESSAGE) {
+    return HttpStatus.SERVICE_UNAVAILABLE;
+  }
   if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return null;
   if (e.code === PrismaErrorCode.UNIQUE_CONSTRAINT_VIOLATION) return HttpStatus.CONFLICT;
   if (TRANSIENT_PRISMA_CODES.has(e.code)) return HttpStatus.SERVICE_UNAVAILABLE;

@@ -12,7 +12,20 @@ describe("loadEnv", () => {
       TRUST_PROXY: 0,
       INTENTLOCK_DEMO: false,
       SIGNING_KEY: undefined,
+      DATABASE_POOL_MAX: 10,
+      DATABASE_POOL_TIMEOUT_MS: 5_000,
+      DATABASE_TX_MAX_WAIT_MS: 2_000,
+      DATABASE_TX_TIMEOUT_MS: 5_000,
     });
+  });
+
+  it("parses the database pool and transaction limits", () => {
+    const base = { DATABASE_URL: "postgresql://x@localhost/db" };
+    expect(loadEnv({ ...base, DATABASE_POOL_MAX: "25" }).DATABASE_POOL_MAX).toBe(25);
+    expect(() => loadEnv({ ...base, DATABASE_POOL_MAX: "0" })).toThrow(/DATABASE_POOL_MAX/);
+    expect(() => loadEnv({ ...base, DATABASE_TX_TIMEOUT_MS: "fast" })).toThrow(
+      /DATABASE_TX_TIMEOUT_MS/,
+    );
   });
 
   it("parses TRUST_PROXY as a hop count", () => {

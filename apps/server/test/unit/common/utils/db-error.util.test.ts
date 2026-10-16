@@ -28,6 +28,12 @@ describe("dbErrorStatus", () => {
     expect(dbErrorStatus(error)).toBe(HttpStatus.SERVICE_UNAVAILABLE);
   });
 
+  it("treats a pg pool connect timeout as unavailable", () => {
+    expect(dbErrorStatus(new Error("timeout exceeded when trying to connect"))).toBe(
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
+  });
+
   it("treats a unique violation as a conflict", () => {
     expect(dbErrorStatus(known("P2002"))).toBe(HttpStatus.CONFLICT);
   });
