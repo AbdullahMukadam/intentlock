@@ -248,7 +248,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 
 **Server**
 - [x] Crash fix: `events.service.ts` `recheckSessions()` runs on a timer with `void` and no catch, so a database error with an inbox socket open ends the process → catch and log it; add process-level `unhandledRejection` / `uncaughtException` handlers that log through pino before exiting; test with a failing session lookup
-- [ ] OAuth: catch only `HttpException` around `invites.findValid` (a database error must not become `invite_invalid`); log the provider's error behind `oauth_failed`
+- [x] OAuth: catch only `HttpException` around `invites.findValid` (a database error must not become `invite_invalid`); log the provider's error behind `oauth_failed`
 - [ ] Map database errors once in the global filter: transaction timeout, pool exhausted, connection lost (Prisma `P2024`, `P2028`, `P1001`, `P1017` and driver-adapter equivalents) → 503 `database_unavailable` with `Retry-After`; known unique violations → 409; e2e tests with an exhausted pool
 - [ ] Audit batch ingest (`audit/batch.service.ts`) holds the global chain lock for the whole batch, including signature checks, hashing and decision re-checks → do that work before taking the lock and hold it only to read the chain head and insert; tests that ordering, idempotency on `(planId, clientSeq)` and flagging are unchanged
 - [ ] Database pool and transaction limits from env (`DATABASE_POOL_MAX`, transaction `maxWait` / `timeout`) with defaults documented in DEPLOYMENT §2

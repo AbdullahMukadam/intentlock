@@ -1107,3 +1107,15 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Server: OAuth catch narrowing, database error mapping (503), batch-ingest lock, pool settings, request id
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — OAuth catches
+
+**Done**
+- `oauth.service.ts`: the invite lookup in the OAuth callback catches only `HttpException` (an expired, used or revoked link); anything else, such as a database error, reaches the global filter as a 500 instead of `invite_invalid`. A failed code exchange or identity check is logged as a warning (`<provider> sign-in failed: <reason>`; messages hold the provider URL and status or the verification reason, never tokens) before the `oauth_failed` audit entry. New `LoggerContext.OAUTH`
+- Tests: a rejected `findValid` gives 500 and creates no user; the replayed-code test also checks the warning
+
+**Problems hit and how they were solved**
+- Docker Desktop had stopped again (`P1001` in the e2e global setup) → restarted it and waited for Postgres
+
+**Numbers**
+- Server tests 178 (was 177); lint, typecheck, prettier green

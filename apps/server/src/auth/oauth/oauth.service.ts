@@ -1,10 +1,18 @@
-import { HttpException, HttpStatus, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { API_ENDPOINTS, apiPath } from "@intentlock/core";
 import { z } from "zod";
 
 import { AuditService } from "../../audit/audit.service.js";
 import { AuditKind } from "../../audit/enums/audit-kind.enum.js";
 import { AppPage } from "../../common/enums/app-page.enum.js";
+import { LoggerContext } from "../../common/enums/logger-context.enum.js";
 import { newSecret, safeEqual } from "../../common/utils/crypto.util.js";
 import { ENV, type Env } from "../../config/config.module.js";
 import { IdentityProvider, type User } from "../../generated/prisma/client.js";
@@ -47,6 +55,8 @@ const METHOD: Record<IdentityProvider, SignInMethod> = {
 
 @Injectable()
 export class OAuthService {
+  private readonly log = new Logger(LoggerContext.OAUTH);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -123,7 +133,10 @@ export class OAuthService {
         nonce: st.nonce,
         redirectUri: this.redirectUri(provider),
       });
-    } catch {
+    } catch (err) {
+      this.log.warn(
+        `${provider} sign-in failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
       await this.auditFailure(provider, OAuthError.OAUTH_FAILED, null, meta);
       return this.fail(OAuthError.OAUTH_FAILED, page);
     }
@@ -209,8 +222,9 @@ export class OAuthService {
     let invite;
     try {
       invite = await this.invites.findValid(token ?? "");
-    } catch {
-      return this.fail(OAuthError.INVITE_INVALID);
+    } catch (e) {
+      if (e instanceof HttpException) return this.fail(OAuthError.INVITE_INVALID);
+      throw e;
     }
     if (invite.email !== identity.email) {
       return this.fail(OAuthError.INVITE_EMAIL_MISMATCH);

@@ -1,10 +1,11 @@
-import type { INestApplication } from "@nestjs/common";
+import { type INestApplication, Logger } from "@nestjs/common";
 import { ThrottlerStorage } from "@nestjs/throttler";
 import request from "supertest";
 
 import { AuditKind } from "../../src/audit/enums/audit-kind.enum.js";
 import { OAUTH_PROVIDERS } from "../../src/auth/oauth/constants/oauth.constants.js";
 import { loadEnv } from "../../src/config/env.schema.js";
+import { InvitesService } from "../../src/invites/invites.service.js";
 import { MailService } from "../../src/mail/mail.service.js";
 import { UserRole } from "../../src/users/enums/user-role.enum.js";
 import { type FakeAccount, startFakeOAuth } from "../fixtures/fake-oauth.js";
@@ -206,9 +207,12 @@ describe("OAuth sign-in", () => {
     const { code, state } = fake.authorize(s.location, account(user.email, "3"));
     const first = await callback("github", { code, state }, [s.state]);
     expect(first.session).toBeTruthy();
+    const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     const replay = await callback("github", { code, state }, [s.state]);
     expect(replay.location).toBe(`${PUBLIC_URL}/login?error=oauth_failed`);
     expect(replay.session).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^github sign-in failed: .+/));
+    warn.mockRestore();
   });
 
   it("reports a cancelled consent screen", async () => {
@@ -259,6 +263,22 @@ describe("accepting an invite with OAuth", () => {
     const token = await invite("new@test.dev");
     const res = await flow("google", account("other@test.dev"), `?mode=invite&invite=${token}`);
     expect(res.location).toBe(`${PUBLIC_URL}/login?error=invite_email_mismatch`);
+    expect(await prisma.user.count({ where: { email: "new@test.dev" } })).toBe(0);
+  });
+
+  it("does not report a database failure as an invalid invite", async () => {
+    const token = await invite("new@test.dev");
+    const lookup = vi
+      .spyOn(app.get(InvitesService), "findValid")
+      .mockRejectedValueOnce(new Error("db down"));
+    const s = await start("google", `?mode=invite&invite=${token}`);
+    const { code, state } = fake.authorize(s.location, account("new@test.dev"));
+    await http()
+      .get("/v1/auth/oauth/google/callback")
+      .query({ code, state })
+      .set("Cookie", s.state)
+      .expect(500);
+    expect(lookup).toHaveBeenCalledOnce();
     expect(await prisma.user.count({ where: { email: "new@test.dev" } })).toBe(0);
   });
 });
