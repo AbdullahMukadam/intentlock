@@ -1,6 +1,8 @@
 import { MessageRole } from "../provider/enums/message-role.enum.js";
 import { ToolChoice } from "../provider/enums/tool-choice.enum.js";
-import type { LLMProvider, Message, ToolDef } from "../provider/types.js";
+import { toProviderError } from "../provider/provider-error.js";
+import type { ChatResponse, LLMProvider, Message, ToolDef } from "../provider/types.js";
+import { EventType } from "./enums/event-type.enum.js";
 import { RunStatus } from "./enums/run-status.enum.js";
 import { executeCalls, type ExecuteContext, type GuardSession } from "./execute.js";
 
@@ -28,13 +30,22 @@ export async function runLoop(
   const messages: Message[] = [{ role: MessageRole.USER, text: task }];
   let text: string | undefined;
   for (let turn = 1; turn <= ctx.maxTurns; turn++) {
-    const res = await ctx.provider.chat({
-      ...(ctx.system !== undefined && { system: ctx.system }),
-      messages,
-      tools: ctx.tools,
-      toolChoice: ToolChoice.AUTO,
-      ...(ctx.maxTokens !== undefined && { maxTokens: ctx.maxTokens }),
-    });
+    let res: ChatResponse;
+    try {
+      res = await ctx.provider.chat({
+        ...(ctx.system !== undefined && { system: ctx.system }),
+        messages,
+        tools: ctx.tools,
+        toolChoice: ToolChoice.AUTO,
+        ...(ctx.maxTokens !== undefined && { maxTokens: ctx.maxTokens }),
+      });
+    } catch (err) {
+      const failure = toProviderError(ctx.provider.name, err).withRun(session.planId, [
+        ...messages,
+      ]);
+      ctx.emit({ type: EventType.ERROR, planId: session.planId, reason: failure.message });
+      throw failure;
+    }
     text = res.text;
     messages.push({
       role: MessageRole.ASSISTANT,

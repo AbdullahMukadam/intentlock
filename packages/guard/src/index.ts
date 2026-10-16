@@ -19,6 +19,11 @@ export { ToolChoice } from "./provider/enums/tool-choice.enum.js";
 export { FakeProvider, type FakeStep } from "./provider/fake.js";
 export { providerFromEnv, type ProviderFromEnvOptions } from "./provider/from-env.js";
 export {
+  ProviderError,
+  type ProviderErrorDetails,
+  toProviderError,
+} from "./provider/provider-error.js";
+export {
   OpenAICompatibleProvider,
   type OpenAICompatibleOptions,
 } from "./provider/openai-compatible.js";

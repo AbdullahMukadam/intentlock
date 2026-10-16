@@ -2,7 +2,8 @@ import { IntentlockError, Plan, type PlanInput } from "@intentlock/core";
 import { z } from "zod";
 
 import { MessageRole } from "../provider/enums/message-role.enum.js";
-import type { ChatRequest, LLMProvider, ToolDef } from "../provider/types.js";
+import { toProviderError } from "../provider/provider-error.js";
+import type { ChatRequest, ChatResponse, LLMProvider, ToolDef } from "../provider/types.js";
 
 export const DECLARE_PLAN = "declare_plan";
 
@@ -87,8 +88,13 @@ export async function planWithModel(
   };
   const problems: string[] = [];
   for (let attempt = 0; attempt < 2; attempt++) {
+    let res: ChatResponse;
     try {
-      const res = await provider.chat(req);
+      res = await provider.chat(req);
+    } catch (err) {
+      throw toProviderError(provider.name, err);
+    }
+    try {
       const calls = res.toolCalls.filter((c) => c.name === DECLARE_PLAN);
       if (calls.length !== 1 || res.toolCalls.length !== 1) {
         problems.push(`expected one ${DECLARE_PLAN} call, got ${res.toolCalls.length}`);

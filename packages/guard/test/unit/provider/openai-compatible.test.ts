@@ -2,10 +2,12 @@ import type {
   ChatCompletion,
   ChatCompletionMessageToolCall,
 } from "openai/resources/chat/completions";
+import OpenAI from "openai";
 import { describe, expect, test } from "vitest";
 
 import { MessageRole } from "../../../src/provider/enums/message-role.enum.js";
 import { ToolChoice } from "../../../src/provider/enums/tool-choice.enum.js";
+import { ProviderError } from "../../../src/provider/provider-error.js";
 import {
   fromCompletion,
   OpenAICompatibleProvider,
@@ -153,6 +155,26 @@ test("parseArgs rejects non-object JSON", () => {
   expect(parseArgs("[1]").argsError).toBe("Arguments must be a JSON object");
   expect(parseArgs("null").argsError).toBe("Arguments must be a JSON object");
   expect(parseArgs('{"a":1}')).toEqual({ args: { a: 1 } });
+});
+
+test.each([
+  [new OpenAI.RateLimitError(429, {}, "Rate limit reached", new Headers()), 429, true],
+  [new OpenAI.AuthenticationError(401, {}, "Incorrect API key", new Headers()), 401, false],
+  [new OpenAI.APIConnectionError({ message: "Connection error." }), null, true],
+])("chat turns SDK errors into ProviderError: %s", async (sdkError, status, retryable) => {
+  const client = {
+    chat: { completions: { create: () => Promise.reject(sdkError) } },
+  } as unknown as ConstructorParameters<typeof OpenAICompatibleProvider>[0]["client"];
+  const provider = new OpenAICompatibleProvider({ baseURL: "", apiKey: "", model: "m", client });
+  const err = await provider.chat(request).catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(ProviderError);
+  expect(err).toMatchObject({
+    provider: "openai-compatible:m",
+    status,
+    retryable,
+    cause: sdkError,
+  });
+  expect((err as ProviderError).message).toBe(`openai-compatible:m failed: ${sdkError.message}`);
 });
 
 test("chat sends mapped params through the client", async () => {

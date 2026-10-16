@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 
+import Anthropic from "@anthropic-ai/sdk";
 import type { Message as AnthropicMessage } from "@anthropic-ai/sdk/resources/messages";
 import { generateSigningKeyPair, parsePolicy } from "@intentlock/core";
 import {
@@ -8,6 +9,7 @@ import {
   defineTool,
   FakeProvider,
   MessageRole,
+  ProviderError,
   ToolChoice,
   toolset,
 } from "@intentlock/guard";
@@ -226,4 +228,20 @@ rules:
     type: "tool",
     name: "declare_plan",
   });
+});
+
+test.each([
+  [new Anthropic.InternalServerError(529, {}, "Overloaded", new Headers()), 529, true],
+  [new Anthropic.AuthenticationError(401, {}, "invalid x-api-key", new Headers()), 401, false],
+  [new Anthropic.APIConnectionError({ message: "Connection error." }), null, true],
+])("chat turns SDK errors into ProviderError: %s", async (sdkError, status, retryable) => {
+  const client = {
+    messages: { create: () => Promise.reject(sdkError) },
+  } as unknown as ConstructorParameters<typeof AnthropicProvider>[0]["client"];
+  const provider = new AnthropicProvider({ apiKey: "", model: "claude-x", client });
+  const err = await provider
+    .chat({ messages: [], tools: [], toolChoice: ToolChoice.AUTO })
+    .catch((e: unknown) => e);
+  expect(err).toBeInstanceOf(ProviderError);
+  expect(err).toMatchObject({ provider: "anthropic:claude-x", status, retryable, cause: sdkError });
 });

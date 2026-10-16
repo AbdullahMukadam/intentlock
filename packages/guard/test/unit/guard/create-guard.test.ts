@@ -19,6 +19,7 @@ import { PlanSource } from "../../../src/guard/enums/plan-source.enum.js";
 import { RunStatus } from "../../../src/guard/enums/run-status.enum.js";
 import type { GuardEvent } from "../../../src/guard/events.js";
 import { PlannerError } from "../../../src/guard/planner.js";
+import { ProviderError } from "../../../src/provider/provider-error.js";
 
 const USER = "alice@acme-demo.dev";
 const REPO = "acme-demo/public-app";
@@ -259,7 +260,7 @@ describe("planner", () => {
       "extra calls, then a wrong type",
       [turn(call("p", "declare_plan"), call("q", "list_issues")), declare([{ tool: 3 }])],
     ],
-    ["bad JSON, then provider error", [badJson, providerDown]],
+    ["bad JSON twice", [badJson, badJson]],
   ])("fails the run closed: %s", async (_name, script) => {
     const gate = localGate();
     const sign = vi.spyOn(gate, "signPlan");
@@ -268,6 +269,39 @@ describe("planner", () => {
     expect(sign).not.toHaveBeenCalled();
     expect(ran).toEqual([]);
     expect(events.map((e) => e.type)).toEqual([EventType.ERROR]);
+  });
+
+  test("a provider failure while planning is a ProviderError and fails the run closed", async () => {
+    const gate = localGate();
+    const sign = vi.spyOn(gate, "signPlan");
+    const { guard, ran, events } = setup([badJson, providerDown], gate);
+    const err = await guard.run({ user: USER, task: "Triage" }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ status: null, retryable: true });
+    expect(sign).not.toHaveBeenCalled();
+    expect(ran).toEqual([]);
+    expect(events.map((e) => e.type)).toEqual([EventType.ERROR]);
+  });
+
+  test("a provider failure mid-run keeps the plan id and transcript and emits an error", async () => {
+    const rateLimited: FakeStep = () => {
+      throw Object.assign(new Error("Rate limit reached"), { status: 429 });
+    };
+    const { guard, events } = setup([turn(call("c", "list_issues")), rateLimited], localGate(), {
+      planSource: PlanSource.EXPLICIT,
+    });
+    const err = await guard.run(listInput).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    const failure = err as ProviderError;
+    expect(failure).toMatchObject({ status: 429, retryable: true });
+    expect(failure.message).toMatch(/failed: 429 Rate limit reached$/);
+    expect(failure.planId).toBeTruthy();
+    expect(failure.messages?.map((m) => m.role)).toEqual([
+      MessageRole.USER,
+      MessageRole.ASSISTANT,
+      MessageRole.TOOL,
+    ]);
+    expect(events.at(-1)).toMatchObject({ type: EventType.ERROR, reason: failure.message });
   });
 
   test("explicit plan source skips the planner", async () => {

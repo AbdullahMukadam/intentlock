@@ -199,7 +199,20 @@ new OpenAICompatibleProvider({ baseURL, apiKey, model });
 new AnthropicProvider({ apiKey, model: "claude-sonnet-5-5" });
 ```
 
-To use another SDK, implement `LLMProvider` (`name` + `chat(request)`), mapping its tool-call format to `ToolCallReq` / `ToolResult`.
+To use another SDK, implement `LLMProvider` (`name` + `chat(request)`), mapping its tool-call format to `ToolCallReq` / `ToolResult`, and its errors with `toProviderError(name, err)`.
+
+If the model call fails (rate limit, outage, bad key), `run()` rejects with a `ProviderError`: `provider`, `status` (HTTP status or `null` for a network error), `retryable` (network errors, 408, 409, 429 and 5xx), and, when it happened after the plan was signed, `planId` and `messages` (the transcript so far). The guard also emits an `error` event. The built-in adapters already retry twice inside their SDKs; whether to retry the whole run is your call.
+
+```ts
+import { ProviderError } from "@intentlock/guard";
+
+try {
+  await guard.run({ user, task });
+} catch (err) {
+  if (err instanceof ProviderError && err.retryable) scheduleRetry(err.planId);
+  else throw err;
+}
+```
 
 ### 4.5 Keeping your own loop
 

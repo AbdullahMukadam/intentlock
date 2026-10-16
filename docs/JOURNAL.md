@@ -1201,3 +1201,15 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Guard tests 37 passing (was 35: the gate-failure case became three; the failed-wait case now checks the event and the result), 1 live test skipped without a model key; core, sdk, anthropic, evals, demo green; server hybrid and check suites green; lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — ProviderError
+
+**Done**
+- `@intentlock/guard` exports `ProviderError` (`provider`, `status`, `retryable`, and `planId` + `messages` when the failure happened after the plan was signed) and `toProviderError(name, err)`. Mapping is duck-typed on the SDK error's numeric `status`, so the guard still imports no provider SDK; retryable = network error (no status), 408, 409, 429, 5xx. The SDK message already starts with the status, so it is not repeated
+- Both adapters (`OpenAICompatibleProvider`, `AnthropicProvider`) map their SDK's errors; the guard loop and the planner map anything else (custom providers), so `run()` always rejects with a `ProviderError` for a model failure
+- The loop emits an `error` event and attaches the plan id and the transcript so far; `run()` still rejects (the evals runner and demo rely on that), so no caller changes
+- A provider error while planning is now a `ProviderError` instead of being folded into `PlannerError`; still fails closed (no plan signed, one `error` event)
+- USAGE §4.4: `ProviderError`, `toProviderError` for custom providers, a retry example
+
+**Numbers**
+- Guard tests 42 passing (was 37: planning provider failure, mid-run 429 with transcript, three OpenAI SDK error classes), anthropic 9 (+3 SDK error classes), each with 1 live test skipped; evals and demo green; lint, typecheck, prettier green
