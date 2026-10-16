@@ -1016,3 +1016,12 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Inbox typecheck, lint and tests green; policy tab screenshotted light and dark
+
+### 2026-10-15 · Session 17 (cont.) · CI — why every run failed
+
+**Problems hit and how they were solved**
+- CI has failed on every push since Phase 5. Two causes, both invisible locally:
+  1. (Phase 5, fixed earlier in `366aaa0`) the server's `src/keys/` module was gitignored, so a fresh checkout could not build
+  2. (since then) the inbox typecheck needs Next's generated route types (`PageProps`, typed routes), which live in the gitignored `.next/types` and only exist after `next dev`/`build`/`typegen`. Fixed: the inbox `typecheck` script runs `next typegen && tsc --noEmit`
+- Behind that, CI had never reached the tests: Turborepo's strict env mode drops variables a task doesn't declare, and locally the server tests read the root `.env` instead, so the workflow's `TEST_DATABASE_URL` never arrived. Fixed with `passThroughEnv` (`DATABASE_URL`, `DIRECT_URL`, `TEST_DATABASE_URL`) on the `test` task
+- Verified like CI: fresh clone in the scratch folder, `pnpm install --frozen-lockfile`, no `.env`, a separate `intentlock_ci` database: `format:check`, `lint`, `typecheck` and `test` (12 tasks) all pass
