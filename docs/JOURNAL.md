@@ -1119,3 +1119,19 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Server tests 178 (was 177); lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — database errors → 503
+
+**Done**
+- Probed what Prisma 7 with `@prisma/adapter-pg` really throws (throwaway script against the test database and a closed port): unreachable = `P1001` on model queries and `P2010` on raw queries, both with `meta.driverAdapterError.cause.kind = "DatabaseNotReachable"`; transaction could not start in time or expired = `P2028`; connection killed by the server = `P2010` with Postgres `57P01`. `P2024` is the native engine's pool timeout and does not occur with the adapter
+- `common/utils/db-error.util.ts` `dbErrorStatus()`: transient → 503 (Prisma `P1001/P1002/P1008/P1017/P2024/P2028`, adapter kinds `DatabaseNotReachable`, `ConnectionClosed`, `SocketTimeout`, `TooManyConnections`, `TransactionAlreadyClosed`, Postgres `08xxx`, `40001`, `40P01`, `53300`, `57P01-03`, `PrismaClientInitializationError`); unique violation → 409; everything else stays a 500. New enums `PrismaErrorCode` (extended), `DriverErrorKind`, `PgErrorCode`; `ErrorCode.DATABASE_UNAVAILABLE`, `ErrorCode.CONFLICT`
+- `HttpExceptionFilter`: 503 `database_unavailable` with `Retry-After: 2`, logged as `warn`; 409 `conflict` for unique violations no service mapped (the agent and invite services keep their specific codes); the message (which names host and port) never reaches the body
+- Clients unchanged: the SDK treats every 5xx as unavailable (block) and the outbox worker retries uploads
+
+**Problems hit and how they were solved**
+- `pg_sleep` returns `void`, which `$queryRaw` cannot deserialize → `$executeRaw` in the probe
+- With the adapter, a query waits for a free pool connection without any timeout; that is for the pool-settings task
+- No e2e with an exhausted pool yet: app startup queries the database, so an app on a dead database cannot boot, and killing connections mid-test is timing-dependent. The unit tests use the exact shapes from the probe; Abdullah agreed the scale-test burst in the phase acceptance covers the real-load case
+
+**Numbers**
+- Server tests 190 (was 178: 11 classification cases, 2 filter cases); lint, typecheck, prettier green
