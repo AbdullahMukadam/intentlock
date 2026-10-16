@@ -1051,3 +1051,29 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - The `intentlock-scale-*` containers from the last run may still be up; `docker compose -f deploy/docker-compose.scale.yml down -v` removes them (no network use)
 - The scale-test files stay uncommitted in the working tree until Phase 6 resumes
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — error-handling review
+
+**Done**
+- Read all 86 `catch` sites outside tests and generated code, every `void` / `.then` fire-and-forget promise, the three HTTP clients (SDK, inbox, CLI), the server's global filter and every entry point. Findings below, most severe first
+
+**Findings**
+- Fail-closed holds everywhere it matters: core `check()` and `decide()`, `HybridGate` (JWKS, hold creation, outbox append), the guard's `safeCheck` and `waitSafely` all turn errors into a block or a rejected hold. No catch found that can widen a decision
+- **Server crash (high):** `events/events.service.ts:20` runs `recheckSessions()` every 60 s with `void` and no catch; with any inbox socket open, a database error there is an unhandled rejection, which ends the Node 22 process. There is no process-level `unhandledRejection` handler that logs it first
+- **Wrong status under load (high):** database timeouts and lost connections (`P2024`, `P2028`, `P1001`, `P1017`) reach the global filter as unknown errors → bare 500 (seen in the scale test). Unique-violation mapping is duplicated in `agents.service.ts:131` and `invites.service.ts:212` instead of living in one place
+- **Lock held too long (high):** `audit/batch.service.ts:57-101` holds the global chain lock while verifying tokens, hashing and re-checking every entry
+- **Errors that change meaning (medium):**
+  - `guard/execute.ts:48` `safeCheck` reports every gate error as `server_unavailable` and emits no `error` event: a revoked API key (401) or disabled agent (403) looks like an outage
+  - `guard/execute.ts:64` `waitSafely` turns a network failure into `expired`
+  - `auth/oauth/oauth.service.ts:210` catches everything from `invites.findValid`, so a database error becomes `invite_invalid`; line 126 audits `oauth_failed` but never logs the provider's error, so a misconfigured OAuth app can't be diagnosed
+- **Provider errors leak through the guard (medium):** `guard/loop.ts:31` and the planner let OpenAI/Anthropic SDK errors (429, 5xx, timeouts after their 2 built-in retries) reject `run()` raw: no `error` event, no provider-agnostic error type, and the transcript so far is lost
+- **Silent audit loss on restart (medium):** `sdk/outbox/file-outbox.ts:80-95` skips corrupt outbox lines and treats every read error (e.g. `EACCES`) as "no file", with no `onError` call
+- **Errors without their cause (medium):** `GateUnavailableError` says `POST /v1/check failed`; the reason (`ECONNRESET`, status) is only on `err.cause`
+- **CLI crashes with a stack trace (medium):** `cli/api/api-client.ts:30` doesn't wrap `fetch`, and `program.ts:41` rethrows non-`CliError`s, so an unreachable server prints Node's stack; `session-store.ts:27` `JSON.parse` of a corrupt session file throws the same way
+- **Inbox (low to medium):** no `error.tsx` / `global-error.tsx`, so a render error shows Next's default screen; `agent-filter.tsx` and `latest-activity.tsx` ignore load errors and render empty; `team-view.tsx:230` says "Groups are lowercase letters…" for any failure, network included; several toasts drop the server's error code ("Could not create the key."); eight copies of a `message(error)` helper; `request()` throws a raw `ZodError` when a response doesn't match its schema
+- **Lint gap:** ESLint has no type-aware promise rules (`no-floating-promises`, `no-misused-promises`), which is how the `recheckSessions` crash got in
+- **Small:** `server/main.ts:11` has a code comment (`// no .env file`), against the no-comments rule, and its catch also hides a malformed `.env`; `license.service.ts:97` hides why the license file couldn't be read
+- Already fine: the SDK outbox worker retries uploads with backoff; mail failures are logged and never block; the hold expiry timer logs its errors; the evals and demo entry points print a message and set the exit code; the evals runner retries only rate-limit errors
+
+**Next**
+- ADR: error policy (Phase 5.7, second task)

@@ -240,13 +240,15 @@ Added on 2026-10-16. Phase 6 is paused until this phase is done (its README task
 Today errors already go through one place per layer: the server's global `HttpExceptionFilter` (unknown errors become a bare 500 and are logged), the SDK's `HttpClient` (network and 5xx become `GateUnavailableError`, so the gates fail closed), and the inbox's `request()` (errors become `ApiError`). Wrapping every call in `try/catch` is therefore not the goal: a local catch that swallows an error can turn a block into an allow. The goal is to find the places where an error is lost, mapped to the wrong status, missing its cause, or not shown to the user, and fix each one with a test.
 
 **Review and decide first**
-- [ ] Error-handling review of every package (server, sdk, guard, anthropic, core, cli, demo, inbox, evals): each place an error is thrown, caught, swallowed, retried or returned; findings listed in the journal with file and line
+- [x] Error-handling review of every package (server, sdk, guard, anthropic, core, cli, demo, inbox, evals): each place an error is thrown, caught, swallowed, retried or returned; findings listed in the journal with file and line
 - [ ] ADR: error policy: which layer catches what; status codes for client errors, conflicts, transient failures (503 + `Retry-After`) and bugs (500); what is logged, at which level, with which fields; what a client may retry; the rule that a catch never widens a decision
 
 **Lint**
 - [ ] Type-aware ESLint rules in `packages/config/eslint.js`: `no-floating-promises`, `no-misused-promises`, `only-throw-error`, `use-unknown-in-catch-callback-variable`; fix every finding
 
 **Server**
+- [ ] Crash fix: `events.service.ts` `recheckSessions()` runs on a timer with `void` and no catch, so a database error with an inbox socket open ends the process → catch and log it; add process-level `unhandledRejection` / `uncaughtException` handlers that log through pino before exiting; test with a failing session lookup
+- [ ] OAuth: catch only `HttpException` around `invites.findValid` (a database error must not become `invite_invalid`); log the provider's error behind `oauth_failed`
 - [ ] Map database errors once in the global filter: transaction timeout, pool exhausted, connection lost (Prisma `P2024`, `P2028`, `P1001`, `P1017` and driver-adapter equivalents) → 503 `database_unavailable` with `Retry-After`; known unique violations → 409; e2e tests with an exhausted pool
 - [ ] Audit batch ingest (`audit/batch.service.ts`) holds the global chain lock for the whole batch, including signature checks, hashing and decision re-checks → do that work before taking the lock and hold it only to read the chain head and insert; tests that ordering, idempotency on `(planId, clientSeq)` and flagging are unchanged
 - [ ] Database pool and transaction limits from env (`DATABASE_POOL_MAX`, transaction `maxWait` / `timeout`) with defaults documented in DEPLOYMENT §2
@@ -254,13 +256,18 @@ Today errors already go through one place per layer: the server's global `HttpEx
 
 **SDK and guard**
 - [ ] `GateUnavailableError` messages carry the cause (HTTP status or network code such as `ECONNRESET`), and the guard's `error` events pass it on; today the message is only `POST /v1/check failed`
-- [ ] Retries only where they are safe (JWKS fetch, hold wait, audit batch upload, which is idempotent), with backoff; never for sign or check; tests for both
+- [ ] Guard keeps the cause of a block: `safeCheck` emits an `error` event and maps 401/403 (revoked key, disabled agent) to their own client block reasons instead of `server_unavailable`; `waitSafely` reports a network failure as an error, not `expired`; still fail closed; tests
+- [ ] Provider failures: `runLoop` and the planner wrap LLM errors in a provider-agnostic `ProviderError` (status, retryable), emit an `error` event and keep the transcript so far; adapters map OpenAI/Anthropic errors to it; tests with `FakeProvider`
+- [ ] File outbox recovery: report corrupt lines and unreadable files through `onError` (only a missing file means "nothing to recover"); test
+- [ ] Retries only where they are safe (JWKS fetch, hold wait), with backoff; never for sign or check; the outbox upload already retries with backoff; tests
 
 **Inbox**
 - [ ] Route error boundaries (`error.tsx`, `global-error.tsx`); a network failure or an unexpected response shape shows a retryable error state instead of a blank page or Next's default error screen; tests for the error state
+- [ ] One shared error-message helper in `lib/` instead of eight `message(error)` copies; toasts include the server's error code; `agent-filter` and `latest-activity` show load errors; `team-view` group edit only blames the format on a 400; `request()` turns a schema mismatch into `ApiError` (`unexpected_response`)
 
 **CLI, demo, evals**
-- [ ] One top-level handler per entry point: readable message and non-zero exit code for network errors, 4xx with the server's error code, and 5xx with the request id
+- [ ] One top-level handler per entry point: readable message and non-zero exit code for network errors, 4xx with the server's error code, and 5xx with the request id. CLI: wrap `fetch` in `api-client.ts` and guard `JSON.parse` in `session-store.ts`, which today print a stack trace
+- [ ] Small: remove the comment in `server/main.ts` and catch only a missing `.env` there; `license.service.ts` logs why the license file could not be read
 
 **Acceptance:** review findings and the ADR are recorded; lint with the new rules is green; no known transient database failure returns a bare 500; every SDK error says why it failed; the inbox shows an error state when the server is down; `pnpm test && pnpm lint && pnpm typecheck` green; a remote-check burst of 50 plans × 20 concurrent checks across two instances returns no 500s (local scale stack; images are cached, no new downloads).
 
