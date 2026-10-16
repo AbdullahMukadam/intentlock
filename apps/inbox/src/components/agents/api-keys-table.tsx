@@ -1,59 +1,40 @@
 "use client";
 
 import { API_ENDPOINTS } from "@intentlock/core";
+import { Badge } from "@intentlock/ui/components/badge";
 import { Button } from "@intentlock/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@intentlock/ui/components/card";
 import { Input } from "@intentlock/ui/components/input";
-import { Check, Copy } from "lucide-react";
+import {
+  Panel,
+  PanelActions,
+  PanelBody,
+  PanelCount,
+  PanelHeader,
+  PanelTitle,
+} from "@intentlock/ui/components/panel";
+import { Skeleton } from "@intentlock/ui/components/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@intentlock/ui/components/table";
+import { KeyRound, Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import Loader from "@/components/loader";
+import { EmptyState } from "@/components/empty-state";
+import { SecretReveal } from "@/components/secret-reveal";
 import { api, apiUrl } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
-import { formatTime } from "@/lib/format";
+import { formatRelative, formatTime } from "@/lib/format";
 import { ApiKeyViews, NewApiKey } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
-const HEADERS = ["Name", "Prefix", "Created", "Created by", "Last used", "Status", ""];
-
-function RevealedKey({ apiKey, onDone }: { apiKey: string; onDone: () => void }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Card size="sm" className="border-primary">
-      <CardHeader>
-        <CardTitle>Copy your new API key now</CardTitle>
-        <CardDescription>It is shown once. Only its hash is stored on the server.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center gap-2">
-        <code className="bg-muted px-2 py-1 font-mono text-xs break-all">{apiKey}</code>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            navigator.clipboard.writeText(apiKey).then(
-              () => setCopied(true),
-              () => toast.error("Copy failed; select the key and copy it by hand."),
-            )
-          }
-        >
-          {copied ? <Check /> : <Copy />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onDone}>
-          Done
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+const HEADERS = ["Name", "Prefix", "Created", "Last used", "Status", ""];
 
 export function ApiKeysTable({ agentId }: { agentId: string }) {
   const { data, error, reload } = useApi(
@@ -96,70 +77,106 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
 
   return (
     <div className="grid gap-4">
-      {revealed && <RevealedKey apiKey={revealed} onDone={() => setRevealed(null)} />}
-      <form action={create} className="flex flex-wrap gap-2">
-        <Input
-          name="name"
-          aria-label="Key name"
-          placeholder="Key name, e.g. production"
-          maxLength={64}
-          required
-          className="w-64"
+      {revealed && (
+        <SecretReveal
+          title="Copy your new API key now"
+          description="It is shown once; only its hash is stored. Put it in your agent app's environment as INTENTLOCK_API_KEY."
+          secret={revealed}
+          onDone={() => setRevealed(null)}
         />
-        <Button type="submit" disabled={busy}>
-          Create key
-        </Button>
-      </form>
-      {error ? (
-        <p className="text-sm text-destructive">Could not load API keys.</p>
-      ) : !data ? (
-        <Loader />
-      ) : (
-        <div className="overflow-x-auto border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-              <tr>
-                {HEADERS.map((h, i) => (
-                  <th key={i} className="px-3 py-2 font-medium">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={HEADERS.length}
-                    className="px-3 py-6 text-center text-muted-foreground"
-                  >
-                    No keys yet.
-                  </td>
-                </tr>
-              )}
-              {data.map((k) => (
-                <tr key={k.id} className="border-t">
-                  <td className="px-3 py-2">{k.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{k.prefix}…</td>
-                  <td className="px-3 py-2">{formatTime(k.createdAt)}</td>
-                  <td className="px-3 py-2">{k.createdBy}</td>
-                  <td className="px-3 py-2">{k.lastUsedAt ? formatTime(k.lastUsedAt) : "never"}</td>
-                  <td className="px-3 py-2">
-                    {k.revokedAt ? `revoked ${formatTime(k.revokedAt)}` : "active"}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {!k.revokedAt && (
-                      <Button variant="destructive" size="sm" onClick={() => revoke(k.id, k.name)}>
-                        Revoke
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       )}
+      <Panel>
+        <PanelHeader className="flex-wrap">
+          <PanelTitle>
+            <KeyRound />
+            API keys
+            {data && <PanelCount>{data.filter((k) => !k.revokedAt).length}</PanelCount>}
+          </PanelTitle>
+          <PanelActions>
+            <form action={create} className="flex gap-2">
+              <Input
+                name="name"
+                aria-label="Key name"
+                placeholder="Where it runs, e.g. production"
+                maxLength={64}
+                required
+                className="h-8 w-56"
+              />
+              <Button type="submit" size="sm" disabled={busy}>
+                <Plus /> Create key
+              </Button>
+            </form>
+          </PanelActions>
+        </PanelHeader>
+        {error ? (
+          <PanelBody className="p-0">
+            <EmptyState icon={TriangleAlert} title="Could not load API keys" />
+          </PanelBody>
+        ) : !data ? (
+          <PanelBody className="grid gap-2">
+            <Skeleton className="h-10" />
+          </PanelBody>
+        ) : data.length === 0 ? (
+          <PanelBody className="p-0">
+            <EmptyState
+              icon={KeyRound}
+              title="No API keys yet"
+              description="Create one key per place the agent runs, such as production or staging. Name it above."
+            />
+          </PanelBody>
+        ) : (
+          <PanelBody className="overflow-hidden p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  {HEADERS.map((h, i) => (
+                    <TableHead key={i}>{h}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((k) => (
+                  <TableRow key={k.id}>
+                    <TableCell className="font-medium">{k.name}</TableCell>
+                    <TableCell label="Prefix" className="font-mono text-xs text-muted-foreground">
+                      {k.prefix}…
+                    </TableCell>
+                    <TableCell label="Created" className="text-muted-foreground">
+                      <span title={formatTime(k.createdAt)}>{formatRelative(k.createdAt)}</span>
+                      <span className="block text-xs">by {k.createdBy}</span>
+                    </TableCell>
+                    <TableCell label="Last used" className="text-muted-foreground">
+                      {k.lastUsedAt ? formatRelative(k.lastUsedAt) : "never"}
+                    </TableCell>
+                    <TableCell label="Status">
+                      {k.revokedAt ? (
+                        <Badge>Revoked</Badge>
+                      ) : (
+                        <Badge tone="success">
+                          <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                          Active
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell label="" className="text-right">
+                      {!k.revokedAt && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => revoke(k.id, k.name)}
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </PanelBody>
+        )}
+      </Panel>
     </div>
   );
 }

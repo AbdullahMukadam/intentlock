@@ -10,9 +10,10 @@ datasource db {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  setupCodeHash String?
+  createdAt     DateTime @default(now())
 }
 
 model Agent {
@@ -46,16 +47,67 @@ model ApiKey {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  orgId          String
-  email          String
-  role           Role      @default(member)
-  groups         String[]  @default([])
-  loginTokenHash String?
-  disabledAt     DateTime?
-  createdAt      DateTime  @default(now())
+  id                String     @id @default(cuid())
+  orgId             String
+  email             String
+  role              Role       @default(member)
+  groups            String[]   @default([])
+  passwordHash      String?
+  cliTokenHash      String?
+  cliTokenCreatedAt DateTime?
+  disabledAt        DateTime?
+  createdAt         DateTime   @default(now())
+  identities        Identity[]
 
   @@unique([orgId, email])
+}
+
+model Identity {
+  id        String           @id @default(cuid())
+  orgId     String
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  provider  IdentityProvider
+  subject   String
+  email     String
+  createdAt DateTime         @default(now())
+
+  @@unique([orgId, provider, subject])
+  @@unique([userId, provider])
+}
+
+enum IdentityProvider {
+  google
+  github
+}
+
+model Invite {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       Role
+  groups     String[]  @default([])
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  invitedBy  String
+  createdAt  DateTime  @default(now())
+
+  @@index([orgId, email])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  orgId     String
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdBy String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 enum Role {
@@ -107,6 +159,8 @@ model Session {
   orgId     String
   userId    String
   expiresAt DateTime
+  ip        String?
+  userAgent String?
   createdAt DateTime @default(now())
 
   @@index([userId])

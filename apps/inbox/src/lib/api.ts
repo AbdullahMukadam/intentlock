@@ -23,6 +23,8 @@ type Options = {
   body?: unknown;
 };
 
+const NO_LOGIN_REDIRECT = new Set<string>([API_ENDPOINTS.AUTH_LOGIN, API_ENDPOINTS.SETUP]);
+
 export function apiUrl(endpoint: ApiEndpoint, { params, query }: Options = {}) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -53,7 +55,10 @@ export async function request<S extends z.ZodType>(
     credentials: "same-origin",
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === HttpStatus.UNAUTHORIZED && url !== apiUrl(API_ENDPOINTS.AUTH_LOGIN)) {
+  if (
+    res.status === HttpStatus.UNAUTHORIZED &&
+    !NO_LOGIN_REDIRECT.has(url.slice(API_PREFIX.length).split("?")[0] ?? "")
+  ) {
     loginRedirect();
   }
   const data: unknown =

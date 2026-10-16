@@ -11,6 +11,14 @@ import {
 } from "@intentlock/ui/components/card";
 import { Input } from "@intentlock/ui/components/input";
 import { Textarea } from "@intentlock/ui/components/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@intentlock/ui/components/table";
 import { useState } from "react";
 
 import { VerdictBadge } from "@/components/verdict-badge";
@@ -66,7 +74,7 @@ function Results({ result }: { result: PolicyTestResult }) {
           result.changed.map((c) => (
             <span
               key={`${c.from}-${c.to}`}
-              className="inline-flex items-center gap-1 border px-2 py-0.5"
+              className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2 py-1"
             >
               <VerdictBadge verdict={c.from} /> → <VerdictBadge verdict={c.to} />
               <span className="tabular-nums">× {c.count}</span>
@@ -75,43 +83,48 @@ function Results({ result }: { result: PolicyTestResult }) {
         )}
       </div>
       {rows.length > 0 && (
-        <div className="max-h-80 overflow-auto border">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-muted text-left text-muted-foreground">
-              <tr>
+        <div className="max-h-80 overflow-auto rounded-lg border">
+          <Table>
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent">
                 {HEADERS.map((h) => (
-                  <th key={h} className="px-2 py-1.5 font-medium">
-                    {h}
-                  </th>
+                  <TableHead key={h}>{h}</TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((r, i) => {
                 const changed = r.from.verdict !== r.to.verdict;
                 return (
-                  <tr key={i} className={changed ? "border-t bg-muted/60 font-medium" : "border-t"}>
-                    <td className="px-2 py-1.5 font-mono">{r.call.tool}</td>
-                    <td className="max-w-xs truncate px-2 py-1.5 font-mono">
+                  <TableRow key={i} className={changed ? "bg-warning/8 font-medium" : undefined}>
+                    <TableCell className="font-mono text-xs">{r.call.tool}</TableCell>
+                    <TableCell
+                      label="Arguments"
+                      className="max-w-xs truncate font-mono text-xs text-muted-foreground"
+                    >
                       {JSON.stringify(r.call.args)}
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <VerdictBadge verdict={r.from.verdict} />{" "}
-                      <span className="font-mono text-muted-foreground">
-                        {r.from.ruleId ?? "default"}
+                    </TableCell>
+                    <TableCell label="Active policy">
+                      <span className="inline-flex items-center gap-1.5">
+                        <VerdictBadge verdict={r.from.verdict} />
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {r.from.ruleId ?? "default"}
+                        </span>
                       </span>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <VerdictBadge verdict={r.to.verdict} />{" "}
-                      <span className="font-mono text-muted-foreground">
-                        {r.to.ruleId ?? "default"}
+                    </TableCell>
+                    <TableCell label="This draft">
+                      <span className="inline-flex items-center gap-1.5">
+                        <VerdictBadge verdict={r.to.verdict} />
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {r.to.ruleId ?? "default"}
+                        </span>
                       </span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

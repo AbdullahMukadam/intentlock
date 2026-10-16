@@ -19,6 +19,7 @@ import {
   createAgentWithKey,
   createOrg,
   createTestApp,
+  createUser,
   CSRF,
   planFor,
   signedIn,
@@ -152,15 +153,16 @@ describe("license limits", () => {
       .expect(403);
   });
 
-  it("enforces maxUsers (the admin counts)", async () => {
-    const add = (email: string) =>
-      http()
-        .post("/v1/users")
-        .set("Cookie", admin.cookie)
-        .set(CSRF)
-        .send({ email, role: UserRole.MEMBER });
-    for (let i = 0; i < 4; i++) await add(`u${i}@test.dev`).expect(201);
-    const over = await add("u5@test.dev").expect(403);
+  it("enforces maxUsers when re-enabling a user (the admin counts)", async () => {
+    for (let i = 0; i < 4; i++) await createUser(prisma, orgId);
+    const { user } = await createUser(prisma, orgId);
+    await prisma.user.update({ where: { id: user.id }, data: { disabledAt: new Date() } });
+    const over = await http()
+      .patch(`/v1/users/${user.email}`)
+      .set("Cookie", admin.cookie)
+      .set(CSRF)
+      .send({ disabled: false })
+      .expect(403);
     expect(over.body).toMatchObject({ error: "user_limit_reached", max: 5 });
   });
 

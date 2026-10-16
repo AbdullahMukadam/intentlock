@@ -1,10 +1,13 @@
 import { Module } from "@nestjs/common";
 import { ThrottlerModule } from "@nestjs/throttler";
 
+import { ENV, type Env } from "../config/config.module.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { SessionsService } from "./sessions.service.js";
 import { LoginThrottler } from "./enums/login-throttler.enum.js";
+import { OAUTH_PROVIDERS } from "./oauth/constants/oauth.constants.js";
+import { oauthProvidersFromEnv } from "./oauth/utils/oauth-providers.util.js";
 
 const MINUTE = 60_000;
 
@@ -30,7 +33,15 @@ const MINUTE = 60_000;
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SessionsService],
-  exports: [SessionsService],
+  providers: [
+    AuthService,
+    SessionsService,
+    {
+      provide: OAUTH_PROVIDERS,
+      inject: [ENV],
+      useFactory: (env: Env) => oauthProvidersFromEnv(env),
+    },
+  ],
+  exports: [SessionsService, OAUTH_PROVIDERS],
 })
 export class AuthModule {}

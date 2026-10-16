@@ -1,6 +1,7 @@
 "use client";
 
 import { API_ENDPOINTS } from "@intentlock/core";
+import { Badge } from "@intentlock/ui/components/badge";
 import { Button } from "@intentlock/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@intentlock/ui/components/card";
 import { useState } from "react";
@@ -65,15 +66,12 @@ export function VersionHistory({
         <CardTitle>History</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <ul className="grid gap-1 text-sm">
+        <ul className="-my-2 grid divide-y text-sm">
           {versions.map((v) => {
             const isActive = v.version === active.version;
             return (
-              <li
-                key={v.version}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t py-1.5"
-              >
-                <span className="w-10 font-mono">v{v.version}</span>
+              <li key={v.version} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+                <Badge className="w-10 justify-center font-mono">v{v.version}</Badge>
                 <span className="min-w-40 flex-1">
                   {v.message ?? <span className="text-muted-foreground">no message</span>}
                   {v.rolledBackFrom && (
@@ -82,7 +80,7 @@ export function VersionHistory({
                 </span>
                 <span className="text-xs text-muted-foreground">{formatTime(v.createdAt)}</span>
                 {isActive ? (
-                  <span className="text-xs font-medium">active</span>
+                  <Badge tone="success">active</Badge>
                 ) : (
                   <>
                     <Button

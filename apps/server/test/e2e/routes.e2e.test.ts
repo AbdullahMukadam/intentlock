@@ -13,7 +13,21 @@ import { configureApp } from "../../src/configure-app.js";
 import { CSRF } from "./helpers.js";
 
 // Adding a public route is a security decision: update this list in the same change.
-const PUBLIC = ["POST /v1/auth/login", "GET /health", "GET /health/ready", "GET /v1/keys/jwks"];
+const PUBLIC = [
+  "GET /v1/setup/status",
+  "POST /v1/setup",
+  "GET /v1/auth/methods",
+  "POST /v1/auth/login",
+  "GET /v1/auth/oauth/:provider",
+  "GET /v1/auth/oauth/:provider/callback",
+  "POST /v1/auth/password/forgot",
+  "POST /v1/auth/password/reset",
+  "POST /v1/invites/lookup",
+  "POST /v1/invites/accept",
+  "GET /health",
+  "GET /health/ready",
+  "GET /v1/keys/jwks",
+];
 const AGENT = [
   "POST /v1/plans",
   "POST /v1/plans/:id/refresh",

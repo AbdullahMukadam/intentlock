@@ -14,6 +14,7 @@ export const DemoEnv = z.object({
   GITHUB_PRIVATE_REPO: z.string().default("private-notes"),
   INTENTLOCK_URL: z.url().default("http://localhost:3000"),
   INTENTLOCK_ADMIN_EMAIL: Optional,
+  INTENTLOCK_ADMIN_PASSWORD: Optional,
   INTENTLOCK_ADMIN_TOKEN: Optional,
   INTENTLOCK_API_KEY_GITHUB_ASSISTANT: Optional,
   INTENTLOCK_API_KEY_SUPPORT_ASSISTANT: Optional,

@@ -1,5 +1,6 @@
 import type { INestApplication, Type } from "@nestjs/common";
 import { Test, type TestingModuleBuilder } from "@nestjs/testing";
+import { type ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
 import { type PlanInput, verifyChain } from "@intentlock/core";
 import request from "supertest";
 
@@ -8,8 +9,10 @@ import { createAgent } from "../../src/agents/utils/create-agent.util.js";
 import { AppModule } from "../../src/app.module.js";
 import { SESSION_COOKIE, SESSION_TTL_MS } from "../../src/auth/constants/session.constants.js";
 import { toAuditEntry } from "../../src/audit/utils/to-audit-entry.util.js";
+import { hashPassword } from "../../src/auth/utils/password.util.js";
 import { newSecret, sha256Hex } from "../../src/common/utils/crypto.util.js";
 import { configureApp } from "../../src/configure-app.js";
+import { MailService } from "../../src/mail/mail.service.js";
 import { orgDb } from "../../src/org/utils/org-db.util.js";
 import type { PrismaClient, Role } from "../../src/generated/prisma/client.js";
 import { UserRole } from "../../src/users/enums/user-role.enum.js";
@@ -52,10 +55,62 @@ export async function createUser(
       email: `${role}-${++n}@test.dev`,
       role,
       groups,
-      loginTokenHash: sha256Hex(token),
+      cliTokenHash: sha256Hex(token),
+      cliTokenCreatedAt: new Date(),
     },
   });
   return { user, token };
+}
+
+export const PASSWORD = "correct horse battery staple";
+
+export async function createUserWithPassword(
+  prisma: PrismaClient,
+  orgId: string,
+  role: Role = UserRole.MEMBER,
+  groups: string[] = [],
+) {
+  const { user } = await createUser(prisma, orgId, role, groups);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(PASSWORD) },
+  });
+  return { user, password: PASSWORD };
+}
+
+export class FakeMail {
+  enabled = true;
+  fail = false;
+  sent: { to: string; subject: string; text: string }[] = [];
+  sendInvite = MailService.prototype.sendInvite;
+  sendPasswordReset = MailService.prototype.sendPasswordReset;
+
+  send(to: string, subject: string, text: string): Promise<boolean> {
+    if (!this.enabled || this.fail) return Promise.resolve(false);
+    this.sent.push({ to, subject, text });
+    return Promise.resolve(true);
+  }
+}
+
+export class ResettableThrottlerStorage implements ThrottlerStorage {
+  private inner = new ThrottlerStorageService();
+
+  increment(...args: Parameters<ThrottlerStorage["increment"]>) {
+    return this.inner.increment(...args);
+  }
+
+  reset() {
+    this.inner.onApplicationShutdown();
+    this.inner = new ThrottlerStorageService();
+  }
+}
+
+export function linkToken(link: string): string {
+  return link.split("/").pop()!;
+}
+
+export function cookieOf(res: { get(name: string): string[] | undefined }): string {
+  return res.get("set-cookie")![0]!.split(";")[0]!;
 }
 
 export async function sessionCookie(prisma: PrismaClient, user: { id: string; orgId: string }) {

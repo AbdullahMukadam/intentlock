@@ -1,12 +1,11 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
-import { sha256Hex } from "../../src/common/utils/crypto.util.js";
-import { bootstrapOrg } from "../../src/org/utils/bootstrap-org.util.js";
 import {
   createOrg,
   createTestApp,
   createUser,
+  createUserWithPassword,
   CSRF,
   sessionCookie,
   verifyAuditChain,
@@ -98,34 +97,47 @@ describe("sessions", () => {
 });
 
 describe("users (admin only)", () => {
-  it("creates a user whose one-time token signs in; duplicates are 409", async () => {
+  it("lists users with their sign-in methods and no secrets", async () => {
     const { user: admin } = await createUser(prisma, orgId, UserRole.ADMIN);
-    const cookie = await sessionCookie(prisma, admin);
-    const res = await http()
-      .post("/v1/users")
-      .set("Cookie", cookie)
-      .set(CSRF)
-      .send({ email: "New@Test.dev", role: UserRole.APPROVER, groups: ["oncall"] })
-      .expect(201);
-    expect(res.body.user).toMatchObject({ email: "new@test.dev", role: UserRole.APPROVER });
-    expect(res.body.user).not.toHaveProperty("loginTokenHash");
-    await login("new@test.dev", res.body.loginToken).expect(200);
-    await http()
-      .post("/v1/users")
-      .set("Cookie", cookie)
-      .set(CSRF)
-      .send({ email: "new@test.dev", role: UserRole.MEMBER })
-      .expect(409);
-    const list = await http().get("/v1/users").set("Cookie", cookie).expect(200);
+    const { user } = await createUserWithPassword(prisma, orgId);
+    await prisma.identity.create({
+      data: { orgId, userId: user.id, provider: "github", subject: "42", email: user.email },
+    });
+    const list = await http()
+      .get("/v1/users")
+      .set("Cookie", await sessionCookie(prisma, admin))
+      .expect(200);
     expect(list.body).toHaveLength(2);
+    expect(list.body[1]).toMatchObject({
+      email: user.email,
+      hasPassword: true,
+      providers: ["github"],
+    });
+    expect(JSON.stringify(list.body)).not.toMatch(/Hash/);
   });
 
-  it("is forbidden to members and approvers", async () => {
+  it("shows members and approvers a read-only list without sign-in details", async () => {
+    const { user: target } = await createUserWithPassword(prisma, orgId);
     for (const role of [UserRole.MEMBER, UserRole.APPROVER]) {
       const { user } = await createUser(prisma, orgId, role);
+      const cookie = await sessionCookie(prisma, user);
+      const list = await http().get("/v1/users").set("Cookie", cookie).expect(200);
+      expect(list.body[0]).toEqual({
+        email: target.email,
+        role: UserRole.MEMBER,
+        groups: [],
+        disabledAt: null,
+      });
       await http()
-        .get("/v1/users")
-        .set("Cookie", await sessionCookie(prisma, user))
+        .patch(`/v1/users/${target.email}`)
+        .set("Cookie", cookie)
+        .set(CSRF)
+        .send({ disabled: true })
+        .expect(403);
+      await http()
+        .post(`/v1/users/${target.email}/reset-link`)
+        .set("Cookie", cookie)
+        .set(CSRF)
         .expect(403);
     }
   });
@@ -151,20 +163,6 @@ describe("users (admin only)", () => {
     await http().get("/v1/me").set("Cookie", cookie).expect(401);
   });
 
-  it("re-issuing a token ends sessions and invalidates the old token", async () => {
-    const { user: admin } = await createUser(prisma, orgId, UserRole.ADMIN);
-    const { user, token } = await createUser(prisma, orgId);
-    const theirs = await sessionCookie(prisma, user);
-    const res = await http()
-      .post(`/v1/users/${user.email}/token`)
-      .set("Cookie", await sessionCookie(prisma, admin))
-      .set(CSRF)
-      .expect(201);
-    await http().get("/v1/me").set("Cookie", theirs).expect(401);
-    await login(user.email, token).expect(401);
-    await login(user.email, res.body.loginToken).expect(200);
-  });
-
   it("an admin cannot disable or demote themselves", async () => {
     const { user: admin } = await createUser(prisma, orgId, UserRole.ADMIN);
     const cookie = await sessionCookie(prisma, admin);
@@ -182,56 +180,21 @@ describe("users (admin only)", () => {
     const { user: admin, token } = await createUser(prisma, orgId, UserRole.ADMIN);
     await login(admin.email, token).expect(200);
     await login(admin.email, "wrong").expect(401);
+    const { user } = await createUser(prisma, orgId);
     await http()
-      .post("/v1/users")
+      .patch(`/v1/users/${user.email}`)
       .set("Cookie", await sessionCookie(prisma, admin))
       .set(CSRF)
-      .send({ email: "a@test.dev", role: UserRole.MEMBER })
-      .expect(201);
+      .send({ groups: ["oncall"] })
+      .expect(200);
     const kinds = (await prisma.auditEntry.findMany({ orderBy: { seq: "asc" } })).map(
       (e) => e.kind,
     );
     expect(kinds).toEqual([
       AuditKind.AUTH_LOGIN,
       AuditKind.AUTH_LOGIN_FAILED,
-      AuditKind.USER_CREATED,
+      AuditKind.USER_UPDATED,
     ]);
     expect(await verifyAuditChain(prisma)).toEqual({ ok: true, count: 3 });
-  });
-});
-
-describe("bootstrap", () => {
-  it("creates the org and admin once, even when two instances race", async () => {
-    await resetDb(prisma);
-    const opts = { orgName: "Acme", adminEmail: "Boss@Acme.dev", demo: false };
-    const results = await Promise.all([bootstrapOrg(prisma, opts), bootstrapOrg(prisma, opts)]);
-    expect(results.filter(Boolean)).toHaveLength(1);
-    expect(await prisma.organization.count()).toBe(1);
-    const token = results.find(Boolean)!.tokens["boss@acme.dev"]!;
-    await login("boss@acme.dev", token).expect(200);
-  });
-
-  it("with demo on, adds an approver, a member and an intern, each with a login token", async () => {
-    await resetDb(prisma);
-    const result = await bootstrapOrg(prisma, {
-      orgName: "Acme",
-      adminEmail: "boss@acme.dev",
-      demo: true,
-    });
-    const users = await prisma.user.findMany({
-      select: { email: true, role: true, groups: true },
-      orderBy: { email: "asc" },
-    });
-    expect(users).toEqual([
-      { email: "approver@acme.dev", role: UserRole.APPROVER, groups: [] },
-      { email: "boss@acme.dev", role: UserRole.ADMIN, groups: [] },
-      { email: "intern@acme.dev", role: UserRole.MEMBER, groups: ["intern"] },
-      { email: "member@acme.dev", role: UserRole.MEMBER, groups: [] },
-    ]);
-    const hashes = await prisma.user.findMany({ select: { email: true, loginTokenHash: true } });
-    for (const { email, loginTokenHash } of hashes) {
-      expect(loginTokenHash).toBe(sha256Hex(result!.tokens[email]!));
-    }
-    await login("member@acme.dev", result!.tokens["member@acme.dev"]!).expect(200);
   });
 });

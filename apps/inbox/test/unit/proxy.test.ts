@@ -25,11 +25,22 @@ describe("proxy", () => {
     expect(res.headers.get("x-middleware-next")).toBe("1");
   });
 
-  test.each(["/", "/holds", "/agents/a1", "/runs/p1", "/audit", "/demo"])("runs on %s", (url) => {
-    expect(unstable_doesMiddlewareMatch({ config, nextConfig, url })).toBe(true);
-  });
+  test.each(["/", "/holds", "/agents/a1", "/runs/p1", "/audit", "/demo", "/invites", "/resets"])(
+    "runs on %s",
+    (url) => {
+      expect(unstable_doesMiddlewareMatch({ config, nextConfig, url })).toBe(true);
+    },
+  );
 
-  test.each(["/login", "/api/v1/me", "/_next/static/x.js", "/favicon.ico"])("skips %s", (url) => {
+  test.each([
+    "/login",
+    "/setup",
+    "/invite/abc",
+    "/reset/abc",
+    "/api/v1/me",
+    "/_next/static/x.js",
+    "/favicon.ico",
+  ])("skips %s", (url) => {
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url })).toBe(false);
   });
 });

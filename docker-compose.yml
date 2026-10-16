@@ -25,6 +25,7 @@ services:
     mem_limit: 128m
     ports:
       - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
 
 volumes:
   pgdata:

@@ -3,13 +3,33 @@ export const API_ENDPOINTS = {
   HEALTH_READY: "/health/ready",
   EVENTS: "/events",
 
+  SETUP: "/v1/setup",
+  SETUP_STATUS: "/v1/setup/status",
+
+  AUTH_METHODS: "/v1/auth/methods",
   AUTH_LOGIN: "/v1/auth/login",
   AUTH_LOGOUT: "/v1/auth/logout",
+  AUTH_OAUTH_START: "/v1/auth/oauth/:provider",
+  AUTH_OAUTH_CALLBACK: "/v1/auth/oauth/:provider/callback",
+  AUTH_PASSWORD_FORGOT: "/v1/auth/password/forgot",
+  AUTH_PASSWORD_RESET: "/v1/auth/password/reset",
   ME: "/v1/me",
+
+  ACCOUNT: "/v1/account",
+  ACCOUNT_PASSWORD: "/v1/account/password",
+  ACCOUNT_SESSIONS: "/v1/account/sessions",
+  ACCOUNT_IDENTITY: "/v1/account/identities/:provider",
+  ACCOUNT_CLI_TOKEN: "/v1/account/cli-token",
 
   USERS: "/v1/users",
   USER: "/v1/users/:email",
-  USER_TOKEN: "/v1/users/:email/token",
+  USER_RESET_LINK: "/v1/users/:email/reset-link",
+
+  INVITES: "/v1/invites",
+  INVITE: "/v1/invites/:id",
+  INVITE_RESEND: "/v1/invites/:id/resend",
+  INVITE_LOOKUP: "/v1/invites/lookup",
+  INVITE_ACCEPT: "/v1/invites/accept",
 
   AGENTS: "/v1/agents",
   AGENT: "/v1/agents/:id",

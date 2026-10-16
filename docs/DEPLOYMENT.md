@@ -49,11 +49,14 @@ All config comes from environment variables, validated with zod at boot (`apps/s
 | `API_KEY_PEPPER` | server | Optional extra secret for API key hashing |
 | `CORS_ORIGINS` | server | Only needed if the inbox is served from another origin (avoid; see §10) |
 | `TRUST_PROXY` | server | Number of reverse proxies in front of the server (default `0`); `1` behind the bundled nginx or Render, so `req.ip` is the client, not the proxy. Never higher than the real hop count, or clients can spoof their IP |
-| `ORG_NAME` | server | Name of the single organization, used on first boot |
-| `BOOTSTRAP_ADMIN_EMAIL` | server | First admin, created on first boot; a one-time login token is printed to the logs |
+| `ORG_NAME` | server | Default name of the single organization, created on first boot (the setup page can rename it) |
 | `LICENSE_FILE` | server | Optional path to a license JWS; absent = Community edition |
-| `PUBLIC_URL` | server, inbox | External URL of the single origin (cookies, links) |
-| `INTENTLOCK_DEMO` | server | `1` on first boot seeds sample users for a demo install; never set in real installs |
+| `PUBLIC_URL` | server, inbox | External URL of the single origin: cookies, invite and reset links, OAuth callback (`PUBLIC_URL/api/v1/auth/oauth/<provider>/callback`) |
+| `SMTP_URL` | server | Optional, e.g. `smtps://user:pass@smtp.example.com:465` (`smtp://localhost:1025` = Mailpit in dev). Set = invite and reset links are also emailed and "forgot password" appears. Unset = links are only shown to copy |
+| `SMTP_FROM` | server | Sender address, e.g. `Intentlock <intentlock@acme.dev>` (required when `SMTP_URL` is set) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | server | Optional; both set = "Continue with Google". OAuth client type "Web application", redirect URI as in `PUBLIC_URL` above |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | server | Optional; both set = "Continue with GitHub". OAuth App callback URL as in `PUBLIC_URL` above |
+| `INTENTLOCK_DEMO` | server | `1` = completing setup also creates sample users with printed passwords; never set in real installs |
 | `API_URL` | inbox | Server base URL behind the `/api/*` rewrite (build time) |
 | `DEMO_RUNNER_URL` | inbox | Local demo runner behind `/demo-runner/*` (default `http://localhost:8790`; dev/recording only) |
 | `LLM_*`, `GITHUB_TOKEN` | demo, evals | Local only, never on the server |
@@ -200,7 +203,7 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 - Neon gives a **pooled** and a **direct** connection string. Prisma uses the pooled one at runtime (`DATABASE_URL`) and the direct one for migrations (`DIRECT_URL`, set as `directUrl` in `schema.prisma`).
 - Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Run `prisma migrate deploy` as Render's pre-deploy command (single instance, so no race).
 - Vercel: root directory `apps/inbox`; set `API_URL` to the Render URL.
-- The instance is private: every page needs sign-in (ARCHITECTURE §5.6). Users are created by us; first boot may use `INTENTLOCK_DEMO=1` for sample users.
+- The instance is private: every page needs sign-in (ARCHITECTURE §5.6). We complete setup with the code from Render's logs and invite users; `INTENTLOCK_DEMO=1` adds sample users at setup.
 - The **demo agents run on our laptop**, pointing at the instance with their API keys (`apps/demo/.env`), exactly like a team's agent apps. Model keys, GitHub tokens and Mailpit stay local; no secrets other than the server's own live on hosted services.
 - Policies are not deployed with the server: the demo `setup` script publishes them into the instance via the API.
 - Cold starts are acceptable: in hybrid mode only plan signing, holds and audit uploads touch the server. Open the inbox a minute before recording.
@@ -230,12 +233,12 @@ flowchart LR
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
 curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
-# set ORG_NAME, BOOTSTRAP_ADMIN_EMAIL, PUBLIC_URL, POSTGRES_PASSWORD; then:
+# set ORG_NAME, PUBLIC_URL, POSTGRES_PASSWORD (optional: SMTP_*, GOOGLE_*, GITHUB_*); then:
 echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
 docker compose -f docker-compose.selfhost.yml up -d
-docker compose -f docker-compose.selfhost.yml logs server | grep "login token"     # first admin login
+docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"     # for the setup page
 ```
-Then: sign in at `PUBLIC_URL`, run `intentlock login --url <PUBLIC_URL>/api` + `intentlock users add <email> --role approver`, create an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "Self-host in 10 minutes".
+Then: open `PUBLIC_URL`, which shows the setup page; paste the setup code and create the first admin. Invite teammates from the Team page (copy the link, or it is emailed when SMTP is set), create an agent and an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "Self-host in 10 minutes".
 
 The bundle is one file: the nginx config is inline (`configs.content`, Compose ≥ 2.23), the server and inbox images come from GHCR (`ghcr.io/abdullahmukadam/intentlock-server|inbox`, tag `INTENTLOCK_VERSION`), and each service also has a `build:` section so `up --build` from a clone builds them locally. The server runs with `TRUST_PROXY=1` so login rate limits and audit see the client IP from nginx. The compose project is named `intentlock-selfhost` so it never shares volumes with the dev `docker-compose.yml`.
 

@@ -45,20 +45,24 @@ Requires Node ≥ 22.
 
 ### 3.1 Run the server
 
-Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#self-host-in-10-minutes); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time login token for `BOOTSTRAP_ADMIN_EMAIL`.
+Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#self-host-in-10-minutes); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time **setup code** to its logs (`docker compose logs server | grep "setup code"`). Open the inbox, which shows the setup page, paste the code and create the first admin with your email and a password.
 
-### 3.2 Sign in and add your team
+### 3.2 Invite your team
+
+Accounts are invite-only. In the inbox, **Team → Invite** takes an email, a role and optional groups and gives you a link to send (valid 7 days, single use). With `SMTP_URL` set it is also emailed. The person opens the link and sets a password, or continues with Google or GitHub if the server has them configured and the account's verified email is the invited one. The same from the CLI:
 
 ```bash
-intentlock login --url https://intentlock.acme.dev/api --email admin@acme.dev
-intentlock users add alice@acme.dev --role member
-intentlock users add bob@acme.dev --role approver --groups oncall
-intentlock users token alice@acme.dev          # login token Alice uses for the inbox
+intentlock login --url https://intentlock.acme.dev/api --email admin@acme.dev   # prompts for the password
+intentlock users invite alice@acme.dev --role member
+intentlock users invite bob@acme.dev --role approver --groups oncall
+intentlock users reset-link alice@acme.dev     # if Alice forgets her password
 ```
 
 Roles: `admin` (manage everything), `approver` (approve holds), `member` (sees only their own runs). Groups are free-form labels you can match in policies.
 
 Every person an agent acts for must be an active user here. Plans for unknown users are refused.
+
+People who sign in only with Google or GitHub create a **CLI token** under **Account settings** and use `intentlock login --token`.
 
 ### 3.3 Register your agent and create an API key
 

@@ -1,7 +1,9 @@
 import { Injectable } from "@nestjs/common";
 
-import { sha256Hex } from "../common/utils/crypto.util.js";
+import { newSecret, sha256Hex } from "../common/utils/crypto.util.js";
+import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import type { RequestMeta } from "./types/request-meta.type.js";
 import { SESSION_REFRESH_AFTER_MS, SESSION_TTL_MS } from "./constants/session.constants.js";
 import type { ResolvedSession } from "./types/resolved-session.type.js";
 
@@ -9,6 +11,25 @@ import type { ResolvedSession } from "./types/resolved-session.type.js";
 @Injectable()
 export class SessionsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async create(
+    user: { id: string; orgId: string },
+    meta: RequestMeta,
+    db: Pick<OrgTx, "session"> = orgDb(this.prisma, user.orgId),
+  ): Promise<string> {
+    const cookie = newSecret();
+    await db.session.create({
+      data: {
+        id: sha256Hex(cookie),
+        orgId: user.orgId,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      },
+    });
+    return cookie;
+  }
 
   resolveCookie(cookie: string | undefined): Promise<ResolvedSession | null> {
     return cookie ? this.resolve(sha256Hex(cookie)) : Promise.resolve(null);

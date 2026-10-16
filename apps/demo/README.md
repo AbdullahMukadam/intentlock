@@ -12,8 +12,8 @@ Three demo agents for [Intentlock](../../README.md), each with a seeded prompt-i
 
 ```bash
 docker compose up -d                                         # Postgres + Mailpit
-INTENTLOCK_DEMO=1 pnpm --filter @intentlock/server dev       # sample users; note the admin login token
-# root .env: INTENTLOCK_ADMIN_EMAIL, INTENTLOCK_ADMIN_TOKEN, LLM_*, GITHUB_* (github-assistant only)
+INTENTLOCK_DEMO=1 pnpm --filter @intentlock/server dev       # prints a setup code; finish /setup in the inbox (sample users' passwords are logged)
+# root .env: INTENTLOCK_ADMIN_EMAIL, INTENTLOCK_ADMIN_PASSWORD (or a CLI token in INTENTLOCK_ADMIN_TOKEN), LLM_*, GITHUB_* (github-assistant only)
 pnpm --filter @intentlock/demo run setup-instance            # agents, API keys (into apps/demo/.env), policies
 pnpm --filter @intentlock/demo run seed                      # or: run seed --agent files-assistant
 pnpm --filter @intentlock/demo run files-assistant --mode unprotected

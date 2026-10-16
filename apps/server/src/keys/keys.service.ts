@@ -14,7 +14,7 @@ import {
   TokenExpiredError,
   verifyBundle,
 } from "@intentlock/core";
-import { decodeJwt, type JWTVerifyGetKey } from "jose";
+import { decodeJwt, type JWTPayload, type JWTVerifyGetKey, jwtVerify, SignJWT } from "jose";
 
 import { LoggerContext } from "../common/enums/logger-context.enum.js";
 import type { AgentCaller } from "../common/types/auth.types.js";
@@ -112,6 +112,34 @@ export class KeysService implements OnModuleInit {
         reason:
           err instanceof TokenExpiredError ? BlockReason.TOKEN_EXPIRED : BlockReason.INVALID_TOKEN,
       };
+    }
+  }
+
+  async signState(
+    payload: Record<string, unknown>,
+    typ: string,
+    issuer: string,
+    ttlSeconds: number,
+  ) {
+    if (!this.signing) throw new Error("signing key not loaded");
+    return new SignJWT(payload)
+      .setProtectedHeader({ alg: "EdDSA", kid: this.signing.kid, typ })
+      .setIssuer(issuer)
+      .setIssuedAt()
+      .setExpirationTime(`${ttlSeconds}s`)
+      .sign(this.signing.privateKey);
+  }
+
+  async verifyState(jws: string, typ: string, issuer: string): Promise<JWTPayload | null> {
+    try {
+      const { payload } = await jwtVerify(jws, this.resolveKey, {
+        algorithms: ["EdDSA"],
+        issuer,
+        typ,
+      });
+      return payload;
+    } catch {
+      return null;
     }
   }
 

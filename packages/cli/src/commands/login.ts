@@ -12,18 +12,29 @@ export function registerLogin(program: Command, ctx: CliContext) {
   program
     .command("login")
     .description(
-      "Sign in with your email and personal login token; the session is stored for later commands",
+      "Sign in with your email and password (or a CLI token from account settings); the session is stored for later commands",
     )
     .requiredOption("--url <url>", "Intentlock server URL")
     .requiredOption("--email <email>")
-    .option("--token <token>", "login token (prompted when omitted)")
-    .action(async (opts: { url: string; email: string; token?: string }) => {
-      const token = opts.token ?? (await ctx.prompt("Login token: "));
+    .option(
+      "--token [token]",
+      "sign in with a CLI token instead of a password (prompted when no value)",
+    )
+    .action(async (opts: { url: string; email: string; token?: string | true }) => {
+      const credentials =
+        opts.token === undefined
+          ? { password: await ctx.prompt("Password: ", { secret: true }) }
+          : {
+              token:
+                opts.token === true
+                  ? await ctx.prompt("CLI token: ", { secret: true })
+                  : opts.token,
+            };
       const url = opts.url.replace(/\/+$/, "");
       const res = await ctx.fetch(url + API_ENDPOINTS.AUTH_LOGIN, {
         method: HttpMethod.POST,
         headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
-        body: JSON.stringify({ email: opts.email, token }),
+        body: JSON.stringify({ email: opts.email, ...credentials }),
       });
       const { user } = await readResponse<{ user: { email: string; role: string } }>(res);
       const cookie = res.headers

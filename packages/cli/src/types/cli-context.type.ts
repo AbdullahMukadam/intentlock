@@ -3,5 +3,5 @@ export interface CliContext {
   home: string;
   cwd: string;
   print: (line: string) => void;
-  prompt: (question: string) => Promise<string>;
+  prompt: (question: string, opts?: { secret?: boolean }) => Promise<string>;
 }

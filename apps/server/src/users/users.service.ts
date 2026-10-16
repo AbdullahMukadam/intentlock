@@ -1,19 +1,23 @@
 import {
   BadRequestException,
-  ConflictException,
   HttpStatus,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
-import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
+import { ADMIN_RESET_TTL_MS } from "../auth/constants/password-reset.constants.js";
+import { issueResetToken } from "../auth/utils/issue-reset-token.util.js";
+import { AppPage } from "../common/enums/app-page.enum.js";
+import { appLink } from "../common/utils/app-link.util.js";
+import { ENV, type Env } from "../config/config.module.js";
+import { MailService } from "../mail/mail.service.js";
 import { LicensedResource } from "../license/enums/licensed-resource.enum.js";
 import { LicenseService } from "../license/license.service.js";
 import type { SessionUser } from "../common/types/auth.types.js";
-import { newSecret, sha256Hex } from "../common/utils/crypto.util.js";
-import { Prisma, type Role } from "../generated/prisma/client.js";
+import type { Role } from "../generated/prisma/client.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { UserError } from "./enums/user-error.enum.js";
@@ -26,47 +30,22 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly license: LicenseService,
+    private readonly mail: MailService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
-  async create(admin: SessionUser, input: { email: string; role: Role; groups: string[] }) {
-    const token = newSecret();
-    try {
-      const user = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
-        await this.license.assertWithinLimit(tx, LicensedResource.USERS);
-        const created = await tx.user.create({
-          data: { ...input, orgId: admin.orgId, loginTokenHash: sha256Hex(token) },
-        });
-        await this.audit.append(
-          admin.orgId,
-          [
-            {
-              kind: AuditKind.USER_CREATED,
-              actor: admin.id,
-              payload: { email: input.email, role: input.role, groups: input.groups },
-            },
-          ],
-          tx,
-        );
-        return created;
-      });
-      return { user: toPublicUser(user), loginToken: token };
-    } catch (e) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === PrismaErrorCode.UNIQUE_CONSTRAINT_VIOLATION
-      ) {
-        throw new ConflictException({
-          statusCode: HttpStatus.CONFLICT,
-          error: UserError.USER_EXISTS,
-        });
-      }
-      throw e;
-    }
-  }
-
-  async list(orgId: string) {
-    const users = await orgDb(this.prisma, orgId).user.findMany({ orderBy: { createdAt: "asc" } });
-    return users.map(toPublicUser);
+  async list(me: SessionUser) {
+    const users = await orgDb(this.prisma, me.orgId).user.findMany({
+      orderBy: { createdAt: "asc" },
+      include: { identities: { select: { provider: true } } },
+    });
+    if (me.role === UserRole.ADMIN) return users.map(toPublicUser);
+    return users.map((u) => ({
+      email: u.email,
+      role: u.role,
+      groups: u.groups,
+      disabledAt: u.disabledAt,
+    }));
   }
 
   async update(
@@ -102,6 +81,7 @@ export class UsersService {
       const updated = await tx.user.update({
         where: { id: target.id },
         data: { role: patch.role, groups: patch.groups, disabledAt },
+        include: { identities: { select: { provider: true } } },
       });
       if (patch.disabled) await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
@@ -114,22 +94,25 @@ export class UsersService {
     return toPublicUser(user);
   }
 
-  async reissueToken(admin: SessionUser, email: string) {
+  async createResetLink(admin: SessionUser, email: string) {
     const target = await this.find(admin.orgId, email);
-    const token = newSecret();
-    await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: target.id },
-        data: { loginTokenHash: sha256Hex(token) },
+    const { token, expiresAt } = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+      const issued = await issueResetToken(tx, {
+        orgId: admin.orgId,
+        userId: target.id,
+        createdBy: admin.id,
+        ttlMs: ADMIN_RESET_TTL_MS,
       });
-      await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
         admin.orgId,
-        [{ kind: AuditKind.USER_TOKEN_REISSUED, actor: admin.id, payload: { email } }],
+        [{ kind: AuditKind.PASSWORD_RESET_CREATED, actor: admin.id, payload: { email } }],
         tx,
       );
+      return issued;
     });
-    return { loginToken: token };
+    const link = appLink(this.env, AppPage.RESET, token);
+    const emailed = await this.mail.sendPasswordReset(email, link, "24 hours");
+    return { link, expiresAt, emailed };
   }
 
   private async find(orgId: string, email: string) {

@@ -4,27 +4,21 @@ import { API_ENDPOINTS } from "@intentlock/core";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { Roles } from "../common/decorators/roles.decorator.js";
 import type { SessionUser } from "../common/types/auth.types.js";
-import { CreateUserDto } from "./dto/create-user.dto.js";
 import { UpdateUserDto } from "./dto/update-user.dto.js";
 import { UserEmailParamsDto } from "./dto/user-email-params.dto.js";
 import { UserRole } from "./enums/user-role.enum.js";
 import { UsersService } from "./users.service.js";
 
-@Roles(UserRole.ADMIN)
 @Controller()
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
-  @Post(API_ENDPOINTS.USERS)
-  create(@CurrentUser() admin: SessionUser, @Body() body: CreateUserDto) {
-    return this.users.create(admin, body);
-  }
-
   @Get(API_ENDPOINTS.USERS)
-  list(@CurrentUser() admin: SessionUser) {
-    return this.users.list(admin.orgId);
+  list(@CurrentUser() me: SessionUser) {
+    return this.users.list(me);
   }
 
+  @Roles(UserRole.ADMIN)
   @Patch(API_ENDPOINTS.USER)
   update(
     @CurrentUser() admin: SessionUser,
@@ -34,8 +28,9 @@ export class UsersController {
     return this.users.update(admin, email, body);
   }
 
-  @Post(API_ENDPOINTS.USER_TOKEN)
-  reissueToken(@CurrentUser() admin: SessionUser, @Param() { email }: UserEmailParamsDto) {
-    return this.users.reissueToken(admin, email);
+  @Roles(UserRole.ADMIN)
+  @Post(API_ENDPOINTS.USER_RESET_LINK)
+  resetLink(@CurrentUser() admin: SessionUser, @Param() { email }: UserEmailParamsDto) {
+    return this.users.createResetLink(admin, email);
   }
 }
