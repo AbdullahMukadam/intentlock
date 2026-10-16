@@ -1025,3 +1025,29 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
   2. (since then) the inbox typecheck needs Next's generated route types (`PageProps`, typed routes), which live in the gitignored `.next/types` and only exist after `next dev`/`build`/`typegen`. Fixed: the inbox `typecheck` script runs `next typegen && tsc --noEmit`
 - Behind that, CI had never reached the tests: Turborepo's strict env mode drops variables a task doesn't declare, and locally the server tests read the root `.env` instead, so the workflow's `TEST_DATABASE_URL` never arrived. Fixed with `passThroughEnv` (`DATABASE_URL`, `DIRECT_URL`, `TEST_DATABASE_URL`) on the `test` task
 - Verified like CI: fresh clone in the scratch folder, `pnpm install --frozen-lockfile`, no `.env`, a separate `intentlock_ci` database: `format:check`, `lint`, `typecheck` and `test` (12 tasks) all pass
+
+### 2026-10-16 · Session 18 · Phase 6 — README quickstart, first scale-test runs; Phase 5.7 added
+
+**Done**
+- CI fix from Session 17 confirmed: phase-5.5 push and PR runs green, PR #7 merged, `phase-6` branched from `main`
+- README: 60-second quickstart is now the self-host path (setup code → `/setup` → welcome wizard → invite); the offline SDK example moved under "Try it without a server"; "Self-host in 10 minutes" became "Self-host for your team" (production settings only); limitations and roadmap updated (Google/GitHub sign-in exists, Team page shipped, live updates need one instance). `selfhost.env.example` no longer has an empty `POSTGRES_PASSWORD=` line; it is appended like `SIGNING_KEY` (commit `efe35b1`)
+- Quickstart checked for real on port 8088 with images built from the clone: setup code in the logs, `/setup` and `/invite/<token>` pages 200, setup 201 then 409, invite link returned
+- Scale test written, not committed: `deploy/docker-compose.scale.yml` (2 servers with the same signing key, nginx round-robin with failover, Postgres, inbox on server-1), `deploy/nginx/nginx.conf`, `deploy/load/scale-test.ts` (real `HttpGate`/`HybridGate`, verification in SQL). The root `package.json` links `@intentlock/core` and `@intentlock/sdk` so the script can import them
+- PLAN: new **Phase 5.7 · Code quality and error handling**; Phase 6 paused until it is done
+
+**Problems hit and how they were solved**
+- Both instances print a setup code when they boot on an empty database, and only the last one written works → the script tries each code; worth a note in DEPLOYMENT
+- A burst of 1,000 concurrent remote checks, and later 50 × 20, returned 500s: Prisma "Unable to start a transaction in the given time" and expired 5 s transactions. Cause: every check appends under the global chain advisory lock, and the hybrid batch ingest holds that lock for the whole batch, including signature checks and re-checks. Clients get `GateUnavailableError` and block, so it fails closed, but it fails → Phase 5.7 tasks
+- On this Windows machine `localhost` resolves to `::1` first, and Docker Desktop's IPv6 port forwarding reset 33 of 50 concurrent connections (`ECONNRESET`); `127.0.0.1` gives 50/50 → the script uses `127.0.0.1`. Some of the earlier client errors were this, not the server
+- The SDK's error said only `POST /v1/check failed`; the cause (`ECONNRESET`) was only on `err.cause` → Phase 5.7 task
+- Changing the root `package.json` invalidated the Docker install layer, so both images rebuilt with a full `pnpm install`. Abdullah stopped the run because of mobile data use; avoid rebuilds that download, and say beforehand when a step will
+
+**Numbers**
+- 50 plans signed concurrently through nginx in 1.6 s, spread over both instances (two runs). No other scale numbers yet: the runs did not complete
+
+**Next**
+- Phase 5.7: error-handling review of every package, then the ADR
+
+**Notes for Abdullah**
+- The `intentlock-scale-*` containers from the last run may still be up; `docker compose -f deploy/docker-compose.scale.yml down -v` removes them (no network use)
+- The scale-test files stay uncommitted in the working tree until Phase 6 resumes
