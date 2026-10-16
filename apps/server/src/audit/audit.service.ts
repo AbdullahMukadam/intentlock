@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { GENESIS, hashEntry, type AuditEntryBody } from "@intentlock/core";
 
+import type { Prisma } from "../generated/prisma/client.js";
 import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AuditOrigin } from "./enums/audit-origin.enum.js";
@@ -35,6 +36,7 @@ export class AuditService {
     let seq = head?.seq ?? 0;
     let prevHash = head?.hash ?? GENESIS;
     const out: { seq: number; hash: string }[] = [];
+    const rows: Prisma.AuditEntryCreateManyInput[] = [];
     for (const e of entries) {
       seq += 1;
       const at = new Date();
@@ -60,12 +62,11 @@ export class AuditService {
         prevHash,
       };
       const hash = await hashEntry(body);
-      await tx.auditEntry.create({
-        data: { ...body, at, clientAt: e.clientAt ?? null, payload: e.payload ?? {}, hash },
-      });
+      rows.push({ ...body, at, clientAt: e.clientAt ?? null, payload: e.payload ?? {}, hash });
       out.push({ seq, hash });
       prevHash = hash;
     }
+    if (rows.length > 0) await tx.auditEntry.createMany({ data: rows });
     return out;
   }
 }

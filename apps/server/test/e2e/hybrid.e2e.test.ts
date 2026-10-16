@@ -315,4 +315,36 @@ describe("HybridGate", () => {
     );
     await gate.close();
   });
+
+  it("stores each entry once when the same batch arrives twice at the same time", async () => {
+    const twice = ((input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.endsWith("/v1/audit/batch")) return fetch(input, init);
+      const second = fetch(input, init);
+      return fetch(input, init).finally(() => second.catch(() => undefined));
+    }) as typeof fetch;
+    const gates = [hybrid({ fetch: twice }), hybrid({ fetch: twice })];
+    const plans = await Promise.all(gates.map((g) => g.signPlan(planFor(user, STEPS))));
+    await Promise.all(
+      gates.map(async (gate, i) => {
+        const token = plans[i]!.token;
+        const calls = CALLS();
+        for (const c of calls) await gate.check(token, c);
+        await gate.report(token, calls[0]!.callId, ReportOutcome.OK);
+        await gate.close();
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 200));
+
+    const uploaded = await clientEntries();
+    expect(uploaded).toHaveLength(10);
+    expect(uploaded.every((e) => e.flagged === null)).toBe(true);
+    for (const { planId } of plans) {
+      const seqs = uploaded.filter((e) => e.planId === planId).map((e) => e.clientSeq);
+      expect(seqs).toEqual([1, 2, 3, 4, 5]);
+      const usage = await prisma.stepUsage.findFirstOrThrow({ where: { planId, step: 0 } });
+      expect(usage.ran).toBe(1);
+    }
+    expect(await verifyAuditChain(prisma)).toMatchObject({ ok: true });
+  });
 });

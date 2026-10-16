@@ -1135,3 +1135,18 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Server tests 190 (was 178: 11 classification cases, 2 filter cases); lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — batch ingest out of the chain lock
+
+**Done**
+- ADR-061: `BatchService.ingest` verifies tokens, checks client hashes and re-computes decisions before the transaction; the per-plan logic runs under a per-plan advisory lock; the batch is appended to the global chain once at the end. Reports resolve checks from the same batch in memory (same rule as `findCheckedCall`), and a repeated `callId` in one batch never counts `ran` twice
+- `AuditService.appendIn` inserts all rows with one `createMany` instead of one `create` per entry
+- DEPLOYMENT §5.4 describes the lock order (chain lock always last)
+- New hybrid e2e test: every batch upload sent twice at the same time → each entry stored once, no flags, `ran` counted once, chain intact. Removing the plan lock as a check: the test still passes, because the unique `(planId, clientSeq)` constraint rolls the duplicate back (409, then a retry); the lock turns that into a wait and a normal ack
+
+**Numbers** (throwaway local benchmark, not committed: ten 99-entry hybrid batches uploaded at once + 40 concurrent remote checks on one plan, server and test database on this laptop, 3 rounds each)
+- Old code: 10.5–10.7 s per round, 39–40 of 40 remote checks failed (503 after the earlier mapping), 693–792 of 990 client entries stored per round (the rest left for retry)
+- New ingest: 5.6–6.2 s, 13–15 of 40 failed, all 990 stored
+- New ingest + `createMany`: 3.1–3.7 s, 0–9 of 40 failed, all 990 stored
+- The remaining failures are the connection pool (default 10) and Prisma's 2 s `maxWait`: the 40 checks share one step counter row, so they queue on its row lock while holding connections → the pool-settings task
+- Server tests 191; lint, typecheck, prettier green
