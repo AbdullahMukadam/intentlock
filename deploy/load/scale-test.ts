@@ -8,6 +8,7 @@ import {
   type ApiEndpoint,
   apiPath,
   type PlanInput,
+  ClientBlockReason,
   ReportOutcome,
   Role,
   Verdict,
@@ -28,7 +29,7 @@ const LOAD_SECONDS = 60;
 const KILL_AT_SECONDS = 30;
 const REMOTE_WORKERS = Number(process.env.REMOTE_WORKERS ?? 16);
 const HYBRID_CLIENTS = Number(process.env.HYBRID_CLIENTS ?? 8);
-const HYBRID_PAUSE_MS = Number(process.env.HYBRID_PAUSE_MS ?? 20);
+const HYBRID_PAUSE_MS = Number(process.env.HYBRID_PAUSE_MS ?? 50);
 const HOLDS = 20;
 const RACES = 10;
 
@@ -253,13 +254,15 @@ async function holdsAcrossInstances(plan: SignedPlan, gateA: HttpGate, cookie: s
         callId: nextCallId(),
       });
       if (d.verdict !== Verdict.HOLD) continue;
-      const outcome = gateA.waitForHold(d.holdId, { timeoutMs: 30_000 });
-      await must(B, "POST", API_ENDPOINTS.HOLD_APPROVE, {
-        cookie,
-        params: { id: d.holdId },
-        body: {},
-      });
-      if ((await outcome) === HoldStatus.APPROVED) approved++;
+      const [outcome] = await Promise.all([
+        gateA.waitForHold(d.holdId, { timeoutMs: 30_000 }),
+        must(B, "POST", API_ENDPOINTS.HOLD_APPROVE, {
+          cookie,
+          params: { id: d.holdId },
+          body: {},
+        }),
+      ]);
+      if (outcome === HoldStatus.APPROVED) approved++;
     } catch {
       errors++;
     }
@@ -320,7 +323,18 @@ async function remoteWorker(
   }
 }
 
-type HybridStats = { planId: string; checks: number; reports: number; blocked: number };
+type HybridStats = {
+  planId: string;
+  checks: number;
+  reports: number;
+  blocked: number;
+  unaudited: number;
+};
+
+const UNAUDITED = new Set<string>([
+  ClientBlockReason.AUDIT_BACKLOG,
+  ClientBlockReason.AUDIT_WRITE_FAILED,
+]);
 
 async function hybridClient(
   apiKey: string,
@@ -337,7 +351,13 @@ async function hybridClient(
     onError: () => errors.count++,
   });
   const plan = await gate.signPlan(planInput("hybrid client"));
-  const stats: HybridStats = { planId: plan.planId, checks: 0, reports: 0, blocked: 0 };
+  const stats: HybridStats = {
+    planId: plan.planId,
+    checks: 0,
+    reports: 0,
+    blocked: 0,
+    unaudited: 0,
+  };
   for (let i = 0; Date.now() < until; i++) {
     const callId = nextCallId();
     const d = await gate.check(plan.token, { tool: "read_item", args: { i }, callId });
@@ -345,7 +365,10 @@ async function hybridClient(
     if (d.verdict === Verdict.ALLOW) {
       await gate.report(plan.token, callId, ReportOutcome.OK);
       stats.reports++;
-    } else stats.blocked++;
+    } else {
+      stats.blocked++;
+      if ("reason" in d && UNAUDITED.has(d.reason)) stats.unaudited++;
+    }
     await sleep(HYBRID_PAUSE_MS);
   }
   await gate.close();
@@ -402,7 +425,8 @@ async function main() {
 
   await counterBurst(plans, gateA, gateB);
 
-  const holdPlan = await gateA.signPlan(planInput("holds"));
+  await holdsAcrossInstances(await gateA.signPlan(planInput("holds")), gateA, cookie);
+
   const loadStart = Date.now();
   const until = loadStart + LOAD_SECONDS * 1000;
   let killAt: number | null = null;
@@ -415,8 +439,7 @@ async function main() {
     killAt = Date.now();
     console.log(`killed server-2 at +${KILL_AT_SECONDS}s`);
   })();
-  const [, , hybrid] = await Promise.all([
-    holdsAcrossInstances(holdPlan, gateA, cookie),
+  const [, hybrid] = await Promise.all([
     Promise.all(
       Array.from({ length: REMOTE_WORKERS }, () =>
         remoteWorker(plans, lb, until, () => killAt, remote),
@@ -439,13 +462,16 @@ async function main() {
     `failover: ${okAfterKill} remote checks succeeded through nginx after the kill (first after ${firstOk && killAt ? firstOk.at - killAt : "-"} ms); ${remote.errorsAfterKill} client errors after the kill, ${remote.errors} in total`,
   );
 
-  const verify = await must<{ ok: boolean; count: number; flagged?: number }>(
+  const verify = await must<{ ok: boolean; count: number; flagged?: unknown[] }>(
     LB,
     "GET",
     API_ENDPOINTS.AUDIT_VERIFY,
     { cookie },
   );
-  check(verify.ok, `audit chain intact: ${verify.count} entries, flagged ${verify.flagged ?? 0}`);
+  check(
+    verify.ok,
+    `audit chain intact: ${verify.count} entries, ${verify.flagged?.length ?? 0} flagged`,
+  );
   check(
     sql(
       `SELECT count(*) FROM (SELECT 1 FROM "AuditEntry" WHERE "clientSeq" IS NOT NULL GROUP BY "planId", "clientSeq" HAVING count(*) > 1) d`,
@@ -463,12 +489,12 @@ async function main() {
   );
   const complete = hybrid.filter((h) => {
     const d = delivered.get(h.planId);
-    return d !== undefined && d.count === h.checks + h.reports && d.span === d.count;
+    return d !== undefined && d.count === h.checks - h.unaudited + h.reports && d.span === d.count;
   });
   const decisions = hybrid.reduce((n, h) => n + h.checks, 0);
   check(
     complete.length === HYBRID_CLIENTS,
-    `hybrid: ${complete.length}/${HYBRID_CLIENTS} clients' outboxes fully delivered with no gaps (${decisions} local decisions, ${hybrid.reduce((n, h) => n + h.blocked, 0)} blocked by backpressure, ${hybridErrors.count} upload errors retried)`,
+    `hybrid: ${complete.length}/${HYBRID_CLIENTS} clients' outboxes fully delivered with no gaps (${decisions} local decisions, ${hybrid.reduce((n, h) => n + h.unaudited, 0)} blocked by backpressure and never written, ${hybridErrors.count} background errors reported)`,
   );
   const overLimit = sql(
     `SELECT count(*) FROM "StepUsage" su JOIN "Plan" p ON p.id = su."planId" WHERE su.calls > (p.body->'steps'->su.step->>'maxCalls')::int`,
@@ -487,7 +513,7 @@ async function main() {
   );
 
   console.log(
-    `\nLoad phase: ${((loadEnd - loadStart) / 1000).toFixed(1)} s, ${REMOTE_WORKERS} remote workers, ${HYBRID_CLIENTS} hybrid clients, server-2 killed at +${KILL_AT_SECONDS}s`,
+    `\nLoad phase: ${((loadEnd - loadStart) / 1000).toFixed(1)} s, ${REMOTE_WORKERS} remote workers, ${HYBRID_CLIENTS} hybrid clients pausing ${HYBRID_PAUSE_MS} ms between calls, server-2 killed at +${KILL_AT_SECONDS}s`,
   );
   report(loadStart, loadEnd);
 

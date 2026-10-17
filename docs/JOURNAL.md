@@ -1274,3 +1274,21 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Abdullah: branch/push choice for Phase 5.7, the Dockerfile install-layer fix; then Phase 6 resumes (scale-test script fixes and a full run)
+
+### 2026-10-16 · Session 18 (cont.) · Phase 6 — scale test passes
+
+**Done**
+- Script fixes: holds and races run before the load phase (B is still alive when it resolves them) and await the long-poll and the approval together (no unhandled rejection); the hybrid check expects stored entries = checks − decisions blocked by backpressure (never written) + reports; hybrid clients pause 50 ms between calls by default (≈ 160 decisions/s for 8 clients), printed with the results; `flagged` printed as a count
+- Full run on the local two-instance stack with the images built earlier (`--no-build`, nothing downloaded): **all checks passed**. Numbers in README "Scale test" and below
+- PLAN: scale-test task ticked; Phase 6 no longer paused
+
+**Numbers** (one laptop, Windows + Docker Desktop, 2026-10-16)
+- 50 plans signed concurrently in 1.6 s over both instances; 50 × 20 concurrent checks split A/B → exactly 5 allowed each, 0 errors
+- Holds: 20/20 created on A, approved on B, seen on A; races: 10/10 one winner and one 409
+- 63 s load phase, 16 remote workers + 8 hybrid clients, server-2 killed at +30 s: first successful check through nginx 5 ms after the kill, 280 after it, 5 client errors in total
+- Through nginx during load: check p50 832 / p95 1,715 ms, report p50 778 / p95 1,523 ms, audit batch p50 1,454 / p95 2,017 ms, 22.1 req/s in total, 9 errors (all around the kill)
+- After: chain intact (16,601 entries, 0 flagged), no duplicate `(planId, clientSeq)`, no counter over `maxCalls` (177), holds APPROVED 21 / REJECTED 9 each with one resolution entry, 8/8 hybrid outboxes complete (7,176 local decisions, none blocked by backpressure)
+- The global chain serializes every append, which is why latency grows under load; sharding (DEPLOYMENT §6.2) is the designed next step
+
+**Next**
+- Phase 6: CI image build + push to GHCR on main and `prisma migrate deploy` as a release step (ask Abdullah before the workflow runs anything that publishes)

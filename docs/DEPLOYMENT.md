@@ -169,7 +169,7 @@ Design: one chain per organization in a future hosted version, or per API key / 
 4. Kills one instance mid-run (`docker compose kill server-2`) and confirms clients recover through the other.
 5. Verifies: audit chain intact, no duplicate `(planId, clientSeq)`, no counter exceeded `maxCalls`, every hold ended in exactly one state.
 
-Results (requests/s, p95 latency, errors) go in the journal and the README. Numbers are only what was measured.
+Results (requests/s, p95 latency, errors) go in the journal and the README. Numbers are only what was measured. Run it with `pnpm tsx deploy/load/scale-test.ts` (builds the images first) or `--no-build` to reuse images already built; `--keep` leaves the stack running. `REMOTE_WORKERS`, `HYBRID_CLIENTS` and `HYBRID_PAUSE_MS` change the load. Holds and races run before the load phase so the instance that resolves them is still alive.
 
 ## 8. Local and production commands
 
@@ -178,7 +178,7 @@ Results (requests/s, p95 latency, errors) go in the journal and the README. Numb
 docker compose up -d                     # postgres + mailpit (demo)
 pnpm dev                                 # server + inbox
 
-# scale test
+# scale test (add --no-build to reuse built images)
 docker compose -f deploy/docker-compose.scale.yml up -d --build
 pnpm tsx deploy/load/scale-test.ts
 

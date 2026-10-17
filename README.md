@@ -145,6 +145,21 @@ Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · deployment and multi-
 
 `gemini-3.5-flash-lite` via its OpenAI-compatible endpoint (free tier), one run per scenario and gate, 2026-10-14; one benign scenario errored on both gates (rate limit) and is left out. The **scripted model** makes every call the injection asks for, so its row shows what the plan and policy layers stop when the model is completely fooled. The four attacks that still land all use a tool that is in the plan with harmful _content_ (an unrestricted label, a refund a third party asked for, another customer's data in an allowed reply, an unpinned file path). Latency is a laptop against a local server, so remote numbers exclude real network time. No Claude results yet.
 
+## Scale test
+
+Two server instances behind nginx with one Postgres ([`deploy/docker-compose.scale.yml`](deploy/docker-compose.scale.yml), [`deploy/load/scale-test.ts`](deploy/load/scale-test.ts), DEPLOYMENT §7), measured on one laptop (Windows, Docker Desktop, everything local), 2026-10-16:
+
+| Check                                                                            | Result                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 50 plans signed concurrently                                                     | 1.6 s, spread over both instances                                                                                                                                                                 |
+| 50 plans × 20 concurrent checks split across the instances, `maxCalls: 5`        | exactly 5 allowed per plan, 0 errors                                                                                                                                                              |
+| 20 holds created on instance A, approved on B, seen by a long-poll on A          | 20/20                                                                                                                                                                                             |
+| 10 races: approve on A vs reject on B at the same moment                         | 10/10 had one winner and one 409                                                                                                                                                                  |
+| 60 s load (16 remote-check workers, 8 hybrid clients), instance B killed at 30 s | first successful check through nginx 5 ms after the kill; 5 client errors in total                                                                                                                |
+| After the run                                                                    | chain intact (16,601 entries, 0 flagged), no duplicate client entries, no counter over its limit, every hold resolved exactly once, all 8 hybrid outboxes fully delivered (7,176 local decisions) |
+
+Load-phase latency through nginx: check p50 832 ms / p95 1.7 s, audit batch p50 1.5 s / p95 2.0 s, 22 requests/s in total, while every check and batch appends to one global audit chain. Hybrid allow/block decisions never wait on these numbers; they are local. Sharding the chain (DEPLOYMENT §6.2) is the next step for more throughput.
+
 ## Demo agents
 
 Three agents in [`apps/demo`](apps/demo), each run unprotected and protected with the same code:
