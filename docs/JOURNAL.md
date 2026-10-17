@@ -1292,3 +1292,18 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Phase 6: CI image build + push to GHCR on main and `prisma migrate deploy` as a release step (ask Abdullah before the workflow runs anything that publishes)
+
+### 2026-10-16 · Session 18 (cont.) · Phase 6 — release jobs in CI (written, not yet run)
+
+**Done**
+- `.github/workflows/ci.yml`: `images` (needs `check`; pushes to `main` and `v*` tags only) builds server and inbox with Buildx and the GitHub Actions cache and pushes them to `ghcr.io/<owner, lowercased>/intentlock-server|inbox` with tags `latest` (main), `sha-<commit>`, and `X.Y.Z` / `X.Y` for version tags; `release` (needs `images`, main only, GitHub environment `production`) runs `prisma migrate deploy` with the `PRODUCTION_DIRECT_URL` secret and then calls `RENDER_DEPLOY_HOOK`; each release step is skipped while its secret is unset
+- DEPLOYMENT §3 (pipeline, making the GHCR packages public), §9 (secrets, Render auto-deploy off, migrations no longer in Render's pre-deploy)
+- YAML parsed locally with the repo's `yaml` package; prettier green
+
+**Not verified**
+- The jobs only run on GitHub after a push to `main`; the PLAN task stays unticked until the first run is green
+- Every commit still re-runs `pnpm install` in both image builds (`COPY . .` before the install, see the acceptance entry); the GitHub Actions cache cannot help until the Dockerfiles copy manifests first (proposed to Abdullah)
+
+**Notes for Abdullah**
+- After the first successful `images` run: GitHub → Packages → `intentlock-server` and `intentlock-inbox` → visibility public
+- For our instance (§9): create the `production` environment secrets `PRODUCTION_DIRECT_URL` and `RENDER_DEPLOY_HOOK`, and turn off Render's auto-deploy

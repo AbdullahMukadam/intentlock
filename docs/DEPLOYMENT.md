@@ -77,6 +77,8 @@ flowchart LR
     deploy --> smoke["Smoke test:<br/>/health · sign plan · verify chain"]
 ```
 
+- In `.github/workflows/ci.yml`: `check` (format, lint, typecheck, test with Postgres) on every push and PR → `images` on `main` and `v*` tags: server and inbox built with Buildx (GitHub Actions cache) and pushed to `ghcr.io/abdullahmukadam/intentlock-server|inbox` as `latest` (main), `sha-<commit>` and, for tags, `X.Y.Z` and `X.Y` → `release` on `main` (GitHub environment `production`): `prisma migrate deploy` against the `PRODUCTION_DIRECT_URL` secret, then the `RENDER_DEPLOY_HOOK` secret. Each release step is skipped while its secret is unset, so forks and a repo without a deployment only build images.
+- GHCR creates new packages as private. After the first push, make both packages public (GitHub → Packages → package settings → visibility) so the self-host bundle can pull them without a login.
 - Migrations run **once per release** as a separate step, never on instance boot (two instances booting together would race).
 - Migrations must be backward compatible with the previous release (add columns, then use them in a later release), so a rolling deploy never breaks running instances.
 - `/health` = process up; `/health/ready` = database reachable + signing key loaded. The LB routes only to ready instances.
@@ -204,7 +206,7 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 
 **Setup notes**
 - Neon gives a **pooled** and a **direct** connection string. Prisma uses the pooled one at runtime (`DATABASE_URL`) and the direct one for migrations (`DIRECT_URL`, set as `directUrl` in `schema.prisma`).
-- Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Run `prisma migrate deploy` as Render's pre-deploy command (single instance, so no race).
+- Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Migrations run in CI's `release` job before the deploy hook fires (§3); set the GitHub `production` environment secrets `PRODUCTION_DIRECT_URL` (Neon direct URL) and `RENDER_DEPLOY_HOOK` (Render → service → Settings → Deploy Hook), and turn off auto-deploy on Render so a deploy only follows a green CI run.
 - Vercel: root directory `apps/inbox`; set `API_URL` to the Render URL.
 - The instance is private: every page needs sign-in (ARCHITECTURE §5.6). We complete setup with the code from Render's logs and invite users; `INTENTLOCK_DEMO=1` adds sample users at setup.
 - The **demo agents run on our laptop**, pointing at the instance with their API keys (`apps/demo/.env`), exactly like a team's agent apps. Model keys, GitHub tokens and Mailpit stay local; no secrets other than the server's own live on hosted services.
