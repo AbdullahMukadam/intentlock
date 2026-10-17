@@ -1519,3 +1519,21 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Next**
 - Abdullah: create the monitor (§9.1 step 11)
 - Push `phase-6.5` for the preview, then merge; acceptance run with the recorder script (per-page numbers after, revisits without skeletons, sign-out leaves no cached data)
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Acceptance run on the preview
+
+**Done**
+- Abdullah created the external monitor on `/health` (ADR-065) and pushed `phase-6.5` (`da1c5d8`, PR "Phase 6.5"); the Vercel preview built
+- Acceptance run on the preview with the recorder script: every sidebar page visited twice. Abdullah: **revisits were instant, no skeletons**
+
+**Numbers** (preview inbox in `sin1` → production server, which does not have the one-query session check yet)
+- Prefetch works: each page's requests start 1–3 s into the page before it (on hover), so the data is usually there at the click. In the TSV a page's requests therefore carry the label of the page hovered from
+- One request per URL per visit: `/v1/agents` 5 times over 14 page visits (before: on almost every page, sometimes twice)
+- Overview stats keys are stable (`from=…T18:15:00.000Z` on every visit), so they are served from the cache
+- API requests: browser wait 180–230 ms (first run 210–350 ms), server 8–19 ms; the difference is mostly network
+- Slowest request on a warm instance: `stats/overview` (9 queries, 7 in parallel) 280–470 ms. With Neon just woken its database time was 741–960 ms; warm 29–33 ms (the accepted Neon cold start, ADR-065)
+- Revisits more than 5 s apart refetch in the background behind the cached data (`staleTime` 5 s), as designed
+- Sign-out leaving no cached data is covered by the unit tests (`sign-out.test.ts`, `query-client.test.ts`); after sign-out the browser also loads `/login` as a full page, which drops the in-memory cache
+
+**Next**
+- Merge the PR so production gets `sin1`, the one-query session check and the cache; then Phase 7 (stretch) per PLAN
