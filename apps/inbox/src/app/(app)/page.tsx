@@ -26,6 +26,7 @@ import { fillSeries } from "@/lib/fill-series";
 import { firstName } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { Overview } from "@/lib/schemas";
+import { statsWindow } from "@/lib/stats-window";
 import { useApi } from "@/lib/use-api";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -40,12 +41,7 @@ const RANGES: Record<TimeRange, { ms: number; label: string; compare: string }> 
 };
 
 function window(range: TimeRange) {
-  const now = Date.now();
-  const ms = RANGES[range].ms;
-  return {
-    from: new Date(now - ms).toISOString(),
-    prevFrom: new Date(now - 2 * ms).toISOString(),
-  };
+  return statsWindow(RANGES[range].ms);
 }
 
 const KPIS = [

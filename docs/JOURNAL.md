@@ -1389,3 +1389,151 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes**
 - Already visible without measuring: `useApi` (14 components) has no cache, so every page switch refetches from zero; `useMe` is loaded once in the app shell and is not part of the problem
 - `@tanstack/react-query` is a new runtime dependency for the inbox: Abdullah asked for it; confirm and write an ADR when the task starts
+
+### 2026-10-17 · Session 19 · Phase 6.5 — Server-Timing and first numbers
+
+**Done**
+- `Server-Timing: total;dur=…, db;dur=…;desc="N queries"` on every API response: `server-timing.middleware.ts` keeps per-request totals in `AsyncLocalStorage`, `PrismaService` feeds it from Prisma's `query` events (commit `6ebcbe2`, merged as PR #11, deployed through CI's deploy hook)
+- First per-page numbers on the deployed instance (below), recorded in Abdullah's signed-in Chrome with a console script (Resource Timing + `serverTiming`, one visit and one revisit per page via the sidebar)
+
+**Numbers** (2026-10-17, from Mumbai; Render and Neon both in Singapore)
+- Health check: server 2.9–3.7 ms, of which the one query 2.1–2.6 ms; the browser waits ~230–260 ms after TLS for the response
+- Every API request: browser wait 210–350 ms, server time 10–20 ms for most routes; the rest is network (Vercel edge `bom1` → Render Singapore → back)
+- Vercel functions run in **`iad1` (Washington)**: `X-Vercel-Id: bom1::iad1::…` on page payloads (`?_rsc`). A page switch that needs one waits 350–480 ms for it before the page's own API requests start
+- Requests per page (warm): Overview 4 in parallel (`agents`, `stats/overview` ×2, `audit?limit=8`) 280–590 ms; Holds 2 (`agents`, `holds`) 310–410 ms; Activity 2 (`audit`, `agents`) 310–345 ms; Team 2 (`users`, `invites`) 300–350 ms; Agents 1 (`agents`) 255–365 ms; Account 1 then 2 (`account`, then `auth/methods` + `account/sessions`) ~380 + 245 ms
+- `/v1/agents` loads on almost every page (the agent filter); revisits refetch everything
+- Queries per request: 3–5 for most routes, 9 for `stats/overview`; `auth/methods` 0 (public)
+- Cold or first hits: `/v1/agents` server 884 ms (5 queries, 881 ms in the database), `stats/overview` db 960–1009 ms (9 queries); warm the same routes take 12–80 ms
+- Socket.io falls back to long polling through the rewrite (25 s requests); a few requests on the first Agents visit took 13–20 s in total with a 230–360 ms wait, so they queued in the browser before being sent
+
+**Problems hit and how they were solved**
+- Render runs the GHCR image built only on `main`, so a branch cannot be measured on Render → merge each server change to `main`
+- Claude in Chrome was not connected → a console script that Abdullah pasted, results copied back as TSV
+- Page labels in the TSV come from a 20 ms poll of `location.pathname`, so a few rows are labelled with the page before
+
+**Next**
+- Query counts / `EXPLAIN ANALYZE` (task 3): the slow ones are cold `agents` and `stats/overview`; warm, the database is not the bottleneck
+- Vercel function region to `sin1` (next to Render and Neon) or `bom1`: removes the US round trip from page switches
+- The 13–20 s queued requests: check the protocol column (h2 vs http/1.1) and socket.io long polls
+- Agent detail and run detail pages not measured yet
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Queries per request and EXPLAIN
+
+**Done**
+- Queries per request, from `Server-Timing` on the deployed instance and the code: the session check runs 2 queries one after the other on every signed-in request (`Session` by id, then its `User`), plus an `updateMany` when the session slides. On top of that: `audit` +1, `holds` +1, `account/sessions` +1, `users` +2, `account` +2, `agents` +3 (agents with policy and key count, then the 24 h decision counts, one after the other), `stats/overview` +7 in parallel
+- `EXPLAIN (ANALYZE, BUFFERS)` of the audit queries behind `agents`, `stats/overview` and `audit` with 200,000 `AuditEntry` rows (30 days, 5 agents, 20 users) in the local test database (truncated afterwards): no missing index
+
+**Numbers** (local Postgres 16, 200k rows)
+- `agents` decision counts (24 h): 15.4 ms, bitmap scan on `(orgId, at)`, 5,897 rows
+- `stats/overview` series (24 h): 16.9 ms; audit lag: 14.1 ms; same index
+- `audit` list, admin: 0.1 ms (primary key backwards, `LIMIT 51`); member with 200 entries: 0.7 ms (`(orgId, user, at)`); member or agent with none: 0.1–0.2 ms
+- The 24 h aggregates read ~3,300 heap blocks because the generated rows are spread randomly over 30 days; real entries arrive in time order, so they read far fewer
+
+**Decisions**
+- No new index and no query rewrite for speed: warm database time on the deployed instance is 8–17 ms per route (35–180 ms summed over the 7 parallel `stats/overview` queries), against ~250 ms of network per request
+- The server task stays small: session and user in one query (saves one ~2 ms round trip per request). The cold first requests (`agents` 881 ms, `stats/overview` ~1 s of database time) look like Neon waking from scale-to-zero plus new pool connections; they go with the cold-start task
+
+**Next**
+- Vercel function region (`iad1` → `sin1`), then the cold-start decision
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Regions
+
+**Done**
+- Regions: Render and Neon were already both in Singapore; Vercel functions moved from `iad1` to `sin1` with `apps/inbox/vercel.json` (ADR-063, DEPLOYMENT §9 step 6; commit `0f407dc`). Checked on the branch preview (`X-Vercel-Id: bom1::sin1::…`); production follows when the branch is merged
+
+**Numbers** (curl from Abdullah's machine, time from TLS done to first byte, medians)
+- Dynamic page payload (`/activity?_rsc`, 15 alternating samples each): `iad1` 347 ms → `sin1` 288 ms (−59 ms)
+- Prerendered page payloads served from Vercel's Mumbai cache (`X-Vercel-Cache: HIT`, `X-Nextjs-Prerender: 1`): `/holds` 190 ms, `/team` 213 ms
+- One round trip to Vercel's edge (TCP connect): 80–90 ms
+- Split of one API request (~240 ms): ~85 ms browser ↔ Vercel edge, ~140 ms Vercel edge ↔ Render and back, ~15 ms in the server. A dynamic page payload (~290 ms): ~85 ms to the edge, ~200 ms for the proxy, the trip to `sin1` and rendering. A cached page payload (~190 ms): ~85 ms to the edge, ~100 ms at the edge (the `proxy.ts` session-cookie check runs for every page)
+
+**Notes**
+- The region change was smaller than expected: most of the time is per round trip (browser ↔ edge, edge ↔ Render), not distance to the US. So the big wins are fewer round trips per page switch: cached data (TanStack Query) and fewer requests that wait on each other
+- Activity, Account, agent detail and run detail render on every request because their pages read `searchParams` on the server; reading the filters on the client (`useSearchParams`) would let Vercel serve them from its cache like Holds and Team (~100 ms less per switch). Not in the plan yet
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Server round trips and compression
+
+**Done**
+- Session check in one query: `SessionsService.resolve` joins `Session` and `User` in raw SQL (same org, not disabled; expiry still checked against `Date.now()`), instead of two `findUnique` calls one after the other. No schema change (Session has no Prisma relation to User, and adding one would mean a foreign-key migration on Neon). Used by the HTTP guard and the WebSocket re-check
+- No repeated row lookups found on the busy routes: `account` loads the user again, but with its identities, which the session check does not have
+- Compression: on the hosted instance Vercel already answers proxied JSON with `Content-Encoding: br` (checked on `/api/v1/keys/jwks`, 133 bytes → 113). The self-host nginx had none → `gzip on` for `application/json` and `application/x-ndjson` (the audit export); `nginx -t` passes with the local `nginx:1.27-alpine` image. The inbox (Next.js) compresses its own responses
+
+**Numbers**
+- Every signed-in request: 2 → 1 queries for the session check (saves one ~2 ms round trip on Neon in the same region)
+- Server tests: 51 unit + 156 e2e green, including "checks the session and its user in one query" (`Server-Timing` on `/v1/me` reports 1 query) and "rejects a session stored under another org than its user"
+
+**Next**
+- TanStack Query in the inbox (new dependency: ADR and an install, both need Abdullah's go-ahead)
+- Cold starts at the end of the phase (Abdullah's call: scheduled ping or accept them)
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — TanStack Query core
+
+**Done**
+- `@tanstack/react-query@5.104.3` added to `apps/inbox` (Abdullah approved, regular install; ADR-064; ARCHITECTURE allowed dependencies)
+- `useApi(url, schema)` keeps its signature (14 components unchanged) and wraps `useQuery`: key `["api", path, search]` from the URL; the cache holds raw JSON and each component's zod schema runs in `select` (`parseResponse()`, split out of `request()`), so `/v1/agents` read with `AgentSummaries` and `AgentViews` is one request and both are validated; `keepPreviousData` while the URL changes; `reload()` is `refetch()` and does nothing while the URL is `null`
+- `query-client.ts`: one client per browser tab (a fresh one per server render), `staleTime` 5 s, `shouldRetry` (no retry on 4xx; 3 on network errors and 5xx with the default 1/2/4 s backoff), query and mutation caches clear everything on a 401; `signOut()` clears the cache before going to `/login`
+- `QueryClientProvider` in `Providers`
+
+**Problems hit and how they were solved**
+- `staleTime` 30 s would show a revisited page from cache without refreshing it → 5 s, still long enough for a hover prefetch to serve the click
+- Two schemas for the same URL would have shared whichever parsed result came first → cache raw JSON, parse per component in `select`
+
+**Numbers**
+- Inbox: 77 unit tests green (new: query keys, no retry on 4xx, 3 retries on network/5xx, cache cleared on 401 and kept on 404); lint, Prettier and `tsc` clean. Not yet checked in a browser: no `next build` or `next dev` locally (fonts download), so the preview deployment is the first run
+
+**Next**
+- Socket events invalidate queries and the holds poll becomes `refetchInterval`; mutations invalidate; prefetch on hover; the remaining tests
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Live updates, mutations, prefetch
+
+**Done**
+- Live updates: `useLiveQueries()` in the app shell, one listener per socket event, invalidates the endpoints that event changes (`EVENT_QUERY_PATHS`: decisions → audit, stats, runs, agents; holds → holds, audit, stats, runs; reconnect → all). `useEvents` is gone; `socket.ts` only connects. The polling fallback is `refetchInterval` in `useApi` (holds 10 s, latest activity 15 s, onboarding 3 s), which stops while the tab is hidden
+- Mutations: a successful non-GET `api()` call invalidates every cached query (on-screen ones refetch); policy test, invite lookup and sign-out are skipped (sign-out would otherwise refetch into a 401 and race its own redirect). `reload()` joins an in-flight refetch. `ApiError` moved to `api-error.ts` so `api.ts` and `query-client.ts` do not import each other
+- Prefetch: sidebar links prefetch their page's first requests on hover and focus (`prefetch.ts`)
+- Overview stats keys were never reusable: `from` was `now − 24 h` to the millisecond → `statsWindow()` rounds to 5 minutes
+- `signOut()` moved to `lib/sign-out.ts` so it can be tested
+- ADR-064 points 6–8; STRUCTURE
+
+**Numbers**
+- Inbox: 89 unit tests green (new: which queries each socket event invalidates, look-alike paths untouched; mutation invalidates, GET / read-only POST / sign-out / failed mutation do not; prefetch URLs per page, invites only for admins, fresh data not refetched; stats window stable within 5 minutes; sign-out empties the cache, also when the server is unreachable)
+- Still not run in a browser (no local `next dev`/`next build`); the Vercel preview is the first run
+
+**Next**
+- Cold starts (Abdullah: at the end of the phase)
+- Acceptance: per-page numbers after the change on the deployed instance, revisits without skeletons, sign-out leaves no cached data
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Cold starts
+
+**Done**
+- Decision (ADR-065): a free external monitor (UptimeRobot or cron-job.org) sends `GET /health` to Render every 5 minutes; Neon's scale-to-zero stays and its ~1 s first request is accepted. DEPLOYMENT §9.1 step 11 and the free-tier table
+- No code: the monitor is a manual step for Abdullah
+
+**Decisions**
+- Not a GitHub Actions schedule: the repo is private (2,000 free minutes a month, each job rounded up to a minute; a 10–14 minute ping is 3,000–4,500 runs) and scheduled runs are often late
+- Not `/health/ready`: it queries the database, so Neon would wake on every ping (~93 of its 100 free CU-hours at a 10-minute interval; always awake needs ~186, and running out suspends the database)
+
+**Numbers** (limits checked 2026-10-17 via Render's docs and third-party summaries of Neon's and GitHub's pricing)
+- Render: 750 free instance hours per workspace per month; an always-on instance uses ~744
+- Neon: 100 CU-hours per project per month, 0.25 CU minimum, suspend after 5 idle minutes on Free
+
+**Next**
+- Abdullah: create the monitor (§9.1 step 11)
+- Push `phase-6.5` for the preview, then merge; acceptance run with the recorder script (per-page numbers after, revisits without skeletons, sign-out leaves no cached data)
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Acceptance run on the preview
+
+**Done**
+- Abdullah created the external monitor on `/health` (ADR-065) and pushed `phase-6.5` (`da1c5d8`, PR "Phase 6.5"); the Vercel preview built
+- Acceptance run on the preview with the recorder script: every sidebar page visited twice. Abdullah: **revisits were instant, no skeletons**
+
+**Numbers** (preview inbox in `sin1` → production server, which does not have the one-query session check yet)
+- Prefetch works: each page's requests start 1–3 s into the page before it (on hover), so the data is usually there at the click. In the TSV a page's requests therefore carry the label of the page hovered from
+- One request per URL per visit: `/v1/agents` 5 times over 14 page visits (before: on almost every page, sometimes twice)
+- Overview stats keys are stable (`from=…T18:15:00.000Z` on every visit), so they are served from the cache
+- API requests: browser wait 180–230 ms (first run 210–350 ms), server 8–19 ms; the difference is mostly network
+- Slowest request on a warm instance: `stats/overview` (9 queries, 7 in parallel) 280–470 ms. With Neon just woken its database time was 741–960 ms; warm 29–33 ms (the accepted Neon cold start, ADR-065)
+- Revisits more than 5 s apart refetch in the background behind the cached data (`staleTime` 5 s), as designed
+- Sign-out leaving no cached data is covered by the unit tests (`sign-out.test.ts`, `query-client.test.ts`); after sign-out the browser also loads `/login` as a full page, which drops the in-memory cache
+
+**Next**
+- Merge the PR so production gets `sin1`, the one-query session check and the cache; then Phase 7 (stretch) per PLAN

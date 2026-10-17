@@ -95,6 +95,9 @@ configs:
       server {
         listen 80;
         client_max_body_size 5m;
+        gzip on;
+        gzip_proxied any;
+        gzip_types application/json application/x-ndjson;
         proxy_set_header Host $$host;
         proxy_set_header X-Forwarded-For $$remote_addr;
         proxy_set_header X-Forwarded-Proto $$scheme;

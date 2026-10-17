@@ -31,21 +31,22 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { createContext, use, useEffect, useState } from "react";
-import { z } from "zod";
 
 import { BrandMark } from "@/components/brand-mark";
 import Loader from "@/components/loader";
 import { api } from "@/lib/api";
-import { LOGIN_PATH } from "@/lib/constants";
-import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { ThemeName } from "@/lib/enums/theme-name.enum";
 import { initials } from "@/lib/format";
+import { useLiveQueries } from "@/lib/live-queries";
+import { prefetchPage } from "@/lib/prefetch";
 import { License, Me } from "@/lib/schemas";
+import { signOut } from "@/lib/sign-out";
 
 type NavItem = { href: Route; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -92,13 +93,6 @@ export function useMe() {
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-}
-
-async function signOut() {
-  await api(API_ENDPOINTS.AUTH_LOGOUT, z.undefined(), { method: HttpMethod.POST }).catch(
-    () => undefined,
-  );
-  window.location.assign(LOGIN_PATH);
 }
 
 function ThemeItems() {
@@ -173,6 +167,7 @@ function Sidebar({
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const client = useQueryClient();
   return (
     <div className="flex h-full flex-col gap-5 p-3">
       <div className="flex items-center gap-2.5 px-1.5 pt-1">
@@ -197,6 +192,8 @@ function Sidebar({
                   key={href}
                   href={href}
                   onClick={onNavigate}
+                  onMouseEnter={() => prefetchPage(client, href, me.role)}
+                  onFocus={() => prefetchPage(client, href, me.role)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring/40",
@@ -225,6 +222,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [license, setLicense] = useState<License | null>(null);
   const [failed, setFailed] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  useLiveQueries();
 
   useEffect(() => {
     if (!drawer) return;

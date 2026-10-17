@@ -89,6 +89,22 @@ describe("sessions", () => {
     await http().get("/v1/me").set("Cookie", cookie).expect(401);
   });
 
+  it("checks the session and its user in one query", async () => {
+    const { user } = await createUser(prisma, orgId);
+    const cookie = await sessionCookie(prisma, user);
+    const res = await http().get("/v1/me").set("Cookie", cookie).expect(200);
+    expect(res.body).toMatchObject({ email: user.email });
+    expect(res.headers["server-timing"]).toMatch(/desc="1 queries"$/);
+  });
+
+  it("rejects a session stored under another org than its user", async () => {
+    const { user } = await createUser(prisma, orgId);
+    const cookie = await sessionCookie(prisma, user);
+    const otherOrg = await createOrg(prisma);
+    await prisma.session.updateMany({ data: { orgId: otherOrg } });
+    await http().get("/v1/me").set("Cookie", cookie).expect(401);
+  });
+
   it("rejects cookie-authenticated mutations without the CSRF header", async () => {
     const { user } = await createUser(prisma, orgId);
     const cookie = await sessionCookie(prisma, user);

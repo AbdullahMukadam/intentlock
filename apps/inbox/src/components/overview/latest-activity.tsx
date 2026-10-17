@@ -23,16 +23,13 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { apiUrl } from "@/lib/api";
 import { AuditVerdict } from "@/lib/enums/audit-verdict.enum";
-import { EventName } from "@/lib/enums/event-name.enum";
 import { formatRelative, humanize } from "@/lib/format";
 import { type AgentSummary, AuditPage, type AuditRow } from "@/lib/schemas";
-import { useEvents } from "@/lib/socket";
+import { LATEST_ACTIVITY_LIMIT } from "@/lib/constants";
 import { errorMessage } from "@/lib/error-message";
 import { useApi } from "@/lib/use-api";
 
-const LIMIT = 8;
 const POLL_MS = 15_000;
-const EVENTS = [EventName.DECISION, EventName.HOLD_CREATED, EventName.HOLD_RESOLVED];
 
 type Look = { icon: React.ComponentType<{ className?: string }>; tone: string };
 
@@ -84,11 +81,11 @@ function title(row: AuditRow): React.ReactNode {
 }
 
 export function LatestActivity({ agentId, agents }: { agentId: string; agents: AgentSummary[] }) {
-  const { data, error, reload } = useApi(
-    apiUrl(API_ENDPOINTS.AUDIT, { query: { limit: LIMIT, agentId } }),
+  const { data, error } = useApi(
+    apiUrl(API_ENDPOINTS.AUDIT, { query: { limit: LATEST_ACTIVITY_LIMIT, agentId } }),
     AuditPage,
+    { refetchInterval: POLL_MS },
   );
-  useEvents(EVENTS, reload, POLL_MS);
   const names = new Map(agents.map((a) => [a.id, a.name]));
 
   return (

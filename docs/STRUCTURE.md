@@ -258,7 +258,7 @@ src/
 ├── auth/                           # auth.module/controller/service (methods, login, logout, me, password forgot/reset; rate limits)
 │   ├── sessions.service.ts         # the one session check, shared by SessionGuard and the WebSocket handshake
 │   ├── constants/                  # session.constants.ts
-│   ├── types/                      # resolved-session.type.ts
+│   ├── types/                      # resolved-session.type.ts, session-row.type.ts (session joined with its user)
 │   ├── dto/                        # login, forgot-password, reset-password
 │   ├── enums/                      # auth-error, login-throttler
 │   ├── guards/                     # session.guard.ts (default deny)
@@ -409,9 +409,11 @@ src/components/                     # app-specific; shared primitives come from 
 └── *.tsx                           # app-shell, brand-mark, page-header, empty-state, detail-grid, secret-reveal, code-block,
                                     # login-form, agent-filter, native-select, verdict-badge, loader, route-error
 src/lib/
-├── api.ts                          # typed client: same-origin /api/*, CSRF header on mutations, 401 → /login
+├── api.ts                          # typed client: same-origin /api/*, CSRF header on mutations, 401 → /login, mutation → invalidateAll()
+├── api-error.ts                    # ApiError(status, code, body)
 ├── schemas.ts                      # zod schemas for server responses the inbox reads
-├── use-api.ts                      # useApi(url, schema): fetch + parse, keyed by URL, reload()
+├── use-api.ts                      # useApi(url, schema): TanStack useQuery, raw JSON cached by URL, schema in select, reload()
+├── query-client.ts                 # getQueryClient() (one per tab), queryKeyFor(url), shouldRetry (ADR-060), cleared on 401 (ADR-064)
 ├── activity-filters.ts             # Activity URL params ↔ /v1/audit query
 ├── format.ts · verdict-colors.ts   # time/duration formatting; status colours per verdict
 ├── policy-lint.ts                  # parsePolicy() errors → CodeMirror diagnostics
@@ -425,7 +427,11 @@ src/lib/
 ├── enums/                          # http-method, http-status, audit-verdict, audit-format, activity-param, time-range, stats-bucket,
 │                                   # event-name, hold-state, agent-tab, api-error-code, ui-action, oauth-error-code,
 │                                   # sign-in-provider, theme-name
-└── socket.ts                       # useEvents(): one Socket.IO connection at /api/socket.io + polling fallback
+├── live-queries.ts                 # useLiveQueries() in the app shell: socket events → invalidate matching queries (EVENT_QUERY_PATHS)
+├── prefetch.ts                     # pageQueryUrls(href, role) + prefetchPage(): sidebar hover/focus prefetch
+├── stats-window.ts                 # statsWindow(rangeMs): Overview from/prevFrom rounded to 5 min (stable cache keys)
+├── sign-out.ts                     # signOut(): logout, clear the query cache, go to /login
+└── socket.ts                       # connect(): one Socket.IO connection at /api/socket.io (polling fallback = refetchInterval in useApi)
 ```
 
 ### `apps/demo`

@@ -6,6 +6,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import type { RequestMeta } from "./types/request-meta.type.js";
 import { SESSION_REFRESH_AFTER_MS, SESSION_TTL_MS } from "./constants/session.constants.js";
 import type { ResolvedSession } from "./types/resolved-session.type.js";
+import type { SessionRow } from "./types/session-row.type.js";
 
 // One place that decides whether a session is valid, for HTTP requests and WebSocket handshakes alike.
 @Injectable()
@@ -36,20 +37,21 @@ export class SessionsService {
   }
 
   async resolve(sessionId: string): Promise<ResolvedSession | null> {
-    const session = await this.prisma.session.findUnique({ where: { id: sessionId } });
-    if (!session || session.expiresAt.getTime() <= Date.now()) return null;
-    const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
-    if (!user || user.disabledAt || user.orgId !== session.orgId) return null;
+    const [row] = await this.prisma.$queryRaw<SessionRow[]>`
+      SELECT s."expiresAt", u.id, u."orgId", u.email, u.role::text AS role, u.groups
+      FROM "Session" s JOIN "User" u ON u.id = s."userId" AND u."orgId" = s."orgId"
+      WHERE s.id = ${sessionId} AND u."disabledAt" IS NULL`;
+    if (!row || row.expiresAt.getTime() <= Date.now()) return null;
     return {
       user: {
-        id: user.id,
-        orgId: user.orgId,
-        email: user.email,
-        role: user.role,
-        groups: user.groups,
-        sessionId: session.id,
+        id: row.id,
+        orgId: row.orgId,
+        email: row.email,
+        role: row.role,
+        groups: row.groups,
+        sessionId,
       },
-      expiresAt: session.expiresAt,
+      expiresAt: row.expiresAt,
     };
   }
 

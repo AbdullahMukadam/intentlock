@@ -15,14 +15,11 @@ import { useAgents } from "@/components/agent-filter";
 import { EmptyState } from "@/components/empty-state";
 import { HoldCard } from "@/components/holds/hold-card";
 import { apiUrl } from "@/lib/api";
-import { EventName } from "@/lib/enums/event-name.enum";
 import { HoldState } from "@/lib/enums/hold-state.enum";
 import { type PendingHold, PendingHolds } from "@/lib/schemas";
-import { useEvents } from "@/lib/socket";
 import { useApi } from "@/lib/use-api";
 
 const POLL_MS = 10_000;
-const HOLD_EVENTS = [EventName.HOLD_CREATED, EventName.HOLD_RESOLVED];
 
 function Section({
   title,
@@ -72,8 +69,8 @@ export function HoldList() {
   const { data, error, reload } = useApi(
     apiUrl(API_ENDPOINTS.HOLDS, { query: { status: HoldState.PENDING } }),
     PendingHolds,
+    { refetchInterval: POLL_MS },
   );
-  useEvents(HOLD_EVENTS, reload, POLL_MS);
 
   if (error && !data) {
     return (
