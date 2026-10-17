@@ -30,6 +30,7 @@ import { EmptyState } from "@/components/empty-state";
 import { SecretReveal } from "@/components/secret-reveal";
 import { api, apiUrl } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatRelative, formatTime } from "@/lib/format";
 import { ApiKeyViews, NewApiKey } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
@@ -54,8 +55,8 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
       });
       setRevealed(created.key);
       reload();
-    } catch {
-      toast.error("Could not create the key.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not create the key."));
     } finally {
       setBusy(false);
     }
@@ -69,8 +70,8 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
         params: { id: agentId, keyId },
       });
       toast.success(`Revoked ${name}`);
-    } catch {
-      toast.error("Could not revoke the key.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not revoke the key."));
     }
     reload();
   }

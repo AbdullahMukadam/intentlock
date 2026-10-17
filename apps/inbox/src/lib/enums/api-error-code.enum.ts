@@ -17,4 +17,6 @@ export enum ApiErrorCode {
   CANNOT_DEMOTE_OR_DISABLE_SELF = "cannot_demote_or_disable_self",
   WRONG_PASSWORD = "wrong_password",
   LAST_SIGN_IN_METHOD = "last_sign_in_method",
+  DATABASE_UNAVAILABLE = "database_unavailable",
+  UNEXPECTED_RESPONSE = "unexpected_response",
 }

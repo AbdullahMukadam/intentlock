@@ -25,9 +25,11 @@ const MORE: ActivityParam[] = [
 export function Filters({
   values: v,
   agents,
+  agentsFailed = false,
 }: {
   values: ActivityFilters;
   agents: AgentSummary[];
+  agentsFailed?: boolean;
 }) {
   const moreActive = MORE.some((p) => Boolean(v[p as keyof ActivityFilters]));
   return (
@@ -43,7 +45,12 @@ export function Filters({
             className="pl-9"
           />
         </div>
-        <AgentFilter agents={agents} name={ActivityParam.AGENT_ID} defaultValue={v.agentId} />
+        <AgentFilter
+          agents={agents}
+          failed={agentsFailed}
+          name={ActivityParam.AGENT_ID}
+          defaultValue={v.agentId}
+        />
         <NativeSelect aria-label="Verdict" name={ActivityParam.VERDICT} defaultValue={v.verdict}>
           <option value="">Any verdict</option>
           {Object.values(AuditVerdict).map((verdict) => (

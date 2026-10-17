@@ -14,11 +14,12 @@ import { CodeBlock } from "@/components/code-block";
 import { PageHeader } from "@/components/page-header";
 import { SecretReveal } from "@/components/secret-reveal";
 import { VerdictBadge } from "@/components/verdict-badge";
-import { ApiError, api, apiUrl } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { EventName } from "@/lib/enums/event-name.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { OnboardingStep } from "@/lib/enums/onboarding-step.enum";
+import { errorMessage } from "@/lib/error-message";
 import { AgentView, AuditPage, NewApiKey } from "@/lib/schemas";
 import { useEvents } from "@/lib/socket";
 import { useApi } from "@/lib/use-api";
@@ -78,12 +79,9 @@ function Stepper({ current }: { current: OnboardingStep }) {
 }
 
 function agentMessage(error: unknown) {
-  if (!(error instanceof ApiError)) return "Could not create the agent.";
-  if (error.code === ApiErrorCode.AGENT_NAME_TAKEN)
-    return "An agent with that name already exists.";
-  if (error.code === ApiErrorCode.AGENT_LIMIT_REACHED)
-    return "Your license's agent limit is reached.";
-  return "Use kebab-case, e.g. github-assistant.";
+  return errorMessage(error, "Could not create the agent.", {
+    [ApiErrorCode.VALIDATION_FAILED]: "Use kebab-case, e.g. github-assistant.",
+  });
 }
 
 function snippet(user: string) {
@@ -182,8 +180,8 @@ export function OnboardingWizard() {
         body: { name: form.get("name") },
       });
       setApiKey(created.key);
-    } catch {
-      setError("Could not create the key.");
+    } catch (e) {
+      setError(errorMessage(e, "Could not create the key."));
     } finally {
       setBusy(false);
     }

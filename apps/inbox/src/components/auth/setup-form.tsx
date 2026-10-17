@@ -10,22 +10,19 @@ import { ApiError, api } from "@/lib/api";
 import { LOGIN_PATH, ONBOARDING_PATH } from "@/lib/constants";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
-import { HttpStatus } from "@/lib/enums/http-status.enum";
+import { errorMessage } from "@/lib/error-message";
 import { LoginResponse, SetupStatus } from "@/lib/schemas";
 
 import { AuthLayout } from "./auth-layout";
 import { FormError, FormField, PasswordField } from "./form-field";
 
 function message(error: unknown) {
-  if (!(error instanceof ApiError)) return "Setup failed. Is the server running?";
-  if (error.code === ApiErrorCode.INVALID_SETUP_CODE)
-    return "That setup code is not valid. Use the newest code in the server logs.";
-  if (error.code === ApiErrorCode.PASSWORD_TOO_WEAK)
-    return "Choose a password that does not contain your email.";
-  if (error.code === ApiErrorCode.VALIDATION_FAILED)
-    return "Check the fields: a valid email and a password of at least 12 characters.";
-  if (error.status === HttpStatus.TOO_MANY_REQUESTS) return "Too many attempts. Wait a minute.";
-  return "Setup failed. Try again.";
+  return errorMessage(error, "Setup failed.", {
+    [ApiErrorCode.INVALID_SETUP_CODE]:
+      "That setup code is not valid. Use the newest code in the server logs.",
+    [ApiErrorCode.VALIDATION_FAILED]:
+      "Check the fields: a valid email and a password of at least 12 characters.",
+  });
 }
 
 export function SetupForm() {

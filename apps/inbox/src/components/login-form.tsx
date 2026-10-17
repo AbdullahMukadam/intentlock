@@ -14,14 +14,13 @@ import { oauthMessage } from "@/lib/auth-messages";
 import { SETUP_PATH } from "@/lib/constants";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { HttpStatus } from "@/lib/enums/http-status.enum";
+import { errorMessage } from "@/lib/error-message";
 import { AuthMethods, LoginResponse, SetupStatus } from "@/lib/schemas";
 
 function message(error: unknown) {
   if (error instanceof ApiError && error.status === HttpStatus.UNAUTHORIZED)
     return "Wrong email or password.";
-  if (error instanceof ApiError && error.status === HttpStatus.TOO_MANY_REQUESTS)
-    return "Too many attempts. Try again in a minute.";
-  return "Sign-in failed. Is the server running?";
+  return errorMessage(error, "Sign-in failed.");
 }
 
 function ForgotForm({ onBack }: { onBack: () => void }) {
@@ -39,11 +38,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
       });
       setSent(true);
     } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === HttpStatus.TOO_MANY_REQUESTS
-          ? "Too many attempts. Try again in a minute."
-          : "Could not send the email. Ask an admin for a reset link.",
-      );
+      setError(errorMessage(e, "Could not send the email. Ask an admin for a reset link."));
     } finally {
       setPending(false);
     }

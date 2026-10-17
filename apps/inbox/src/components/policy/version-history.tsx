@@ -9,8 +9,9 @@ import { toast } from "sonner";
 
 import { DiffView } from "@/components/policy/diff-view";
 import Loader from "@/components/loader";
-import { ApiError, api, apiUrl } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatTime } from "@/lib/format";
 import {
   type PolicyVersionSummary,
@@ -55,7 +56,7 @@ export function VersionHistory({
       toast.success(`Published v${created.version} (copy of v${version})`);
       setSelected(null);
     } catch (e) {
-      toast.error(e instanceof ApiError ? `Rollback failed: ${e.code}` : "Rollback failed.");
+      toast.error(errorMessage(e, "Rollback failed."));
     }
     onChanged();
   }

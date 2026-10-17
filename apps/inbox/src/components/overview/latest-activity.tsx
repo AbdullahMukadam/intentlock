@@ -16,6 +16,7 @@ import {
   ScrollText,
   ShieldCheck,
   ShieldX,
+  TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,6 +27,7 @@ import { EventName } from "@/lib/enums/event-name.enum";
 import { formatRelative, humanize } from "@/lib/format";
 import { type AgentSummary, AuditPage, type AuditRow } from "@/lib/schemas";
 import { useEvents } from "@/lib/socket";
+import { errorMessage } from "@/lib/error-message";
 import { useApi } from "@/lib/use-api";
 
 const LIMIT = 8;
@@ -82,7 +84,7 @@ function title(row: AuditRow): React.ReactNode {
 }
 
 export function LatestActivity({ agentId, agents }: { agentId: string; agents: AgentSummary[] }) {
-  const { data, reload } = useApi(
+  const { data, error, reload } = useApi(
     apiUrl(API_ENDPOINTS.AUDIT, { query: { limit: LIMIT, agentId } }),
     AuditPage,
   );
@@ -104,7 +106,13 @@ export function LatestActivity({ agentId, agents }: { agentId: string; agents: A
         </Link>
       </PanelHeader>
       <PanelBody className="p-0">
-        {!data ? (
+        {error && !data ? (
+          <EmptyState
+            icon={TriangleAlert}
+            title="Could not load activity"
+            description={errorMessage(error, "It retries automatically.")}
+          />
+        ) : !data ? (
           <div className="grid gap-3 p-4">
             {Array.from({ length: 5 }, (_, i) => (
               <Skeleton key={i} className="h-10" />

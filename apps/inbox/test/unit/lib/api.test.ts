@@ -64,6 +64,15 @@ describe("api", () => {
     expect(error).toMatchObject({ status: 409, code: "stale_base_version", body });
   });
 
+  test("a response that does not match the schema is an ApiError, not a ZodError", async () => {
+    fetchMock.mockResolvedValue(json(200, { unexpected: true }));
+    const error = await api(API_ENDPOINTS.ME, z.object({ email: z.string() })).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 200, code: "unexpected_response" });
+  });
+
   test("401 sends the user to sign in and back", async () => {
     fetchMock.mockResolvedValue(json(401, { error: "unauthorized" }));
     await expect(api(API_ENDPOINTS.ME, z.unknown())).rejects.toBeInstanceOf(ApiError);

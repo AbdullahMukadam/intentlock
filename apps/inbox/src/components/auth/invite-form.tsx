@@ -6,11 +6,12 @@ import { Button, buttonVariants } from "@intentlock/ui/components/button";
 import { useEffect, useState } from "react";
 
 import Loader from "@/components/loader";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { LOGIN_PATH } from "@/lib/constants";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { OAuthMode } from "@/lib/enums/oauth-mode.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatDate } from "@/lib/format";
 import { AuthMethods, InviteInfo, LoginResponse } from "@/lib/schemas";
 
@@ -19,14 +20,10 @@ import { Divider, FormError, PasswordField } from "./form-field";
 import { ProviderButtons } from "./provider-buttons";
 
 function message(error: unknown) {
-  if (!(error instanceof ApiError)) return "Could not accept the invite. Is the server running?";
-  if (error.code === ApiErrorCode.PASSWORD_TOO_WEAK)
-    return "Choose a password that does not contain your email.";
-  if (error.code === ApiErrorCode.VALIDATION_FAILED) return "Use at least 12 characters.";
-  if (error.code === ApiErrorCode.USER_LIMIT_REACHED)
-    return "Your team has reached its user limit. Ask an admin to free a seat.";
-  if (error.code === ApiErrorCode.LINK_INVALID) return "This invite is no longer valid.";
-  return "Could not accept the invite. Try again.";
+  return errorMessage(error, "Could not accept the invite.", {
+    [ApiErrorCode.VALIDATION_FAILED]: "Use at least 12 characters.",
+    [ApiErrorCode.LINK_INVALID]: "This invite is no longer valid.",
+  });
 }
 
 export function InviteForm({ token, error: oauthError }: { token: string; error: string | null }) {

@@ -9,20 +9,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { ApiError, api } from "@/lib/api";
-import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
+import { api } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatRelative } from "@/lib/format";
 import { HoldView, type PendingHold } from "@/lib/schemas";
 
 function message(error: unknown) {
-  if (error instanceof ApiError && error.code === ApiErrorCode.HOLD_NOT_PENDING) {
-    return "Someone else resolved this hold, or it expired.";
-  }
-  if (error instanceof ApiError && error.code === ApiErrorCode.NOT_AN_APPROVER) {
-    return "You are not an approver for this hold.";
-  }
-  return "Could not save your decision.";
+  return errorMessage(error, "Could not save your decision.");
 }
 
 function Meta({

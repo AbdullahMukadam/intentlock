@@ -2,6 +2,7 @@ import { API_ENDPOINTS, type ApiEndpoint, apiPath } from "@intentlock/core";
 import type { z } from "zod";
 
 import { API_PREFIX, CSRF_HEADER, LOGIN_PATH, NEXT_PARAM } from "./constants";
+import { ApiErrorCode } from "./enums/api-error-code.enum";
 import { HttpMethod } from "./enums/http-method.enum";
 import { HttpStatus } from "./enums/http-status.enum";
 import { ApiErrorBody } from "./schemas";
@@ -67,7 +68,9 @@ export async function request<S extends z.ZodType>(
     const parsed = ApiErrorBody.safeParse(data);
     throw new ApiError(res.status, parsed.success ? parsed.data.error : res.statusText, data);
   }
-  return schema.parse(data);
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) throw new ApiError(res.status, ApiErrorCode.UNEXPECTED_RESPONSE, data);
+  return parsed.data;
 }
 
 export function api<S extends z.ZodType>(

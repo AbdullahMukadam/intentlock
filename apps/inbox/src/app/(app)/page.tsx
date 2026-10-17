@@ -71,7 +71,7 @@ function LoadingGrid() {
 
 export default function OverviewPage() {
   const me = useMe();
-  const agentList = useAgentList();
+  const { agents: agentList, failed: agentsFailed } = useAgentList();
   const agents = agentList ?? [];
   const [agentId, setAgentId] = useState("");
   const [range, setRange] = useState(TimeRange.DAY);
@@ -112,6 +112,7 @@ export default function OverviewPage() {
             </NativeSelect>
             <AgentFilter
               agents={agents}
+              failed={agentsFailed}
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
             />
