@@ -1389,3 +1389,30 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes**
 - Already visible without measuring: `useApi` (14 components) has no cache, so every page switch refetches from zero; `useMe` is loaded once in the app shell and is not part of the problem
 - `@tanstack/react-query` is a new runtime dependency for the inbox: Abdullah asked for it; confirm and write an ADR when the task starts
+
+### 2026-10-17 · Session 19 · Phase 6.5 — Server-Timing and first numbers
+
+**Done**
+- `Server-Timing: total;dur=…, db;dur=…;desc="N queries"` on every API response: `server-timing.middleware.ts` keeps per-request totals in `AsyncLocalStorage`, `PrismaService` feeds it from Prisma's `query` events (commit `6ebcbe2`, merged as PR #11, deployed through CI's deploy hook)
+- First per-page numbers on the deployed instance (below), recorded in Abdullah's signed-in Chrome with a console script (Resource Timing + `serverTiming`, one visit and one revisit per page via the sidebar)
+
+**Numbers** (2026-10-17, from Mumbai; Render and Neon both in Singapore)
+- Health check: server 2.9–3.7 ms, of which the one query 2.1–2.6 ms; the browser waits ~230–260 ms after TLS for the response
+- Every API request: browser wait 210–350 ms, server time 10–20 ms for most routes; the rest is network (Vercel edge `bom1` → Render Singapore → back)
+- Vercel functions run in **`iad1` (Washington)**: `X-Vercel-Id: bom1::iad1::…` on page payloads (`?_rsc`). A page switch that needs one waits 350–480 ms for it before the page's own API requests start
+- Requests per page (warm): Overview 4 in parallel (`agents`, `stats/overview` ×2, `audit?limit=8`) 280–590 ms; Holds 2 (`agents`, `holds`) 310–410 ms; Activity 2 (`audit`, `agents`) 310–345 ms; Team 2 (`users`, `invites`) 300–350 ms; Agents 1 (`agents`) 255–365 ms; Account 1 then 2 (`account`, then `auth/methods` + `account/sessions`) ~380 + 245 ms
+- `/v1/agents` loads on almost every page (the agent filter); revisits refetch everything
+- Queries per request: 3–5 for most routes, 9 for `stats/overview`; `auth/methods` 0 (public)
+- Cold or first hits: `/v1/agents` server 884 ms (5 queries, 881 ms in the database), `stats/overview` db 960–1009 ms (9 queries); warm the same routes take 12–80 ms
+- Socket.io falls back to long polling through the rewrite (25 s requests); a few requests on the first Agents visit took 13–20 s in total with a 230–360 ms wait, so they queued in the browser before being sent
+
+**Problems hit and how they were solved**
+- Render runs the GHCR image built only on `main`, so a branch cannot be measured on Render → merge each server change to `main`
+- Claude in Chrome was not connected → a console script that Abdullah pasted, results copied back as TSV
+- Page labels in the TSV come from a 20 ms poll of `location.pathname`, so a few rows are labelled with the page before
+
+**Next**
+- Query counts / `EXPLAIN ANALYZE` (task 3): the slow ones are cold `agents` and `stats/overview`; warm, the database is not the bottleneck
+- Vercel function region to `sin1` (next to Render and Neon) or `bom1`: removes the US round trip from page switches
+- The 13–20 s queued requests: check the protocol column (h2 vs http/1.1) and socket.io long polls
+- Agent detail and run detail pages not measured yet
