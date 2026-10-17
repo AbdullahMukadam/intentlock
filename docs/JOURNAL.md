@@ -1255,3 +1255,22 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - CLI tests 20 (was 16: unreachable server, HTML 502 and 503 with request id, HTML 200, missing file and corrupt session); demo green; lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — acceptance
+
+**Done**
+- Repo-wide `format:check`, `lint` (12 tasks), `typecheck` (13) and `test` green: server 201, inbox 70, guard 42, sdk 34, cli 20, plus core, anthropic, demo, evals
+- Acceptance burst on the local two-instance stack (`pnpm tsx deploy/load/scale-test.ts --no-build`): 50 plans signed in 1.5 s over both instances; 50 plans × 20 concurrent checks split across A and B → exactly 5 allowed per plan, **0 errors** (this burst returned 500s at the start of the session). Phase 5.7 acceptance met
+- `scale-test.ts --no-build` runs on the images already built and never pulls (`--pull never`)
+
+**Problems hit and how they were solved**
+- Docker Desktop stopped twice more → restarted
+- Rebuilding the server image re-ran `pnpm install` and **downloaded 837 packages**, against my expectation that the layer was cached: the server Dockerfile does `COPY . .` before `pnpm install`, so any source change invalidates the install layer. Fix proposed to Abdullah (copy only manifests and the lockfile before the install); not changed yet
+- The rest of the full Phase 6 scale run failed 4 checks; from the numbers they look like script problems, to fix when Phase 6 resumes:
+  - holds: the 20 sequential holds ran past the kill at +30 s, so approvals sent directly to the killed server-2 failed (14 approve and 10 reject network errors); 14 holds stayed pending. They need to finish before the kill, or the resolving side has to move to a live instance
+  - hybrid "0/8 fully delivered": the script expects stored entries = checks + reports, but decisions blocked by backpressure (5,538 of 14,288) are never written to the outbox, so the expectation is wrong; 8 hybrid clients at ~400 decisions/s also saturate this laptop (check p50 1.8 s, batch p50 3.3 s)
+  - an unhandled rejection at the end: the hold loop starts `waitForHold` before the approve call, and when the approve throws, the wait promise is never awaited
+- Passed in that run: failover (161 remote checks succeeded through nginx after the kill, first 280 ms after it), chain intact (18,032 entries), no duplicate `(planId, clientSeq)`, no counter over `maxCalls` (177 counters)
+
+**Next**
+- Abdullah: branch/push choice for Phase 5.7, the Dockerfile install-layer fix; then Phase 6 resumes (scale-test script fixes and a full run)

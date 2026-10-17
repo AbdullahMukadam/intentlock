@@ -19,6 +19,7 @@ const A = "http://127.0.0.1:3101";
 const B = "http://127.0.0.1:3102";
 const COMPOSE_FILE = join(import.meta.dirname, "..", "docker-compose.scale.yml");
 const KEEP = process.argv.includes("--keep");
+const NO_BUILD = process.argv.includes("--no-build");
 
 const PLANS = 50;
 const LIMIT = 5;
@@ -378,7 +379,7 @@ function report(from: number, to: number) {
 async function main() {
   console.log("starting a fresh scale stack (2 servers + nginx + Postgres + inbox)");
   compose("down", "-v");
-  compose("up", "-d", "--build");
+  compose("up", "-d", ...(NO_BUILD ? ["--no-build", "--pull", "never"] : ["--build"]));
   await waitReady();
   const { cookie, apiKey } = await setUp();
 
