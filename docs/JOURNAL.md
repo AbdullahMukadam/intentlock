@@ -1501,3 +1501,21 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Next**
 - Cold starts (Abdullah: at the end of the phase)
 - Acceptance: per-page numbers after the change on the deployed instance, revisits without skeletons, sign-out leaves no cached data
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Cold starts
+
+**Done**
+- Decision (ADR-065): a free external monitor (UptimeRobot or cron-job.org) sends `GET /health` to Render every 5 minutes; Neon's scale-to-zero stays and its ~1 s first request is accepted. DEPLOYMENT §9.1 step 11 and the free-tier table
+- No code: the monitor is a manual step for Abdullah
+
+**Decisions**
+- Not a GitHub Actions schedule: the repo is private (2,000 free minutes a month, each job rounded up to a minute; a 10–14 minute ping is 3,000–4,500 runs) and scheduled runs are often late
+- Not `/health/ready`: it queries the database, so Neon would wake on every ping (~93 of its 100 free CU-hours at a 10-minute interval; always awake needs ~186, and running out suspends the database)
+
+**Numbers** (limits checked 2026-10-17 via Render's docs and third-party summaries of Neon's and GitHub's pricing)
+- Render: 750 free instance hours per workspace per month; an always-on instance uses ~744
+- Neon: 100 CU-hours per project per month, 0.25 CU minimum, suspend after 5 idle minutes on Free
+
+**Next**
+- Abdullah: create the monitor (§9.1 step 11)
+- Push `phase-6.5` for the preview, then merge; acceptance run with the recorder script (per-page numbers after, revisits without skeletons, sign-out leaves no cached data)

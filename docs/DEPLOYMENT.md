@@ -196,7 +196,7 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 
 | Part | Service | Free-tier behaviour to plan for |
 | --- | --- | --- |
-| Server | **Render** free web service (Docker) | Sleeps after 15 minutes without inbound HTTP or WebSocket traffic; the first request then takes ~1 minute. 750 instance hours/month per workspace, shared by all free services (one always-on instance uses ~720). Ephemeral disk. Single instance only. |
+| Server | **Render** free web service (Docker) | Sleeps after 15 minutes without inbound HTTP or WebSocket traffic; the first request then takes ~1 minute; kept awake by an external monitor on `/health` (§9.1 step 11, ADR-065). 750 instance hours/month per workspace, shared by all free services (one always-on instance uses ~720–744). Ephemeral disk. Single instance only. |
 | Database | **Neon** free Postgres | Permanent free plan: 0.5 GB storage, 100 CU-hours of compute and 5 GB public transfer per project per month. Compute scales to zero after 5 idle minutes (slower first query). |
 | Inbox | **Vercel** Hobby | Personal / non-commercial use. 100 GB transfer/month. Proxied (rewrite) requests time out after 30–120 s depending on the docs version; the hold long-poll waits at most 25 s. Cold starts possible. |
 | Images | **GHCR** | Public images. |
@@ -229,6 +229,7 @@ Traffic path: browser → Vercel (inbox, and `/api/*` rewritten to Render) → R
 8. **First admin.** Open `https://<name>.onrender.com/health/ready` to wake the server, then copy `One-time setup code: …` from Render → Logs. Open the Vercel URL, which shows `/setup`; create the admin. With `INTENTLOCK_DEMO=1`, setup also creates the sample users and prints their passwords once in the logs.
 9. **Demo agents (laptop).** In `apps/demo/.env`: `INTENTLOCK_URL=https://<vercel>/api`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`. Then `pnpm --filter @intentlock/demo setup-instance` (agents, policies, API keys into `apps/demo/.env`), `pnpm --filter @intentlock/demo seed`, and run an agent.
 10. **Check.** Signed out, every inbox page redirects to `/login`; Audit → Verify is OK; Account → Sessions shows your own IP (if it shows a Vercel or Render address, adjust `TRUST_PROXY`).
+11. **Keep the server awake (ADR-065).** Create a free HTTP monitor (UptimeRobot, or cron-job.org) that sends `GET https://<name>.onrender.com/health` every 5 minutes. Use `/health`, never `/health/ready`: `/health` does not touch the database, so Neon still scales to zero after 5 idle minutes and stays within its 100 CU-hours (keeping it awake would take ~186). Call Render directly, not through Vercel. The always-on instance uses ~744 of the workspace's 750 free hours a month, so it must be the only free Render service in that workspace. Expect the first request after 5 quiet minutes to take ~1 s longer while Neon wakes; the ~1 minute Render wake-up only happens if the monitor stops.
 
 | Render variable | Value |
 | --- | --- |

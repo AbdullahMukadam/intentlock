@@ -303,7 +303,7 @@ Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switchi
 
 **Deployment**
 - [x] Render and Neon in the same region (a query that crosses regions costs ~100–200 ms each time); DEPLOYMENT §9 says which regions to pick together
-- [ ] Cold starts: Render sleeps after 15 idle minutes (~1 minute to wake) and Neon after 5; decide whether to accept them for the demo or keep the server warm (e.g. a scheduled ping, within the 750 free hours); document the choice
+- [x] Cold starts: Render sleeps after 15 idle minutes (~1 minute to wake) and Neon after 5; decide whether to accept them for the demo or keep the server warm (e.g. a scheduled ping, within the 750 free hours); document the choice
 
 **Server**
 - [x] Fewer round trips per request: the session check and the user it belongs to in one query; no repeated lookups of the same row within a request; missing indexes for the slow queries found above
