@@ -1336,3 +1336,12 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Abdullah: Dockerfile install-layer fix, branch and push, npm org, accounts (§9.1)
+
+### 2026-10-16 · Session 18 (cont.) · Phase 6 — Docker dependency layer cached
+
+**Done**
+- Server and inbox Dockerfiles: `COPY package.json pnpm-lock.yaml pnpm-workspace.yaml` → `pnpm fetch` → `COPY . .` → `pnpm install --offline --frozen-lockfile` (pnpm's Docker recipe). The download layer now changes only with the lockfile, the root manifest or the workspace file; a code-only change downloads nothing. Root `package.json` is in that layer so corepack uses the pinned pnpm 10.34.6; `prisma generate` (server `postinstall`) runs in the offline install, after the schema is copied
+- `docker build --check` on both: no warnings
+
+**Not verified**
+- No local image build, to save Abdullah's data: the first CI run on `main` builds both images on GitHub's network and confirms it; the second run should show `pnpm fetch` as cached
