@@ -1378,3 +1378,14 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - On the production domain, `/api/*` answered `404 DNS_HOSTNAME_RESOLVED_PRIVATE`: the rewrite pointed at `http://localhost:3000`, the fallback when `API_URL` is missing at build time. Root cause on our side: Turborepo's strict env mode strips variables a task does not declare, and `build` declared none, so `API_URL` never reached `next build` even when Vercel set it. The self-host bundle never noticed (its nginx sends `/api` straight to the server) → `turbo.json` `build.env: ["API_URL", "DEMO_RUNNER_URL"]`; `turbo run build --dry=json` now lists `API_URL` as configured for the inbox
 - The server itself answered `{"setupRequired":true}` directly on Render, with the new `x-request-id` header
 - DEPLOYMENT §9.1 step 6: Deployment Protection off, production domain, the `curl.exe` check and what `DNS_HOSTNAME_RESOLVED_PRIVATE` means
+
+### 2026-10-17 · Session 18 (cont.) · Deployed; Phase 6.5 planned
+
+**Done**
+- Abdullah merged the fixes, redeployed, and created the admin account on the deployed instance (Vercel → Render → Neon): the server and inbox run behind sign-in
+- Abdullah's report: switching pages in the inbox is slow and shows skeletons for a long time
+- PLAN: new **Phase 6.5 · Speed** (measure first with `Server-Timing` and per-page numbers; Render and Neon in one region; a decision on cold starts; fewer queries per request; TanStack Query in the inbox for caching, background refresh, socket-driven invalidation, mutations, ADR-060 retries, cache cleared on sign-out and 401, prefetch on hover). No code yet
+
+**Notes**
+- Already visible without measuring: `useApi` (14 components) has no cache, so every page switch refetches from zero; `useMe` is loaded once in the app shell and is not part of the problem
+- `@tanstack/react-query` is a new runtime dependency for the inbox: Abdullah asked for it; confirm and write an ADR when the task starts
