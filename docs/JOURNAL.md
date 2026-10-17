@@ -1356,3 +1356,25 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes**
 - The script and these docs were written on `main` after the merge (uncommitted), then moved to the branch `release-script`
+
+### 2026-10-17 · Session 18 (cont.) · One .env.example per app; shell-neutral commands
+
+**Done**
+- Abdullah merged `release-script` as PR #9
+- The root `.env.example` mixed four apps and had a dead entry (`API_URL` under "Inbox": Next.js only loads `apps/inbox/.env`, so the root value was never read). Replaced by `apps/server/.env.example` (database, signing key, URLs, email, OAuth, license, limits), `apps/inbox/.env.example` (`API_URL`, `DEMO_RUNNER_URL`), `apps/demo/.env.example` (instance URL, admin sign-in, the three per-agent keys setup writes, model, GitHub, Mailpit, sandbox, ports) and `packages/evals/.env.example` (model, pacing, latency bench). The old `INTENTLOCK_API_KEY` line is gone: nothing reads it (the demo uses per-agent keys)
+- Loading: `apps/server/src/config/load-env-files.util.ts` reads `apps/server/.env` and then the root `.env` (Node keeps the first value, and real env vars beat both, checked with a scratch test); used by `main.ts`, `prisma.config.ts` and the e2e setup, which also drops the comments those files had. Evals now also reads `packages/evals/.env`; the demo already read `apps/demo/.env`. An existing root `.env` keeps working
+- CONTRIBUTING setup copies `apps/server/.env.example` and lists the others; demo README and STRUCTURE updated
+- DEPLOYMENT §9.1 steps 3 and 4 and USAGE §2: no `&&` and no `VAR=value cmd` (Windows PowerShell 5.1 has neither); Abdullah hit the `&&` error running the keygen step
+
+**Numbers**
+- `prisma validate` and `prisma migrate status` load the config through the helper; server and evals lint and typecheck green; server config unit tests and `app.e2e` (database found through the root `.env` fallback) pass; prettier green
+
+### 2026-10-17 · Session 18 (cont.) · Phase 6 — first deploy: what broke
+
+**Problems hit and how they were solved**
+- Render: the server stopped at boot with `"pkcs8" must be PKCS#8 formatted string`: the pasted `SIGNING_KEY` was not a bare PEM (likely the quotes from `keygen --env`). Abdullah to paste the multi-line PEM. The fatal log line from Phase 5.7 is what made it visible. Offered: strip pasted quotes / `SIGNING_KEY=` and a clearer boot error
+- Inbox setup showed "Setup failed. ()": an error answer without an error code printed an empty `()` → `errorMessage` now shows `HTTP <status>` (test added)
+- `curl` to the inbox got a 302 to Vercel SSO: **Vercel Authentication** was on (and a per-deployment URL was used). It must be off: Intentlock has its own sign-in and the demo agents call `/api` without a Vercel login
+- On the production domain, `/api/*` answered `404 DNS_HOSTNAME_RESOLVED_PRIVATE`: the rewrite pointed at `http://localhost:3000`, the fallback when `API_URL` is missing at build time. Root cause on our side: Turborepo's strict env mode strips variables a task does not declare, and `build` declared none, so `API_URL` never reached `next build` even when Vercel set it. The self-host bundle never noticed (its nginx sends `/api` straight to the server) → `turbo.json` `build.env: ["API_URL", "DEMO_RUNNER_URL"]`; `turbo run build --dry=json` now lists `API_URL` as configured for the inbox
+- The server itself answered `{"setupRequired":true}` directly on Render, with the new `x-request-id` header
+- DEPLOYMENT §9.1 step 6: Deployment Protection off, production domain, the `curl.exe` check and what `DNS_HOSTNAME_RESOLVED_PRIVATE` means

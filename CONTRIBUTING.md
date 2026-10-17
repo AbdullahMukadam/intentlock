@@ -15,10 +15,12 @@ Node ≥ 22, pnpm ≥ 10.26, Docker.
 ```bash
 pnpm install
 docker compose up -d                                # PostgreSQL 16 (intentlock + intentlock_test) and Mailpit
-cp .env.example .env
+cp apps/server/.env.example apps/server/.env        # the only one you need for `pnpm dev`
 pnpm --filter @intentlock/server prisma migrate dev
 pnpm dev                                            # server :3000, inbox :3001, package watch builds
 ```
+
+Each app has its own `.env.example` listing only what it reads: `apps/server` (database, signing key, sign-in, email), `apps/inbox` (the `/api` target; the defaults work in dev), `apps/demo` (demo agents: Intentlock URL, admin sign-in, model, GitHub) and `packages/evals` (model and latency bench). Copy the ones you need to `.env` next to them. A root `.env` from before still works: every app reads it after its own.
 
 No paid model key is needed: tests use `FakeProvider`, and live runs use whatever `LLM_PROVIDER` you set (a free OpenAI-compatible tier or local Ollama works).
 

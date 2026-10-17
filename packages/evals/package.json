@@ -20,7 +20,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "eval": "tsx --env-file-if-exists=../../.env src/cli.ts"
+    "eval": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/cli.ts"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",

@@ -42,5 +42,5 @@ export function errorMessage(
       ? `${fallback} The server had a problem (request ${requestId}).`
       : `${fallback} The server had a problem.`;
   }
-  return `${fallback} (${error.code})`;
+  return `${fallback} (${error.code || `HTTP ${error.status}`})`;
 }

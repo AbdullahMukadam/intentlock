@@ -2,12 +2,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../../src/generated/prisma/client.js";
 import { LogLevel } from "../../src/config/enums/log-level.enum.js";
+import { loadEnvFiles } from "../../src/config/load-env-files.util.js";
 
-try {
-  process.loadEnvFile("../../.env");
-} catch {
-  // CI sets env vars directly
-}
+loadEnvFiles();
 process.env["DATABASE_URL"] = process.env["TEST_DATABASE_URL"];
 process.env["LOG_LEVEL"] ??= LogLevel.SILENT;
 

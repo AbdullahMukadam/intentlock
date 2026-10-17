@@ -212,11 +212,20 @@ Traffic path: browser → Vercel (inbox, and `/api/*` rewritten to Render) → R
 
 1. **Images.** Merge to `main` so CI pushes `ghcr.io/abdullahmukadam/intentlock-server:latest` (§3), then make the `intentlock-server` and `intentlock-inbox` packages public.
 2. **Neon.** Create a project in the region closest to the Render region you will pick. Copy two connection strings: the **pooled** one (host contains `-pooler`) and the **direct** one.
-3. **Migrate once.** Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone: `DIRECT_URL='<direct>' pnpm --filter @intentlock/server exec prisma migrate deploy`.
-4. **Signing key.** `pnpm --filter @intentlock/cli build && node packages/cli/dist/bin.js keygen --env` writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
+3. **Migrate once** (creates the tables; later releases only apply new migrations). Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone with the direct string in `DIRECT_URL`:
+   ```bash
+   # PowerShell: $env:DIRECT_URL = '<direct>'    Bash: export DIRECT_URL='<direct>'
+   pnpm --filter @intentlock/server exec prisma migrate deploy
+   ```
+4. **Signing key.** Run the two commands one after the other (Windows PowerShell 5.1 has no `&&`):
+   ```bash
+   pnpm --filter @intentlock/cli build
+   node packages/cli/dist/bin.js keygen --env
+   ```
+   It writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
 5. **Render.** New → Web Service → Existing image `ghcr.io/abdullahmukadam/intentlock-server:latest`, free instance, health check path `/health/ready`, environment as in the table below. Settings → Deploy Hook: copy it into the GitHub secret `RENDER_DEPLOY_HOOK`; turn off auto-deploy. Note the service URL (`https://<name>.onrender.com`).
-6. **Vercel.** Import the GitHub repo, root directory `apps/inbox`, framework Next.js, build command `cd ../.. && pnpm turbo run build --filter=@intentlock/inbox` (builds `core` and `ui` first), environment `API_URL=https://<name>.onrender.com` (read at build time by the `/api` rewrite). Deploy and note the URL.
-7. **Point the server at the inbox.** Set `PUBLIC_URL` on Render to the Vercel URL and redeploy (cookies, invite links and OAuth callbacks use it).
+6. **Vercel.** Import the GitHub repo, root directory `apps/inbox`, framework Next.js, build command `cd ../.. && pnpm turbo run build --filter=@intentlock/inbox` (builds `core` and `ui` first), environment `API_URL=https://<name>.onrender.com` for Production (read at build time by the `/api` rewrite; Turbo passes it because `turbo.json` declares it on `build`; after changing it, **Redeploy**). Settings → Deployment Protection → Vercel Authentication **Disabled**: Intentlock has its own sign-in, and the demo agents call `/api` without a Vercel login. Use the production domain (Settings → Domains), not a per-deployment URL. Check: `curl.exe -i https://<domain>/api/v1/setup/status` answers `{"setupRequired":true}`; `DNS_HOSTNAME_RESOLVED_PRIVATE` means the build had no `API_URL` and forwards to `localhost`.
+7. **Point the server at the inbox.** Set `PUBLIC_URL` on Render to that production domain and redeploy (cookies, invite links and OAuth callbacks use it).
 8. **First admin.** Open `https://<name>.onrender.com/health/ready` to wake the server, then copy `One-time setup code: …` from Render → Logs. Open the Vercel URL, which shows `/setup`; create the admin. With `INTENTLOCK_DEMO=1`, setup also creates the sample users and prints their passwords once in the logs.
 9. **Demo agents (laptop).** In `apps/demo/.env`: `INTENTLOCK_URL=https://<vercel>/api`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`. Then `pnpm --filter @intentlock/demo setup-instance` (agents, policies, API keys into `apps/demo/.env`), `pnpm --filter @intentlock/demo seed`, and run an agent.
 10. **Check.** Signed out, every inbox page redirects to `/login`; Audit → Verify is OK; Account → Sessions shows your own IP (if it shows a Vercel or Render address, adjust `TRUST_PROXY`).
