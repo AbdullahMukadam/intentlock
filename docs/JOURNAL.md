@@ -1435,3 +1435,69 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Vercel function region (`iad1` → `sin1`), then the cold-start decision
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Regions
+
+**Done**
+- Regions: Render and Neon were already both in Singapore; Vercel functions moved from `iad1` to `sin1` with `apps/inbox/vercel.json` (ADR-063, DEPLOYMENT §9 step 6; commit `0f407dc`). Checked on the branch preview (`X-Vercel-Id: bom1::sin1::…`); production follows when the branch is merged
+
+**Numbers** (curl from Abdullah's machine, time from TLS done to first byte, medians)
+- Dynamic page payload (`/activity?_rsc`, 15 alternating samples each): `iad1` 347 ms → `sin1` 288 ms (−59 ms)
+- Prerendered page payloads served from Vercel's Mumbai cache (`X-Vercel-Cache: HIT`, `X-Nextjs-Prerender: 1`): `/holds` 190 ms, `/team` 213 ms
+- One round trip to Vercel's edge (TCP connect): 80–90 ms
+- Split of one API request (~240 ms): ~85 ms browser ↔ Vercel edge, ~140 ms Vercel edge ↔ Render and back, ~15 ms in the server. A dynamic page payload (~290 ms): ~85 ms to the edge, ~200 ms for the proxy, the trip to `sin1` and rendering. A cached page payload (~190 ms): ~85 ms to the edge, ~100 ms at the edge (the `proxy.ts` session-cookie check runs for every page)
+
+**Notes**
+- The region change was smaller than expected: most of the time is per round trip (browser ↔ edge, edge ↔ Render), not distance to the US. So the big wins are fewer round trips per page switch: cached data (TanStack Query) and fewer requests that wait on each other
+- Activity, Account, agent detail and run detail render on every request because their pages read `searchParams` on the server; reading the filters on the client (`useSearchParams`) would let Vercel serve them from its cache like Holds and Team (~100 ms less per switch). Not in the plan yet
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Server round trips and compression
+
+**Done**
+- Session check in one query: `SessionsService.resolve` joins `Session` and `User` in raw SQL (same org, not disabled; expiry still checked against `Date.now()`), instead of two `findUnique` calls one after the other. No schema change (Session has no Prisma relation to User, and adding one would mean a foreign-key migration on Neon). Used by the HTTP guard and the WebSocket re-check
+- No repeated row lookups found on the busy routes: `account` loads the user again, but with its identities, which the session check does not have
+- Compression: on the hosted instance Vercel already answers proxied JSON with `Content-Encoding: br` (checked on `/api/v1/keys/jwks`, 133 bytes → 113). The self-host nginx had none → `gzip on` for `application/json` and `application/x-ndjson` (the audit export); `nginx -t` passes with the local `nginx:1.27-alpine` image. The inbox (Next.js) compresses its own responses
+
+**Numbers**
+- Every signed-in request: 2 → 1 queries for the session check (saves one ~2 ms round trip on Neon in the same region)
+- Server tests: 51 unit + 156 e2e green, including "checks the session and its user in one query" (`Server-Timing` on `/v1/me` reports 1 query) and "rejects a session stored under another org than its user"
+
+**Next**
+- TanStack Query in the inbox (new dependency: ADR and an install, both need Abdullah's go-ahead)
+- Cold starts at the end of the phase (Abdullah's call: scheduled ping or accept them)
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — TanStack Query core
+
+**Done**
+- `@tanstack/react-query@5.104.3` added to `apps/inbox` (Abdullah approved, regular install; ADR-064; ARCHITECTURE allowed dependencies)
+- `useApi(url, schema)` keeps its signature (14 components unchanged) and wraps `useQuery`: key `["api", path, search]` from the URL; the cache holds raw JSON and each component's zod schema runs in `select` (`parseResponse()`, split out of `request()`), so `/v1/agents` read with `AgentSummaries` and `AgentViews` is one request and both are validated; `keepPreviousData` while the URL changes; `reload()` is `refetch()` and does nothing while the URL is `null`
+- `query-client.ts`: one client per browser tab (a fresh one per server render), `staleTime` 5 s, `shouldRetry` (no retry on 4xx; 3 on network errors and 5xx with the default 1/2/4 s backoff), query and mutation caches clear everything on a 401; `signOut()` clears the cache before going to `/login`
+- `QueryClientProvider` in `Providers`
+
+**Problems hit and how they were solved**
+- `staleTime` 30 s would show a revisited page from cache without refreshing it → 5 s, still long enough for a hover prefetch to serve the click
+- Two schemas for the same URL would have shared whichever parsed result came first → cache raw JSON, parse per component in `select`
+
+**Numbers**
+- Inbox: 77 unit tests green (new: query keys, no retry on 4xx, 3 retries on network/5xx, cache cleared on 401 and kept on 404); lint, Prettier and `tsc` clean. Not yet checked in a browser: no `next build` or `next dev` locally (fonts download), so the preview deployment is the first run
+
+**Next**
+- Socket events invalidate queries and the holds poll becomes `refetchInterval`; mutations invalidate; prefetch on hover; the remaining tests
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Live updates, mutations, prefetch
+
+**Done**
+- Live updates: `useLiveQueries()` in the app shell, one listener per socket event, invalidates the endpoints that event changes (`EVENT_QUERY_PATHS`: decisions → audit, stats, runs, agents; holds → holds, audit, stats, runs; reconnect → all). `useEvents` is gone; `socket.ts` only connects. The polling fallback is `refetchInterval` in `useApi` (holds 10 s, latest activity 15 s, onboarding 3 s), which stops while the tab is hidden
+- Mutations: a successful non-GET `api()` call invalidates every cached query (on-screen ones refetch); policy test, invite lookup and sign-out are skipped (sign-out would otherwise refetch into a 401 and race its own redirect). `reload()` joins an in-flight refetch. `ApiError` moved to `api-error.ts` so `api.ts` and `query-client.ts` do not import each other
+- Prefetch: sidebar links prefetch their page's first requests on hover and focus (`prefetch.ts`)
+- Overview stats keys were never reusable: `from` was `now − 24 h` to the millisecond → `statsWindow()` rounds to 5 minutes
+- `signOut()` moved to `lib/sign-out.ts` so it can be tested
+- ADR-064 points 6–8; STRUCTURE
+
+**Numbers**
+- Inbox: 89 unit tests green (new: which queries each socket event invalidates, look-alike paths untouched; mutation invalidates, GET / read-only POST / sign-out / failed mutation do not; prefetch URLs per page, invites only for admins, fresh data not refetched; stats window stable within 5 minutes; sign-out empties the cache, also when the server is unreachable)
+- Still not run in a browser (no local `next dev`/`next build`); the Vercel preview is the first run
+
+**Next**
+- Cold starts (Abdullah: at the end of the phase)
+- Acceptance: per-page numbers after the change on the deployed instance, revisits without skeletons, sign-out leaves no cached data

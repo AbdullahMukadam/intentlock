@@ -302,22 +302,22 @@ Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switchi
 - [x] Count the database queries per request for the busiest routes (session check, `/v1/me`, `/v1/stats/overview`, `/v1/audit`, `/v1/holds`, `/v1/runs`); find the slow ones with `EXPLAIN ANALYZE` on Neon
 
 **Deployment**
-- [ ] Render and Neon in the same region (a query that crosses regions costs ~100–200 ms each time); DEPLOYMENT §9 says which regions to pick together
+- [x] Render and Neon in the same region (a query that crosses regions costs ~100–200 ms each time); DEPLOYMENT §9 says which regions to pick together
 - [ ] Cold starts: Render sleeps after 15 idle minutes (~1 minute to wake) and Neon after 5; decide whether to accept them for the demo or keep the server warm (e.g. a scheduled ping, within the 750 free hours); document the choice
 
 **Server**
-- [ ] Fewer round trips per request: the session check and the user it belongs to in one query; no repeated lookups of the same row within a request; missing indexes for the slow queries found above
-- [ ] Response compression for JSON if the platform does not already do it (check the `content-encoding` header first)
+- [x] Fewer round trips per request: the session check and the user it belongs to in one query; no repeated lookups of the same row within a request; missing indexes for the slow queries found above
+- [x] Response compression for JSON if the platform does not already do it (check the `content-encoding` header first)
 
 **Inbox: TanStack Query** (`@tanstack/react-query` is a new dependency; Abdullah asked for it, confirm before adding, ADR)
-- [ ] Replace `useApi` with TanStack Query: one `QueryClient` for the app; the existing `request()` with its zod schema as the query function (responses are still validated); query keys from the endpoint and its params
-- [ ] Cached data shows instantly when you come back to a page and refreshes in the background (`staleTime`, previous data kept while filters change); identical requests on one page are made once
-- [ ] Live updates through the cache: the socket events (`useEvents`) invalidate the matching queries instead of each component reloading itself; the 10 s holds poll becomes a `refetchInterval`
-- [ ] Mutations (approve/reject, publish, invite, keys) update or invalidate the affected queries, so lists change without a full reload
-- [ ] Retries follow ADR-060: none on 4xx, a few with backoff on network errors and 5xx
-- [ ] Security: the cache is cleared on sign-out and on any 401, so the next person on the same browser never sees the previous user's data (members only see their own runs)
-- [ ] Load next pages early where it is cheap: prefetch the data of a sidebar page on hover or focus
-- [ ] Tests: query keys, cache cleared on sign-out and 401, socket events invalidate the right queries, no retry on 4xx
+- [x] Replace `useApi` with TanStack Query: one `QueryClient` for the app; the existing `request()` with its zod schema as the query function (responses are still validated); query keys from the endpoint and its params
+- [x] Cached data shows instantly when you come back to a page and refreshes in the background (`staleTime`, previous data kept while filters change); identical requests on one page are made once
+- [x] Live updates through the cache: the socket events (`useEvents`) invalidate the matching queries instead of each component reloading itself; the 10 s holds poll becomes a `refetchInterval`
+- [x] Mutations (approve/reject, publish, invite, keys) update or invalidate the affected queries, so lists change without a full reload
+- [x] Retries follow ADR-060: none on 4xx, a few with backoff on network errors and 5xx
+- [x] Security: the cache is cleared on sign-out and on any 401, so the next person on the same browser never sees the previous user's data (members only see their own runs)
+- [x] Load next pages early where it is cheap: prefetch the data of a sidebar page on hover or focus
+- [x] Tests: query keys, cache cleared on sign-out and 401, socket events invalidate the right queries, no retry on 4xx
 
 **Acceptance:** the journal has the per-page numbers before and after; going back to a page already visited shows its data at once (no skeleton) and refreshes it in the background; the first load of a page on a warm instance is measured and its slowest request explained; signing out leaves no cached data behind; `pnpm test && pnpm lint && pnpm typecheck` green.
 
