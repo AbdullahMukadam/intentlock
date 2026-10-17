@@ -212,8 +212,17 @@ Traffic path: browser → Vercel (inbox, and `/api/*` rewritten to Render) → R
 
 1. **Images.** Merge to `main` so CI pushes `ghcr.io/abdullahmukadam/intentlock-server:latest` (§3), then make the `intentlock-server` and `intentlock-inbox` packages public.
 2. **Neon.** Create a project in the region closest to the Render region you will pick. Copy two connection strings: the **pooled** one (host contains `-pooler`) and the **direct** one.
-3. **Migrate once.** Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone: `DIRECT_URL='<direct>' pnpm --filter @intentlock/server exec prisma migrate deploy`.
-4. **Signing key.** `pnpm --filter @intentlock/cli build && node packages/cli/dist/bin.js keygen --env` writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
+3. **Migrate once** (creates the tables; later releases only apply new migrations). Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone with the direct string in `DIRECT_URL`:
+   ```bash
+   # PowerShell: $env:DIRECT_URL = '<direct>'    Bash: export DIRECT_URL='<direct>'
+   pnpm --filter @intentlock/server exec prisma migrate deploy
+   ```
+4. **Signing key.** Run the two commands one after the other (Windows PowerShell 5.1 has no `&&`):
+   ```bash
+   pnpm --filter @intentlock/cli build
+   node packages/cli/dist/bin.js keygen --env
+   ```
+   It writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
 5. **Render.** New → Web Service → Existing image `ghcr.io/abdullahmukadam/intentlock-server:latest`, free instance, health check path `/health/ready`, environment as in the table below. Settings → Deploy Hook: copy it into the GitHub secret `RENDER_DEPLOY_HOOK`; turn off auto-deploy. Note the service URL (`https://<name>.onrender.com`).
 6. **Vercel.** Import the GitHub repo, root directory `apps/inbox`, framework Next.js, build command `cd ../.. && pnpm turbo run build --filter=@intentlock/inbox` (builds `core` and `ui` first), environment `API_URL=https://<name>.onrender.com` (read at build time by the `/api` rewrite). Deploy and note the URL.
 7. **Point the server at the inbox.** Set `PUBLIC_URL` on Render to the Vercel URL and redeploy (cookies, invite links and OAuth callbacks use it).

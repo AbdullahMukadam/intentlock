@@ -43,7 +43,7 @@ intentlock/
 ├── turbo.json                      # build / dev / test / lint / typecheck pipelines
 ├── .nvmrc                          # Node 22 LTS
 ├── .gitignore                      # node_modules, dist, .env*, !.env.example, .intentlock/, keys/, coverage
-├── .env.example                    # every variable used anywhere, with comments
+├── (no root .env.example)          # each app has its own: apps/server, apps/inbox, apps/demo, packages/evals (a root .env is still read as a fallback)
 ├── .prettierrc / .prettierignore   # docs/ and CLAUDE.md are excluded from formatting
 └── docker-compose.yml              # postgres:16 (dev + test databases); mailpit added in Phase 5
 ```
@@ -228,7 +228,8 @@ src/
 
 ```
 Dockerfile                          # multi-stage, node:22-slim, non-root
-prisma.config.ts                    # Prisma 7 CLI config: schema path, migrations, DIRECT_URL (loads the root .env)
+prisma.config.ts                    # Prisma 7 CLI config: schema path, migrations, DIRECT_URL (loads apps/server/.env, then the root .env)
+.env.example                        # every variable the server reads, with comments
 prisma/
 ├── schema.prisma
 ├── migrations/
@@ -516,7 +517,7 @@ flowchart BT
 | NestJS files | `<feature>.<kind>.ts` | `holds.controller.ts` |
 | Unit tests | `test/unit/<src path>.test.ts` | `test/unit/policy/evaluate.test.ts` |
 | Integration tests | `test/e2e/*.e2e.test.ts` | `test/e2e/holds.e2e.test.ts` |
-| Env vars | SCREAMING_SNAKE, documented in `.env.example` | `LLM_BASE_URL` |
+| Env vars | SCREAMING_SNAKE, documented in the `.env.example` of the app that reads them | `LLM_BASE_URL` |
 
 - One main export per file; `index.ts` files only re-export.
 - No default exports in packages (named exports only); Next.js pages are the exception.
@@ -537,9 +538,9 @@ MIT packages must not import from ELv2 packages (already guaranteed by the depen
 
 | Path | Created by | Contents |
 | --- | --- | --- |
-| `.env` | you | secrets and config (copy from `.env.example`) |
+| `apps/server/.env` (and `apps/inbox`, `packages/evals`) | you | secrets and config, copied from the `.env.example` next to it; a root `.env` is read after it as a fallback |
 | `.intentlock/outbox/` | `HybridGate` | per-plan `*.jsonl` + `*.ack` |
-| `apps/demo/.env` | demo `setup` | API keys for the three demo agents, model + GitHub tokens |
+| `apps/demo/.env` | you, then demo `setup` | copied from `apps/demo/.env.example`; `setup-instance` adds the three agents' API keys |
 | `apps/demo/sandbox/` | demo seed | files-assistant workspace and fake `.env` |
 | `keys/` | `intentlock keygen` | dev signing keys (PEM) |
 | `coverage/`, `dist/`, `.turbo/` | tooling | build and test output |

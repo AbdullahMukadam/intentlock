@@ -1356,3 +1356,15 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes**
 - The script and these docs were written on `main` after the merge (uncommitted), then moved to the branch `release-script`
+
+### 2026-10-17 · Session 18 (cont.) · One .env.example per app; shell-neutral commands
+
+**Done**
+- Abdullah merged `release-script` as PR #9
+- The root `.env.example` mixed four apps and had a dead entry (`API_URL` under "Inbox": Next.js only loads `apps/inbox/.env`, so the root value was never read). Replaced by `apps/server/.env.example` (database, signing key, URLs, email, OAuth, license, limits), `apps/inbox/.env.example` (`API_URL`, `DEMO_RUNNER_URL`), `apps/demo/.env.example` (instance URL, admin sign-in, the three per-agent keys setup writes, model, GitHub, Mailpit, sandbox, ports) and `packages/evals/.env.example` (model, pacing, latency bench). The old `INTENTLOCK_API_KEY` line is gone: nothing reads it (the demo uses per-agent keys)
+- Loading: `apps/server/src/config/load-env-files.util.ts` reads `apps/server/.env` and then the root `.env` (Node keeps the first value, and real env vars beat both, checked with a scratch test); used by `main.ts`, `prisma.config.ts` and the e2e setup, which also drops the comments those files had. Evals now also reads `packages/evals/.env`; the demo already read `apps/demo/.env`. An existing root `.env` keeps working
+- CONTRIBUTING setup copies `apps/server/.env.example` and lists the others; demo README and STRUCTURE updated
+- DEPLOYMENT §9.1 steps 3 and 4 and USAGE §2: no `&&` and no `VAR=value cmd` (Windows PowerShell 5.1 has neither); Abdullah hit the `&&` error running the keygen step
+
+**Numbers**
+- `prisma validate` and `prisma migrate status` load the config through the helper; server and evals lint and typecheck green; server config unit tests and `app.e2e` (database found through the root `.env` fallback) pass; prettier green
