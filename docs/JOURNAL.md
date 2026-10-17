@@ -1322,3 +1322,17 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes**
 - ADR-062 was appended with a heredoc, against the Write/Edit rule; checked: no CR characters, text intact
+
+### 2026-10-16 · Session 18 (cont.) · Phase 6 — private instance guide
+
+**Done**
+- Free-tier limits re-checked on 2026-10-16 (Render, Neon and Vercel docs): Render unchanged (15-minute spin-down, now also counting WebSocket messages as traffic; 750 hours per workspace; ~1 minute wake-up); **Neon Free is 0.5 GB storage per project** (DEPLOYMENT said 1 GB), 100 CU-hours and 5 GB transfer per month, scale to zero after 5 minutes; Vercel Hobby 100 GB transfer, rewrite proxy timeout 30–120 s depending on the docs version (our long-poll is ≤ 25 s). DEPLOYMENT §9 table updated
+- DEPLOYMENT §9.1: ten steps (images public → Neon pooled + direct → migrate once → signing key → Render from the GHCR image with deploy hook, auto-deploy off → Vercel with `API_URL` at build → `PUBLIC_URL` on Render → setup code from Render's logs → demo `setup-instance` and seed from the laptop → checks) and the Render environment table (`TRUST_PROXY=2`, `DATABASE_POOL_MAX=5`, `INTENTLOCK_DEMO=1`, optional OAuth/SMTP); what is not needed on Render
+- Checked against the code: `keygen --env` prints a one-line, escaped `SIGNING_KEY` and writes `./keys/` (gitignored); the server's `normalizePem` accepts `\n` escapes; the inbox reads `API_URL` at build for the `/api` rewrite; the demo reads `INTENTLOCK_URL`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`
+
+**Not verified**
+- `TRUST_PROXY=2` for Vercel → Render is reasoned, not measured; step 10 checks it on the live instance
+- The PLAN task stays open until Abdullah has created the accounts and the instance runs the demo agents
+
+**Next**
+- Abdullah: Dockerfile install-layer fix, branch and push, npm org, accounts (§9.1)

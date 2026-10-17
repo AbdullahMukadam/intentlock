@@ -196,18 +196,49 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 
 | Part | Service | Free-tier behaviour to plan for |
 | --- | --- | --- |
-| Server | **Render** free web service (Docker) | Sleeps after 15 idle minutes; first request then takes ~1 minute. 750 instance hours/month (one always-on instance). 5 GB bandwidth/month. Single instance only. |
-| Database | **Neon** free Postgres | Permanent free plan, 1 GB storage per project. Compute suspends after 5 idle minutes (slower first query). |
-| Inbox | **Vercel** Hobby | Personal / non-commercial use. Cold starts possible. |
+| Server | **Render** free web service (Docker) | Sleeps after 15 minutes without inbound HTTP or WebSocket traffic; the first request then takes ~1 minute. 750 instance hours/month per workspace, shared by all free services (one always-on instance uses ~720). Ephemeral disk. Single instance only. |
+| Database | **Neon** free Postgres | Permanent free plan: 0.5 GB storage, 100 CU-hours of compute and 5 GB public transfer per project per month. Compute scales to zero after 5 idle minutes (slower first query). |
+| Inbox | **Vercel** Hobby | Personal / non-commercial use. 100 GB transfer/month. Proxied (rewrite) requests time out after 30–120 s depending on the docs version; the hold long-poll waits at most 25 s. Cold starts possible. |
 | Images | **GHCR** | Public images. |
 | Scale test | **Local** `docker compose` | Two instances + nginx (§7); numbers come from here, not from the free tier. |
 
 **Do not use:** Render free Postgres (expires after 30 days, then deleted), Fly.io (card required, no free tier for new users), Koyeb (free plan closed to new users).
 
+Limits last checked 2026-10-16 (Render, Neon and Vercel docs).
+
+### 9.1 Step by step
+
+Traffic path: browser → Vercel (inbox, and `/api/*` rewritten to Render) → Render (server) → Neon. The browser only ever talks to the Vercel origin, so cookies are first-party and no CORS is needed. Demo agents on the laptop use the same `https://<vercel>/api` URL.
+
+1. **Images.** Merge to `main` so CI pushes `ghcr.io/abdullahmukadam/intentlock-server:latest` (§3), then make the `intentlock-server` and `intentlock-inbox` packages public.
+2. **Neon.** Create a project in the region closest to the Render region you will pick. Copy two connection strings: the **pooled** one (host contains `-pooler`) and the **direct** one.
+3. **Migrate once.** Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone: `DIRECT_URL='<direct>' pnpm --filter @intentlock/server exec prisma migrate deploy`.
+4. **Signing key.** `pnpm --filter @intentlock/cli build && node packages/cli/dist/bin.js keygen --env` writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
+5. **Render.** New → Web Service → Existing image `ghcr.io/abdullahmukadam/intentlock-server:latest`, free instance, health check path `/health/ready`, environment as in the table below. Settings → Deploy Hook: copy it into the GitHub secret `RENDER_DEPLOY_HOOK`; turn off auto-deploy. Note the service URL (`https://<name>.onrender.com`).
+6. **Vercel.** Import the GitHub repo, root directory `apps/inbox`, framework Next.js, build command `cd ../.. && pnpm turbo run build --filter=@intentlock/inbox` (builds `core` and `ui` first), environment `API_URL=https://<name>.onrender.com` (read at build time by the `/api` rewrite). Deploy and note the URL.
+7. **Point the server at the inbox.** Set `PUBLIC_URL` on Render to the Vercel URL and redeploy (cookies, invite links and OAuth callbacks use it).
+8. **First admin.** Open `https://<name>.onrender.com/health/ready` to wake the server, then copy `One-time setup code: …` from Render → Logs. Open the Vercel URL, which shows `/setup`; create the admin. With `INTENTLOCK_DEMO=1`, setup also creates the sample users and prints their passwords once in the logs.
+9. **Demo agents (laptop).** In `apps/demo/.env`: `INTENTLOCK_URL=https://<vercel>/api`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`. Then `pnpm --filter @intentlock/demo setup-instance` (agents, policies, API keys into `apps/demo/.env`), `pnpm --filter @intentlock/demo seed`, and run an agent.
+10. **Check.** Signed out, every inbox page redirects to `/login`; Audit → Verify is OK; Account → Sessions shows your own IP (if it shows a Vercel or Render address, adjust `TRUST_PROXY`).
+
+| Render variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Neon **pooled** string |
+| `SIGNING_KEY` | one-line PEM from step 4 |
+| `PUBLIC_URL` | `https://<vercel-project>.vercel.app` (after step 6) |
+| `ORG_NAME` | e.g. `Intentlock Demo` |
+| `TRUST_PROXY` | `2` (Vercel's proxy, then Render's); confirm with step 10 |
+| `INTENTLOCK_DEMO` | `1` for the sample users; leave unset otherwise |
+| `DATABASE_POOL_MAX` | `5` (one free instance; stays well under Neon's pooler limits) |
+| `API_KEY_PEPPER` | optional: a long random string, set once |
+| `GOOGLE_*`, `GITHUB_*` | optional: callback `<PUBLIC_URL>/api/v1/auth/oauth/<google\|github>/callback` |
+| `SMTP_URL`, `SMTP_FROM` | optional: invites and resets are emailed; otherwise copy the links |
+
+Not needed on Render: `DIRECT_URL` (migrations run in CI or from a clone), `CORS_ORIGINS` (single origin through the rewrite), `LICENSE_FILE` (Community edition).
+
 **Setup notes**
-- Neon gives a **pooled** and a **direct** connection string. Prisma uses the pooled one at runtime (`DATABASE_URL`) and the direct one for migrations (`DIRECT_URL`, set as `directUrl` in `schema.prisma`).
-- Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Migrations run in CI's `release` job before the deploy hook fires (§3); set the GitHub `production` environment secrets `PRODUCTION_DIRECT_URL` (Neon direct URL) and `RENDER_DEPLOY_HOOK` (Render → service → Settings → Deploy Hook), and turn off auto-deploy on Render so a deploy only follows a green CI run.
-- Vercel: root directory `apps/inbox`; set `API_URL` to the Render URL.
+- Neon gives a **pooled** and a **direct** connection string. The server uses the pooled one at runtime (`DATABASE_URL`); migrations use the direct one (`DIRECT_URL`, read by `prisma.config.ts`). If the pooler ever rejects a query the app needs, point `DATABASE_URL` at the direct string; at demo scale either works.
+- Render runs the image CI built and tested; migrations run in CI's `release` job before the deploy hook fires (§3), so Render needs no pre-deploy command and auto-deploy stays off.
 - The instance is private: every page needs sign-in (ARCHITECTURE §5.6). We complete setup with the code from Render's logs and invite users; `INTENTLOCK_DEMO=1` adds sample users at setup.
 - The **demo agents run on our laptop**, pointing at the instance with their API keys (`apps/demo/.env`), exactly like a team's agent apps. Model keys, GitHub tokens and Mailpit stay local; no secrets other than the server's own live on hosted services.
 - Policies are not deployed with the server: the demo `setup` script publishes them into the instance via the API.
