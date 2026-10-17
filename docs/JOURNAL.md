@@ -1368,3 +1368,13 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - `prisma validate` and `prisma migrate status` load the config through the helper; server and evals lint and typecheck green; server config unit tests and `app.e2e` (database found through the root `.env` fallback) pass; prettier green
+
+### 2026-10-17 · Session 18 (cont.) · Phase 6 — first deploy: what broke
+
+**Problems hit and how they were solved**
+- Render: the server stopped at boot with `"pkcs8" must be PKCS#8 formatted string`: the pasted `SIGNING_KEY` was not a bare PEM (likely the quotes from `keygen --env`). Abdullah to paste the multi-line PEM. The fatal log line from Phase 5.7 is what made it visible. Offered: strip pasted quotes / `SIGNING_KEY=` and a clearer boot error
+- Inbox setup showed "Setup failed. ()": an error answer without an error code printed an empty `()` → `errorMessage` now shows `HTTP <status>` (test added)
+- `curl` to the inbox got a 302 to Vercel SSO: **Vercel Authentication** was on (and a per-deployment URL was used). It must be off: Intentlock has its own sign-in and the demo agents call `/api` without a Vercel login
+- On the production domain, `/api/*` answered `404 DNS_HOSTNAME_RESOLVED_PRIVATE`: the rewrite pointed at `http://localhost:3000`, the fallback when `API_URL` is missing at build time. Root cause on our side: Turborepo's strict env mode strips variables a task does not declare, and `build` declared none, so `API_URL` never reached `next build` even when Vercel set it. The self-host bundle never noticed (its nginx sends `/api` straight to the server) → `turbo.json` `build.env: ["API_URL", "DEMO_RUNNER_URL"]`; `turbo run build --dry=json` now lists `API_URL` as configured for the inbox
+- The server itself answered `{"setupRequired":true}` directly on Render, with the new `x-request-id` header
+- DEPLOYMENT §9.1 step 6: Deployment Protection off, production domain, the `curl.exe` check and what `DNS_HOSTNAME_RESOLVED_PRIVATE` means

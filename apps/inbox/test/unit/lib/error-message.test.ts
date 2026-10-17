@@ -42,4 +42,10 @@ describe("errorMessage", () => {
       "Could not create the key. (forbidden)",
     );
   });
+
+  test("an answer without an error code (e.g. a proxy's HTML 404) shows the HTTP status", () => {
+    expect(errorMessage(new ApiError(404, ""), FALLBACK)).toBe(
+      "Could not create the key. (HTTP 404)",
+    );
+  });
 });
