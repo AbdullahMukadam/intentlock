@@ -297,7 +297,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switching pages in the inbox shows skeletons for a long time. Two causes are already visible: `useApi` keeps no cache, so every page switch refetches everything from zero, and every request crosses Vercel's proxy, a free Render instance and Neon, each with its own latency and cold start. Measure first, then fix the biggest causes; numbers before and after go in the journal.
 
 **Measure first**
-- [ ] A `Server-Timing` header on every API response (total time and time spent in the database), next to the request id; the browser's Network tab then shows where each request spends its time
+- [x] A `Server-Timing` header on every API response (total time and time spent in the database), next to the request id; the browser's Network tab then shows where each request spends its time
 - [ ] Measure every inbox page on the deployed instance: requests per page, which run one after another, time per request split into network / server / database; note the Vercel, Render and Neon regions and whether a cold start was involved; record the numbers in the journal
 - [ ] Count the database queries per request for the busiest routes (session check, `/v1/me`, `/v1/stats/overview`, `/v1/audit`, `/v1/holds`, `/v1/runs`); find the slow ones with `EXPLAIN ANALYZE` on Neon
 
