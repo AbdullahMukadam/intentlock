@@ -38,6 +38,7 @@ export async function run(argv: string[], ctx: CliContext): Promise<number> {
     if (err && typeof err === "object" && "exitCode" in err && typeof err.exitCode === "number") {
       return err.exitCode;
     }
-    throw err;
+    ctx.print(`error: ${err instanceof Error ? err.message : String(err)}`);
+    return 1;
   }
 }

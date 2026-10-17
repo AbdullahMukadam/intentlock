@@ -24,7 +24,13 @@ export async function loadSession(home: string): Promise<Session> {
   } catch {
     throw new CliError("Not signed in. Run `intentlock login --url <url> --email <email>` first.");
   }
-  const parsed = Session.safeParse(JSON.parse(raw));
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    json = undefined;
+  }
+  const parsed = Session.safeParse(json);
   if (!parsed.success) throw new CliError("Stored session is corrupt; sign in again.");
   return parsed.data;
 }

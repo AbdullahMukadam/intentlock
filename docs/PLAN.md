@@ -266,7 +266,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 - [x] One shared error-message helper in `lib/` instead of eight `message(error)` copies; toasts include the server's error code; `agent-filter` and `latest-activity` show load errors; `team-view` group edit only blames the format on a 400; `request()` turns a schema mismatch into `ApiError` (`unexpected_response`)
 
 **CLI, demo, evals**
-- [ ] One top-level handler per entry point: readable message and non-zero exit code for network errors, 4xx with the server's error code, and 5xx with the request id. CLI: wrap `fetch` in `api-client.ts` and guard `JSON.parse` in `session-store.ts`, which today print a stack trace
+- [x] One top-level handler per entry point: readable message and non-zero exit code for network errors, 4xx with the server's error code, and 5xx with the request id. CLI: wrap `fetch` in `api-client.ts` and guard `JSON.parse` in `session-store.ts`, which today print a stack trace
 - [x] Small: remove the comment in `server/main.ts` and catch only a missing `.env` there; `license.service.ts` logs why the license file could not be read
 
 **Acceptance:** review findings and the ADR are recorded; lint with the new rules is green; no known transient database failure returns a bare 500; every SDK error says why it failed; the inbox shows an error state when the server is down; `pnpm test && pnpm lint && pnpm typecheck` green; a remote-check burst of 50 plans × 20 concurrent checks across two instances returns no 500s (local scale stack; images are cached, no new downloads).

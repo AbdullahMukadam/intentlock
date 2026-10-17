@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { API_ENDPOINTS, apiPath } from "@intentlock/core";
@@ -8,7 +8,12 @@ import { resolveAgentId } from "../api/resolve-agent.js";
 import { sessionApi } from "../api/session-api.js";
 import type { CliContext } from "../types/cli-context.type.js";
 import { columns } from "../utils/columns.util.js";
-import { readPolicyFile, registerPolicyValidate, validatePolicySource } from "./policy-validate.js";
+import {
+  readCalls,
+  readPolicyFile,
+  registerPolicyValidate,
+  validatePolicySource,
+} from "./policy-validate.js";
 
 type PolicyState = { active: { version: number; source: string; message: string } };
 type TestResult = {
@@ -49,9 +54,7 @@ export function registerPolicy(program: Command, ctx: CliContext) {
     .action(async (file: string, opts: { agent: string; replay?: number; calls?: string }) => {
       const source = await readPolicyFile(ctx, file);
       validatePolicySource(ctx, file, source);
-      const calls: unknown = opts.calls
-        ? JSON.parse(await readFile(resolve(ctx.cwd, opts.calls), "utf8"))
-        : [];
+      const calls: unknown = opts.calls ? await readCalls(ctx, opts.calls) : [];
       const api = await sessionApi(ctx);
       const id = await resolveAgentId(api, opts.agent);
       const res = await api.post<TestResult>(apiPath(API_ENDPOINTS.AGENT_POLICY_TEST, { id }), {

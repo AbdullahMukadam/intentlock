@@ -8,7 +8,21 @@ import { CliError } from "../errors.js";
 import type { CliContext } from "../types/cli-context.type.js";
 
 export async function readPolicyFile(ctx: CliContext, file: string): Promise<string> {
-  return readFile(resolve(ctx.cwd, file), "utf8");
+  try {
+    return await readFile(resolve(ctx.cwd, file), "utf8");
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    throw new CliError(`Cannot read ${file}${code ? `: ${code}` : ""}`, { cause: err });
+  }
+}
+
+export async function readCalls(ctx: CliContext, file: string): Promise<unknown> {
+  const text = await readPolicyFile(ctx, file);
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new CliError(`${file} is not valid JSON`);
+  }
 }
 
 export function validatePolicySource(ctx: CliContext, file: string, source: string) {

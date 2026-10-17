@@ -1246,3 +1246,12 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Inbox tests 70 (was 63: errorMessage cases, schema mismatch → ApiError, error page markup and digest); lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — CLI, demo and evals entry points
+
+**Done**
+- CLI: one `send()` for every request (`Cannot reach http://il.test: ECONNREFUSED`); `readResponse` survives non-JSON bodies (`Server answered 502`), adds the request id to 5xx (`Server answered 503: database_unavailable (request r-7)`) and explains a 200 HTML page (`--url should be the API …/api`); a missing policy file (`Cannot read nope.yaml: ENOENT`), an invalid `--calls` file and a corrupt session file are readable errors; `run()` prints any other error as one `error:` line with exit code 1 instead of a stack trace
+- Demo `receiver` and `runner`: a taken port prints `Cannot start … on 127.0.0.1:8787: … EADDRINUSE` and exits 1 (checked by holding the port with another process, which was then stopped and the port confirmed free); the other demo and evals entry points already had `main().catch`
+
+**Numbers**
+- CLI tests 20 (was 16: unreachable server, HTML 502 and 503 with request id, HTML 200, missing file and corrupt session); demo green; lint, typecheck, prettier green
