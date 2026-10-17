@@ -1416,3 +1416,22 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Vercel function region to `sin1` (next to Render and Neon) or `bom1`: removes the US round trip from page switches
 - The 13–20 s queued requests: check the protocol column (h2 vs http/1.1) and socket.io long polls
 - Agent detail and run detail pages not measured yet
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 — Queries per request and EXPLAIN
+
+**Done**
+- Queries per request, from `Server-Timing` on the deployed instance and the code: the session check runs 2 queries one after the other on every signed-in request (`Session` by id, then its `User`), plus an `updateMany` when the session slides. On top of that: `audit` +1, `holds` +1, `account/sessions` +1, `users` +2, `account` +2, `agents` +3 (agents with policy and key count, then the 24 h decision counts, one after the other), `stats/overview` +7 in parallel
+- `EXPLAIN (ANALYZE, BUFFERS)` of the audit queries behind `agents`, `stats/overview` and `audit` with 200,000 `AuditEntry` rows (30 days, 5 agents, 20 users) in the local test database (truncated afterwards): no missing index
+
+**Numbers** (local Postgres 16, 200k rows)
+- `agents` decision counts (24 h): 15.4 ms, bitmap scan on `(orgId, at)`, 5,897 rows
+- `stats/overview` series (24 h): 16.9 ms; audit lag: 14.1 ms; same index
+- `audit` list, admin: 0.1 ms (primary key backwards, `LIMIT 51`); member with 200 entries: 0.7 ms (`(orgId, user, at)`); member or agent with none: 0.1–0.2 ms
+- The 24 h aggregates read ~3,300 heap blocks because the generated rows are spread randomly over 30 days; real entries arrive in time order, so they read far fewer
+
+**Decisions**
+- No new index and no query rewrite for speed: warm database time on the deployed instance is 8–17 ms per route (35–180 ms summed over the 7 parallel `stats/overview` queries), against ~250 ms of network per request
+- The server task stays small: session and user in one query (saves one ~2 ms round trip per request). The cold first requests (`agents` 881 ms, `stats/overview` ~1 s of database time) look like Neon waking from scale-to-zero plus new pool connections; they go with the cold-start task
+
+**Next**
+- Vercel function region (`iad1` → `sin1`), then the cold-start decision

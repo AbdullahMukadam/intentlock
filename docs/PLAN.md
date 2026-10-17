@@ -299,7 +299,7 @@ Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switchi
 **Measure first**
 - [x] A `Server-Timing` header on every API response (total time and time spent in the database), next to the request id; the browser's Network tab then shows where each request spends its time
 - [x] Measure every inbox page on the deployed instance: requests per page, which run one after another, time per request split into network / server / database; note the Vercel, Render and Neon regions and whether a cold start was involved; record the numbers in the journal
-- [ ] Count the database queries per request for the busiest routes (session check, `/v1/me`, `/v1/stats/overview`, `/v1/audit`, `/v1/holds`, `/v1/runs`); find the slow ones with `EXPLAIN ANALYZE` on Neon
+- [x] Count the database queries per request for the busiest routes (session check, `/v1/me`, `/v1/stats/overview`, `/v1/audit`, `/v1/holds`, `/v1/runs`); find the slow ones with `EXPLAIN ANALYZE` on Neon
 
 **Deployment**
 - [ ] Render and Neon in the same region (a query that crosses regions costs ~100–200 ms each time); DEPLOYMENT §9 says which regions to pick together
