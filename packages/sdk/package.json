@@ -1,9 +1,30 @@
 {
   "name": "@intentlock/sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Gates: HybridGate (local decisions + audit outbox), HttpGate, LocalGate, PassThroughGate.",
   "private": false,
   "license": "MIT",
+  "keywords": [
+    "llm",
+    "agents",
+    "authorization",
+    "gate",
+    "audit",
+    "prompt-injection"
+  ],
+  "homepage": "https://github.com/AbdullahMukadam/intentgate/tree/main/packages/sdk#readme",
+  "bugs": "https://github.com/AbdullahMukadam/intentgate/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbdullahMukadam/intentgate.git",
+    "directory": "packages/sdk"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -20,7 +41,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "example": "tsx examples/local.ts"
+    "example": "tsx examples/local.ts",
+    "prepack": "tsup"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",

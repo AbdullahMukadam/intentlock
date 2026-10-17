@@ -1307,3 +1307,18 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - After the first successful `images` run: GitHub → Packages → `intentlock-server` and `intentlock-inbox` → visibility public
 - For our instance (§9): create the `production` environment secrets `PRODUCTION_DIRECT_URL` and `RENDER_DEPLOY_HOOK`, and turn off Render's auto-deploy
+
+### 2026-10-16 · Session 18 (cont.) · Phase 6 — npm publishing prepared
+
+**Done**
+- ADR-062: manual, lockstep versioning; `@intentlock/core`, `sdk`, `guard`, `anthropic` at `0.1.0` with `publishConfig.access: public`, `repository`/`homepage`/`bugs`/`keywords`, `engines.node >=22`, `prepack: tsup`
+- `pnpm pack` of each: only `dist/index.js`, `dist/index.d.ts`, `README.md`, `LICENSE`, `package.json`; `workspace:*` → `0.1.0`, `catalog:` → `^4.6.5`
+- Consumer check in the scratch folder: the four tarballs installed into an empty project offline from the local store (dependencies pinned to the store's versions), then a guarded run with `LocalGate` + `FakeProvider` by package name: `list_issues` ran, an off-plan `delete_repo` was blocked `not_in_plan`, the Anthropic adapter loads
+- CONTRIBUTING "Releasing": dry run, `npm login`, `pnpm -r publish`, `v0.1.0` tag for the images; USAGE §2 points at ADR-062
+- The frozen lockfile still installs (`pnpm install --frozen-lockfile --offline`)
+
+**Not done (Abdullah)**
+- Create the `intentlock` npm org (Phase 0's "claim the scope" task is still open), `npm login`, publish; the PLAN task is ticked after that
+
+**Notes**
+- ADR-062 was appended with a heredoc, against the Write/Edit rule; checked: no CR characters, text intact

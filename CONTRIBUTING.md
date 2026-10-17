@@ -43,6 +43,26 @@ pnpm test && pnpm lint && pnpm typecheck && pnpm format
 - Tests live in `test/unit/` (mirroring `src/`) and `test/e2e/`; every new decision path needs one, including its failure path.
 - Never commit secrets. Demo data is fake.
 
+## Releasing (maintainers)
+
+The four MIT packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`) are versioned together (ADR-062); the server and inbox ship as Docker images.
+
+1. Bump `version` in the four `package.json` files to the same value and add a line to the journal.
+2. Check the packages build and contain only `dist/`, `README.md` and `LICENSE`:
+   ```bash
+   pnpm turbo run build --filter=@intentlock/core --filter=@intentlock/sdk --filter=@intentlock/guard --filter=@intentlock/anthropic
+   pnpm -r --filter "./packages/{core,sdk,guard,anthropic}" publish --dry-run --no-git-checks
+   ```
+3. Publish from a clean `main` (pnpm replaces `workspace:*` and `catalog:` with real versions; `publishConfig.access` is `public`):
+   ```bash
+   npm login
+   pnpm -r --filter "./packages/{core,sdk,guard,anthropic}" publish
+   ```
+4. Tag the release and push the tag; CI pushes the server and inbox images as `X.Y.Z` and `X.Y`:
+   ```bash
+   git tag v0.1.0 && git push origin v0.1.0
+   ```
+
 ## Security issues
 
 Do not open a public issue for a vulnerability. Email the maintainer (see the GitHub profile) with steps to reproduce.

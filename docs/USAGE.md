@@ -32,7 +32,7 @@ pnpm add @intentlock/guard @intentlock/sdk zod
 pnpm add @intentlock/anthropic      # only if you use Claude
 ```
 
-The MIT packages are published to npm at `0.1.0` (Phase 6); until then, depend on them from a clone of this repo (`workspace:*` or `pnpm link`). The CLI is not published to npm in v0.1; build and link it from a clone:
+The MIT packages are versioned together (ADR-062); `0.1.0` is the first npm release. Until it is on npm, depend on them from a clone of this repo (`workspace:*` or `pnpm link`). The CLI is not published to npm in v0.1; build and link it from a clone:
 
 ```bash
 pnpm install && pnpm --filter @intentlock/cli build

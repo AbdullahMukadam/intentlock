@@ -1,9 +1,30 @@
 {
   "name": "@intentlock/anthropic",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Anthropic adapter implementing the Intentlock LLMProvider interface.",
   "private": false,
   "license": "MIT",
+  "keywords": [
+    "llm",
+    "agents",
+    "tool-calling",
+    "authorization",
+    "anthropic",
+    "claude"
+  ],
+  "homepage": "https://github.com/AbdullahMukadam/intentgate/tree/main/packages/anthropic#readme",
+  "bugs": "https://github.com/AbdullahMukadam/intentgate/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbdullahMukadam/intentgate.git",
+    "directory": "packages/anthropic"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -19,7 +40,8 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsup"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
