@@ -585,3 +585,10 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Decision:** Manual versioning: the four packages always carry the same version and are published together with `pnpm -r publish` (CONTRIBUTING "Releasing"). pnpm turns `workspace:*` into the exact sibling version and `catalog:` into the catalog range at publish time. Each manifest has `publishConfig.access: public` (scoped packages are private by default), `repository`/`homepage`/`bugs`, `engines.node >=22`, and a `prepack` build. Server and inbox are never published to npm; their versions are Docker tags (`vX.Y.Z` git tag → `X.Y.Z` image).
 - **Alternatives:** Changesets (a new dev dependency and a release PR flow, worth it once the packages version independently or there are outside contributors); independent versions (more bookkeeping for no gain while they move together).
 - **Consequences:** A breaking change in one package bumps all four. Checked before the first publish: `pnpm pack` of each package contains only `dist/`, `README.md`, `LICENSE`; the tarballs installed into an empty project (offline, from the local store) run a guarded tool call with `LocalGate` and `FakeProvider` and block an off-plan call.
+
+### ADR-063: Vercel functions in Singapore (`sin1`)
+- **Date:** 2026-10-17 · **Status:** Accepted
+- **Context:** Phase 6.5 measurements: the inbox's page payloads (`?_rsc`) ran in Vercel's default region `iad1` (Washington), while Render and Neon are in Singapore and the users are in India; a page switch that needs a payload waited 350–480 ms for it before its API requests started.
+- **Decision:** `apps/inbox/vercel.json` sets `"regions": ["sin1"]`, next to Render and Neon and ~60 ms from Mumbai. The file is versioned, so the region does not depend on a dashboard setting.
+- **Alternatives:** `bom1` (closest to today's users, but ~60 ms from the server for any server-side fetch later); the dashboard setting only (not visible in the repo).
+- **Consequences:** Self-hosted deployments are unaffected. Another team picks the region next to its Render and Neon regions (DEPLOYMENT §9).
