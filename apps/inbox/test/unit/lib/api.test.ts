@@ -4,6 +4,9 @@ import { z } from "zod";
 
 import { ApiError, api, apiUrl, safeNext } from "../../../src/lib/api";
 import { HttpMethod } from "../../../src/lib/enums/http-method.enum";
+import { invalidateAll } from "../../../src/lib/query-client";
+
+vi.mock("../../../src/lib/query-client", () => ({ invalidateAll: vi.fn() }));
 
 const fetchMock = vi.fn<typeof fetch>();
 const assign = vi.fn();
@@ -89,6 +92,43 @@ describe("api", () => {
       api(API_ENDPOINTS.SETUP, z.unknown(), { method: HttpMethod.POST }),
     ).rejects.toMatchObject({ status: 401, code: "invalid_setup_code" });
     expect(assign).not.toHaveBeenCalled();
+  });
+});
+
+describe("cached queries after a mutation", () => {
+  const ok = () => fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+  test("a successful mutation marks every cached query stale", async () => {
+    ok();
+    await api(API_ENDPOINTS.HOLD_APPROVE, z.undefined(), {
+      method: HttpMethod.POST,
+      params: { id: "h1" },
+    });
+    expect(invalidateAll).toHaveBeenCalledOnce();
+  });
+
+  test("reads, read-only posts and sign-out leave the cache alone", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(json(200, {})));
+    await api(API_ENDPOINTS.AGENTS, z.unknown());
+    await api(API_ENDPOINTS.AGENT_POLICY_TEST, z.unknown(), {
+      method: HttpMethod.POST,
+      params: { id: "a1" },
+    });
+    await api(API_ENDPOINTS.INVITE_LOOKUP, z.unknown(), { method: HttpMethod.POST });
+    ok();
+    await api(API_ENDPOINTS.AUTH_LOGOUT, z.undefined(), { method: HttpMethod.POST });
+    expect(invalidateAll).not.toHaveBeenCalled();
+  });
+
+  test("a failed mutation leaves the cache alone", async () => {
+    fetchMock.mockResolvedValue(json(409, { error: "hold_not_pending" }));
+    await expect(
+      api(API_ENDPOINTS.HOLD_APPROVE, z.undefined(), {
+        method: HttpMethod.POST,
+        params: { id: "h1" },
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(invalidateAll).not.toHaveBeenCalled();
   });
 });
 

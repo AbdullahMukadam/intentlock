@@ -9,3 +9,7 @@ export const LINKED_PARAM = "linked";
 export const NEXT_PARAM = "next";
 export const DEMO_RUNNER_PREFIX = "/demo-runner";
 export const DEMO_RUNNER_HEADER = "x-intentlock-demo";
+export const QUERY_KEY_ROOT = "api";
+export const QUERY_STALE_MS = 5_000;
+export const QUERY_MAX_RETRIES = 3;
+export const LATEST_ACTIVITY_LIMIT = 8;

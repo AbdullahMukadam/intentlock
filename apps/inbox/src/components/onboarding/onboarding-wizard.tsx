@@ -16,12 +16,10 @@ import { SecretReveal } from "@/components/secret-reveal";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { api, apiUrl } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
-import { EventName } from "@/lib/enums/event-name.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { OnboardingStep } from "@/lib/enums/onboarding-step.enum";
 import { errorMessage } from "@/lib/error-message";
 import { AgentView, AuditPage, NewApiKey } from "@/lib/schemas";
-import { useEvents } from "@/lib/socket";
 import { useApi } from "@/lib/use-api";
 
 const STEPS: { id: OnboardingStep; title: string; hint: string }[] = [
@@ -32,7 +30,6 @@ const STEPS: { id: OnboardingStep; title: string; hint: string }[] = [
 ];
 
 const POLL_MS = 3_000;
-const WAIT_EVENTS = [EventName.DECISION];
 
 function Stepper({ current }: { current: OnboardingStep }) {
   const index = STEPS.findIndex((s) => s.id === current);
@@ -94,11 +91,11 @@ await gate.close();`;
 }
 
 function WaitForDecision({ agentId }: { agentId: string }) {
-  const { data, reload } = useApi(
+  const { data } = useApi(
     apiUrl(API_ENDPOINTS.AUDIT, { query: { agentId, limit: 5 } }),
     AuditPage,
+    { refetchInterval: POLL_MS },
   );
-  useEvents(WAIT_EVENTS, reload, POLL_MS);
   const decision = data?.entries.find((e) => e.verdict);
 
   if (!decision) {
