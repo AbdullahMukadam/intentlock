@@ -35,6 +35,7 @@ intentlock/
 ├── LICENSE                         # Elastic License 2.0 (everything except the MIT packages)
 ├── scripts/
 │   ├── issue-license.ts            # vendor-only license issuer (`pnpm issue-license`); validates with the server's LicenseSchema
+│   ├── release.ts                  # `pnpm release [--dry-run]`: checks, builds and publishes the MIT packages, pushes vX.Y.Z (ADR-062)
 │   └── create-test-db.sql          # run by the postgres container on first start: creates intentlock_test
 ├── package.json                    # root scripts only (turbo), devDeps for tooling
 ├── pnpm-workspace.yaml             # apps/*, packages/*
@@ -528,7 +529,7 @@ flowchart BT
 | `packages/core`, `sdk`, `guard`, `anthropic` | MIT (own `LICENSE` file) | npm |
 | `apps/server`, `apps/inbox` | Elastic License 2.0 (root `LICENSE`) | Docker images (GHCR) |
 | `packages/cli`, `packages/evals`, `apps/demo`, `packages/mcp-proxy` | Elastic License 2.0 | not published to npm in v0.1 |
-| `scripts/issue-license.ts` | Elastic License 2.0 | not published |
+| `scripts/issue-license.ts`, `scripts/release.ts` | Elastic License 2.0 | not published |
 
 MIT packages must not import from ELv2 packages (already guaranteed by the dependency graph in §4).
 

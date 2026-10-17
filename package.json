@@ -13,7 +13,8 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "issue-license": "tsx scripts/issue-license.ts"
+    "issue-license": "tsx scripts/issue-license.ts",
+    "release": "tsx scripts/release.ts"
   },
   "devDependencies": {
     "@intentlock/config": "workspace:*",
