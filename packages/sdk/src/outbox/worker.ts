@@ -36,7 +36,7 @@ export class OutboxWorker {
   }
 
   start() {
-    this.#timer ??= setInterval(() => void this.flush(), this.#opts.flushIntervalMs);
+    this.#timer ??= setInterval(() => this.#flushInBackground(), this.#opts.flushIntervalMs);
     this.#timer.unref();
   }
 
@@ -46,7 +46,11 @@ export class OutboxWorker {
   }
 
   nudge() {
-    if (this.#outbox.unackedCount() >= this.#opts.maxBatch) void this.flush();
+    if (this.#outbox.unackedCount() >= this.#opts.maxBatch) this.#flushInBackground();
+  }
+
+  #flushInBackground() {
+    this.flush().catch((err: unknown) => this.#opts.onError?.(err));
   }
 
   flush(force = false): Promise<boolean> {

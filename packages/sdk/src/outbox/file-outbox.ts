@@ -1,8 +1,9 @@
 import { mkdir, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { ClientEntry } from "@intentlock/core";
+import { ClientEntry, IntentlockError } from "@intentlock/core";
 
+import { FsErrorCode } from "../enums/fs-error-code.enum.js";
 import { MemoryOutbox, type PlanBacklog } from "./memory-outbox.js";
 
 const ENTRIES = ".jsonl";
@@ -12,11 +13,13 @@ const DONE = ".done";
 export class FileOutbox extends MemoryOutbox {
   readonly #dir: string;
   readonly #fsync: boolean;
+  readonly #onError: (err: unknown) => void;
 
-  constructor(dir: string, opts: { fsync?: boolean } = {}) {
+  constructor(dir: string, opts: { fsync?: boolean; onError?: (err: unknown) => void } = {}) {
     super();
     this.#dir = dir;
     this.#fsync = opts.fsync ?? true;
+    this.#onError = opts.onError ?? (() => undefined);
   }
 
   override async recover(): Promise<PlanBacklog[]> {
@@ -25,9 +28,9 @@ export class FileOutbox extends MemoryOutbox {
     for (const file of await readdir(this.#dir)) {
       if (!file.endsWith(ENTRIES)) continue;
       const planId = file.slice(0, -ENTRIES.length);
-      const entries = parseLines(await readFile(this.#path(planId, ENTRIES), "utf8"));
-      const acked = Number((await readOptional(this.#path(planId, ACK))) ?? 0) || 0;
-      const done = (await readOptional(this.#path(planId, DONE))) !== null;
+      const entries = this.#parseLines(file, await readFile(this.#path(planId, ENTRIES), "utf8"));
+      const acked = Number((await this.#readOptional(this.#path(planId, ACK))) ?? 0) || 0;
+      const done = (await this.#readOptional(this.#path(planId, DONE))) !== null;
       const state = this.state(planId);
       state.last = entries.at(-1) ?? null;
       state.pending = entries.filter((e) => e.clientSeq > acked);
@@ -71,26 +74,38 @@ export class FileOutbox extends MemoryOutbox {
   #path(planId: string, ext: string): string {
     return join(this.#dir, planId.replace(/[^A-Za-z0-9_-]/g, "_") + ext);
   }
-}
 
-function parseLines(text: string): ClientEntry[] {
-  const out: ClientEntry[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      const parsed = ClientEntry.safeParse(JSON.parse(line));
+  #parseLines(file: string, text: string): ClientEntry[] {
+    const out: ClientEntry[] = [];
+    for (const [i, line] of text.split("\n").entries()) {
+      if (!line.trim()) continue;
+      let json: unknown;
+      try {
+        json = JSON.parse(line);
+      } catch {
+        json = undefined;
+      }
+      const parsed = ClientEntry.safeParse(json);
       if (parsed.success) out.push(parsed.data);
-    } catch {
-      continue;
+      else {
+        this.#onError(
+          new IntentlockError(`Outbox ${file} line ${i + 1} is not a valid entry; skipped`),
+        );
+      }
     }
+    return out;
   }
-  return out;
-}
 
-async function readOptional(path: string): Promise<string | null> {
-  try {
-    return await readFile(path, "utf8");
-  } catch {
-    return null;
+  async #readOptional(path: string): Promise<string | null> {
+    try {
+      return await readFile(path, "utf8");
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== FsErrorCode.NOT_FOUND) {
+        this.#onError(
+          new IntentlockError(`Outbox could not read ${path}; treated as missing`, { cause: err }),
+        );
+      }
+      return null;
+    }
   }
 }

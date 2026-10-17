@@ -68,7 +68,7 @@ function Section({
 }
 
 export function HoldList() {
-  const agents = useAgents();
+  const { agents } = useAgents();
   const { data, error, reload } = useApi(
     apiUrl(API_ENDPOINTS.HOLDS, { query: { status: HoldState.PENDING } }),
     PendingHolds,

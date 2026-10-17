@@ -22,8 +22,9 @@ import {
 import { useState } from "react";
 
 import { VerdictBadge } from "@/components/verdict-badge";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { errorMessage } from "@/lib/error-message";
 import {
   type PolicyTestResult,
   PolicyTestResult as PolicyTestResultSchema,
@@ -171,7 +172,7 @@ export function TestPanel({
       );
     } catch (e) {
       setResult(null);
-      setError(e instanceof ApiError ? `Test failed: ${e.code}` : "Test failed.");
+      setError(errorMessage(e, "Test failed."));
     } finally {
       setBusy(false);
     }

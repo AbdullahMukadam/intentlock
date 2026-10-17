@@ -54,6 +54,7 @@ const BANNED = {
 
 // Boundaries apply to shipped code and tests, not to config files like eslint.config.js.
 const SOURCE = ["src/**", "test/**", "app/**"];
+const TYPED = SOURCE.map((dir) => `${dir}/*.{ts,tsx}`);
 
 const DEEP_IMPORT = {
   group: ["@intentlock/*/*", "!@intentlock/ui/*", "!@intentlock/config/*"],
@@ -89,6 +90,16 @@ export function intentlock(pkg, ...extra) {
       },
     },
     { files: SOURCE, rules: { "no-restricted-imports": restrict(pkg, banned) } },
+    {
+      files: TYPED,
+      languageOptions: { parserOptions: { projectService: true } },
+      rules: {
+        "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+        "@typescript-eslint/no-misused-promises": "error",
+        "@typescript-eslint/only-throw-error": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+      },
+    },
     pkg === "server"
       ? {
           files: ["test/**"],

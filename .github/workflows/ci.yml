@@ -37,3 +37,68 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+
+  images:
+    needs: check
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [server, inbox]
+    steps:
+      - uses: actions/checkout@v5
+      - run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.OWNER }}/intentlock-${{ matrix.app }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  release:
+    needs: images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - uses: actions/checkout@v5
+        if: env.DIRECT_URL != ''
+      - uses: pnpm/action-setup@v4
+        if: env.DIRECT_URL != ''
+      - uses: actions/setup-node@v5
+        if: env.DIRECT_URL != ''
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: env.DIRECT_URL != ''
+        run: pnpm install --frozen-lockfile --filter @intentlock/server...
+      - name: prisma migrate deploy (once per release, before any instance restarts)
+        if: env.DIRECT_URL != ''
+        run: pnpm --filter @intentlock/server exec prisma migrate deploy
+      - name: Deploy the server on Render
+        if: env.RENDER_DEPLOY_HOOK != ''
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK" > /dev/null

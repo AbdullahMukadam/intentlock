@@ -1,5 +1,7 @@
 import { IntentlockError } from "@intentlock/core";
 
+import { describeServerAnswer } from "./http/describe-failure.js";
+
 export class GateUnavailableError extends IntentlockError {}
 
 export class HttpError extends IntentlockError {
@@ -7,6 +9,6 @@ export class HttpError extends IntentlockError {
     readonly status: number,
     readonly body: unknown,
   ) {
-    super(`Intentlock server answered ${status}`);
+    super(`Intentlock server ${describeServerAnswer(status, body)}`);
   }
 }

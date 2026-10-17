@@ -272,3 +272,54 @@ describe("policy", () => {
     expect(await readFile(join(fake.dir, "pulled.yaml"), "utf8")).toBe(STARTER_POLICY);
   });
 });
+
+describe("errors are one readable line, never a stack trace", () => {
+  async function agentsListAnswering(answer: () => Promise<Response>) {
+    const fake = await signedIn();
+    fake.ctx.fetch = answer as unknown as typeof fetch;
+    const code = await run(["agents", "list"], fake.ctx);
+    return { code, line: fake.lines.at(-1) };
+  }
+
+  test("an unreachable server names the origin and the network code", async () => {
+    const refused = Object.assign(new TypeError("fetch failed"), {
+      cause: { code: "ECONNREFUSED" },
+    });
+    expect(await agentsListAnswering(() => Promise.reject(refused))).toEqual({
+      code: 1,
+      line: "error: Cannot reach http://il.test: ECONNREFUSED",
+    });
+  });
+
+  test("a proxy's HTML error page shows the status; a 5xx shows the request id", async () => {
+    expect(
+      await agentsListAnswering(
+        async () => new Response("<html>Bad Gateway</html>", { status: 502 }),
+      ),
+    ).toEqual({ code: 1, line: "error: Server answered 502" });
+    expect(
+      await agentsListAnswering(async () =>
+        Response.json({ error: "database_unavailable", requestId: "r-7" }, { status: 503 }),
+      ),
+    ).toEqual({ code: 1, line: "error: Server answered 503: database_unavailable (request r-7)" });
+  });
+
+  test("an HTML page with 200 means --url points at the inbox, not the API", async () => {
+    const { code, line } = await agentsListAnswering(
+      async () => new Response("<html>inbox</html>", { status: 200 }),
+    );
+    expect(code).toBe(1);
+    expect(line).toMatch(
+      /^error: Server answered with something that is not JSON; --url should be the API/,
+    );
+  });
+
+  test("a missing policy file or a corrupt session file", async () => {
+    const fake = await signedIn();
+    expect(await run(["policy", "validate", "nope.yaml"], fake.ctx)).toBe(1);
+    expect(fake.lines.at(-1)).toBe("error: Cannot read nope.yaml: ENOENT");
+    await writeFile(join(fake.dir, ".intentlock", "session.json"), "{not json");
+    expect(await run(["agents", "list"], fake.ctx)).toBe(1);
+    expect(fake.lines.at(-1)).toBe("error: Stored session is corrupt; sign in again.");
+  });
+});

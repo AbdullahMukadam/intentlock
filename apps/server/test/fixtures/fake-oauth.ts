@@ -33,7 +33,7 @@ export async function startFakeOAuth() {
   let base = "";
 
   const server: Server = createServer((req, res) => {
-    void (async () => {
+    (async () => {
       const url = new URL(req.url ?? "/", base);
       const json = (status: number, data: unknown) => {
         res.writeHead(status, { "Content-Type": "application/json" });
@@ -89,7 +89,7 @@ export async function startFakeOAuth() {
         ]);
       }
       return json(404, {});
-    })();
+    })().catch((err: unknown) => res.writeHead(500).end(String(err)));
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

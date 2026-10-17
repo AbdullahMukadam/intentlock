@@ -4,8 +4,10 @@ RUN corepack enable
 WORKDIR /repo
 ARG API_URL=http://server:3000
 ENV API_URL=$API_URL
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
 COPY . .
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --offline --frozen-lockfile
 RUN pnpm turbo run build --filter=@intentlock/inbox
 
 FROM node:22-slim AS runtime

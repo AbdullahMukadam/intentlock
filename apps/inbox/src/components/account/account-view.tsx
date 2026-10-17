@@ -41,12 +41,13 @@ import { DetailGrid, DetailItem } from "@/components/detail-grid";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SecretReveal } from "@/components/secret-reveal";
-import { ApiError, api, apiUrl } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
 import { oauthMessage } from "@/lib/auth-messages";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { OAuthMode } from "@/lib/enums/oauth-mode.enum";
 import { SignInProvider } from "@/lib/enums/sign-in-provider.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatDate, formatRelative } from "@/lib/format";
 import {
   type Account,
@@ -64,12 +65,9 @@ const PROVIDERS = [
 ] as const;
 
 function passwordMessage(e: unknown) {
-  if (!(e instanceof ApiError)) return "Could not change the password.";
-  if (e.code === ApiErrorCode.WRONG_PASSWORD) return "Your current password is not right.";
-  if (e.code === ApiErrorCode.PASSWORD_TOO_WEAK)
-    return "Choose a password that does not contain your email.";
-  if (e.code === ApiErrorCode.VALIDATION_FAILED) return "Use at least 12 characters.";
-  return "Could not change the password.";
+  return errorMessage(e, "Could not change the password.", {
+    [ApiErrorCode.VALIDATION_FAILED]: "Use at least 12 characters.",
+  });
 }
 
 function PasswordPanel({ account, onChanged }: { account: Account; onChanged: () => void }) {
@@ -170,11 +168,7 @@ function MethodsPanel({ account, onChanged }: { account: Account; onChanged: () 
       });
       toast.success(`Unlinked ${label}`);
     } catch (e) {
-      toast.error(
-        e instanceof ApiError && e.code === ApiErrorCode.LAST_SIGN_IN_METHOD
-          ? "Set a password or link another account first: this is your only way to sign in."
-          : `Could not unlink ${label}.`,
-      );
+      toast.error(errorMessage(e, `Could not unlink ${label}.`));
     }
     onChanged();
   }
@@ -253,8 +247,8 @@ function SessionsPanel() {
     try {
       await api(API_ENDPOINTS.ACCOUNT_SESSIONS, z.undefined(), { method: HttpMethod.DELETE });
       toast.success("Signed out of your other sessions.");
-    } catch {
-      toast.error("Could not sign out the other sessions.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not sign out the other sessions."));
     }
     reload();
   }
@@ -325,8 +319,8 @@ function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: ()
       const res = await api(API_ENDPOINTS.ACCOUNT_CLI_TOKEN, CliToken, { method: HttpMethod.POST });
       setToken(res.token);
       onChanged();
-    } catch {
-      toast.error("Could not create a CLI token.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not create a CLI token."));
     }
   }
 
@@ -335,8 +329,8 @@ function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: ()
       await api(API_ENDPOINTS.ACCOUNT_CLI_TOKEN, z.undefined(), { method: HttpMethod.DELETE });
       toast.success("CLI token revoked.");
       setToken(null);
-    } catch {
-      toast.error("Could not revoke the CLI token.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not revoke the CLI token."));
     }
     onChanged();
   }

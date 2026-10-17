@@ -8,22 +8,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { FormError, FormField } from "@/components/auth/form-field";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { errorMessage } from "@/lib/error-message";
 import { AgentView } from "@/lib/schemas";
 
 const NAME_PATTERN = "[a-z0-9]+(-[a-z0-9]+)*";
 
 function message(error: unknown) {
-  if (!(error instanceof ApiError)) return "Could not create the agent.";
-  if (error.code === ApiErrorCode.AGENT_NAME_TAKEN)
-    return "An agent with that name already exists.";
-  if (error.code === ApiErrorCode.AGENT_LIMIT_REACHED) {
-    return "Your license's agent limit is reached.";
-  }
-  if (error.code === ApiErrorCode.VALIDATION_FAILED) return "Check the name and description.";
-  return "Could not create the agent.";
+  return errorMessage(error, "Could not create the agent.", {
+    [ApiErrorCode.VALIDATION_FAILED]: "Check the name and description.",
+  });
 }
 
 export function CreateAgentForm({ onCancel }: { onCancel?: () => void }) {

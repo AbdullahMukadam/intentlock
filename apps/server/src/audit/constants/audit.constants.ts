@@ -5,3 +5,4 @@ export const MAX_FLAGGED_LISTED = 100;
 export const JSONL_CONTENT_TYPE = "application/x-ndjson";
 export const MAX_BATCH_ENTRIES = 100;
 export const MAX_BATCH_TOKENS = 20;
+export const PLAN_LOCK_NAMESPACE = 7_406_214;

@@ -44,6 +44,9 @@ All config comes from environment variables, validated with zod at boot (`apps/s
 | --- | --- | --- |
 | `DATABASE_URL` | server | Pooled URL in production |
 | `DIRECT_URL` | server (migrations) | Direct, non-pooled URL for `prisma migrate deploy` |
+| `DATABASE_POOL_MAX` | server | Connections per instance (default `10`). Instances × this must stay under the database's connection limit (Neon free and poolers have their own) |
+| `DATABASE_POOL_TIMEOUT_MS` | server | How long a query waits for a free connection before the request answers 503 (default `5000`) |
+| `DATABASE_TX_MAX_WAIT_MS`, `DATABASE_TX_TIMEOUT_MS` | server | Prisma transaction limits: wait to start (default `2000`) and total run time (default `5000`); exceeding either answers 503 |
 | `SIGNING_KEY` | server | Ed25519 PKCS8 PEM; **same value on every instance**; platform secret store only |
 | `SIGNING_KEY_PREVIOUS` | server | Optional; old key still published in JWKS during rotation |
 | `API_KEY_PEPPER` | server | Optional extra secret for API key hashing |
@@ -74,6 +77,8 @@ flowchart LR
     deploy --> smoke["Smoke test:<br/>/health · sign plan · verify chain"]
 ```
 
+- In `.github/workflows/ci.yml`: `check` (format, lint, typecheck, test with Postgres) on every push and PR → `images` on `main` and `v*` tags: server and inbox built with Buildx (GitHub Actions cache) and pushed to `ghcr.io/abdullahmukadam/intentlock-server|inbox` as `latest` (main), `sha-<commit>` and, for tags, `X.Y.Z` and `X.Y` → `release` on `main` (GitHub environment `production`): `prisma migrate deploy` against the `PRODUCTION_DIRECT_URL` secret, then the `RENDER_DEPLOY_HOOK` secret. Each release step is skipped while its secret is unset, so forks and a repo without a deployment only build images.
+- GHCR creates new packages as private. After the first push, make both packages public (GitHub → Packages → package settings → visibility) so the self-host bundle can pull them without a login.
 - Migrations run **once per release** as a separate step, never on instance boot (two instances booting together would race).
 - Migrations must be backward compatible with the previous release (add columns, then use them in a later release), so a rolling deploy never breaks running instances.
 - `/health` = process up; `/health/ready` = database reachable + signing key loaded. The LB routes only to ready instances.
@@ -127,7 +132,7 @@ Instances keep no state that another instance needs: no in-memory hold maps, no 
 
 ### 5.4 Audit chain appends under concurrency
 
-Appends take a transaction-scoped advisory lock (`pg_advisory_xact_lock(<chain id>)`) before reading the chain head, so concurrent appends from any instance serialize correctly. Hybrid batches append many entries under one lock acquisition, which keeps lock traffic low.
+Appends take a transaction-scoped advisory lock (`pg_advisory_xact_lock(<chain id>)`) before reading the chain head, so concurrent appends from any instance serialize correctly. The lock is held only for the head read and one multi-row insert, until commit. Hybrid batch ingest (ADR-061) does its slow work outside that lock: hashing, token checks and decision re-checks run before the transaction; the client-sequence head, gap and chain-break checks and reports run under a per-plan lock (`pg_advisory_xact_lock(<namespace>, hashtext(planId))`); the whole batch is then appended in one go. Every path takes the chain lock last, so the locks cannot form a cycle.
 
 ## 6. Designed, not built in v0.1
 
@@ -166,7 +171,7 @@ Design: one chain per organization in a future hosted version, or per API key / 
 4. Kills one instance mid-run (`docker compose kill server-2`) and confirms clients recover through the other.
 5. Verifies: audit chain intact, no duplicate `(planId, clientSeq)`, no counter exceeded `maxCalls`, every hold ended in exactly one state.
 
-Results (requests/s, p95 latency, errors) go in the journal and the README. Numbers are only what was measured.
+Results (requests/s, p95 latency, errors) go in the journal and the README. Numbers are only what was measured. Run it with `pnpm tsx deploy/load/scale-test.ts` (builds the images first) or `--no-build` to reuse images already built; `--keep` leaves the stack running. `REMOTE_WORKERS`, `HYBRID_CLIENTS` and `HYBRID_PAUSE_MS` change the load. Holds and races run before the load phase so the instance that resolves them is still alive.
 
 ## 8. Local and production commands
 
@@ -175,7 +180,7 @@ Results (requests/s, p95 latency, errors) go in the journal and the README. Numb
 docker compose up -d                     # postgres + mailpit (demo)
 pnpm dev                                 # server + inbox
 
-# scale test
+# scale test (add --no-build to reuse built images)
 docker compose -f deploy/docker-compose.scale.yml up -d --build
 pnpm tsx deploy/load/scale-test.ts
 
@@ -191,18 +196,49 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 
 | Part | Service | Free-tier behaviour to plan for |
 | --- | --- | --- |
-| Server | **Render** free web service (Docker) | Sleeps after 15 idle minutes; first request then takes ~1 minute. 750 instance hours/month (one always-on instance). 5 GB bandwidth/month. Single instance only. |
-| Database | **Neon** free Postgres | Permanent free plan, 1 GB storage per project. Compute suspends after 5 idle minutes (slower first query). |
-| Inbox | **Vercel** Hobby | Personal / non-commercial use. Cold starts possible. |
+| Server | **Render** free web service (Docker) | Sleeps after 15 minutes without inbound HTTP or WebSocket traffic; the first request then takes ~1 minute. 750 instance hours/month per workspace, shared by all free services (one always-on instance uses ~720). Ephemeral disk. Single instance only. |
+| Database | **Neon** free Postgres | Permanent free plan: 0.5 GB storage, 100 CU-hours of compute and 5 GB public transfer per project per month. Compute scales to zero after 5 idle minutes (slower first query). |
+| Inbox | **Vercel** Hobby | Personal / non-commercial use. 100 GB transfer/month. Proxied (rewrite) requests time out after 30–120 s depending on the docs version; the hold long-poll waits at most 25 s. Cold starts possible. |
 | Images | **GHCR** | Public images. |
 | Scale test | **Local** `docker compose` | Two instances + nginx (§7); numbers come from here, not from the free tier. |
 
 **Do not use:** Render free Postgres (expires after 30 days, then deleted), Fly.io (card required, no free tier for new users), Koyeb (free plan closed to new users).
 
+Limits last checked 2026-10-16 (Render, Neon and Vercel docs).
+
+### 9.1 Step by step
+
+Traffic path: browser → Vercel (inbox, and `/api/*` rewritten to Render) → Render (server) → Neon. The browser only ever talks to the Vercel origin, so cookies are first-party and no CORS is needed. Demo agents on the laptop use the same `https://<vercel>/api` URL.
+
+1. **Images.** Merge to `main` so CI pushes `ghcr.io/abdullahmukadam/intentlock-server:latest` (§3), then make the `intentlock-server` and `intentlock-inbox` packages public.
+2. **Neon.** Create a project in the region closest to the Render region you will pick. Copy two connection strings: the **pooled** one (host contains `-pooler`) and the **direct** one.
+3. **Migrate once.** Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone: `DIRECT_URL='<direct>' pnpm --filter @intentlock/server exec prisma migrate deploy`.
+4. **Signing key.** `pnpm --filter @intentlock/cli build && node packages/cli/dist/bin.js keygen --env` writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
+5. **Render.** New → Web Service → Existing image `ghcr.io/abdullahmukadam/intentlock-server:latest`, free instance, health check path `/health/ready`, environment as in the table below. Settings → Deploy Hook: copy it into the GitHub secret `RENDER_DEPLOY_HOOK`; turn off auto-deploy. Note the service URL (`https://<name>.onrender.com`).
+6. **Vercel.** Import the GitHub repo, root directory `apps/inbox`, framework Next.js, build command `cd ../.. && pnpm turbo run build --filter=@intentlock/inbox` (builds `core` and `ui` first), environment `API_URL=https://<name>.onrender.com` (read at build time by the `/api` rewrite). Deploy and note the URL.
+7. **Point the server at the inbox.** Set `PUBLIC_URL` on Render to the Vercel URL and redeploy (cookies, invite links and OAuth callbacks use it).
+8. **First admin.** Open `https://<name>.onrender.com/health/ready` to wake the server, then copy `One-time setup code: …` from Render → Logs. Open the Vercel URL, which shows `/setup`; create the admin. With `INTENTLOCK_DEMO=1`, setup also creates the sample users and prints their passwords once in the logs.
+9. **Demo agents (laptop).** In `apps/demo/.env`: `INTENTLOCK_URL=https://<vercel>/api`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`. Then `pnpm --filter @intentlock/demo setup-instance` (agents, policies, API keys into `apps/demo/.env`), `pnpm --filter @intentlock/demo seed`, and run an agent.
+10. **Check.** Signed out, every inbox page redirects to `/login`; Audit → Verify is OK; Account → Sessions shows your own IP (if it shows a Vercel or Render address, adjust `TRUST_PROXY`).
+
+| Render variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Neon **pooled** string |
+| `SIGNING_KEY` | one-line PEM from step 4 |
+| `PUBLIC_URL` | `https://<vercel-project>.vercel.app` (after step 6) |
+| `ORG_NAME` | e.g. `Intentlock Demo` |
+| `TRUST_PROXY` | `2` (Vercel's proxy, then Render's); confirm with step 10 |
+| `INTENTLOCK_DEMO` | `1` for the sample users; leave unset otherwise |
+| `DATABASE_POOL_MAX` | `5` (one free instance; stays well under Neon's pooler limits) |
+| `API_KEY_PEPPER` | optional: a long random string, set once |
+| `GOOGLE_*`, `GITHUB_*` | optional: callback `<PUBLIC_URL>/api/v1/auth/oauth/<google\|github>/callback` |
+| `SMTP_URL`, `SMTP_FROM` | optional: invites and resets are emailed; otherwise copy the links |
+
+Not needed on Render: `DIRECT_URL` (migrations run in CI or from a clone), `CORS_ORIGINS` (single origin through the rewrite), `LICENSE_FILE` (Community edition).
+
 **Setup notes**
-- Neon gives a **pooled** and a **direct** connection string. Prisma uses the pooled one at runtime (`DATABASE_URL`) and the direct one for migrations (`DIRECT_URL`, set as `directUrl` in `schema.prisma`).
-- Render: deploy `apps/server/Dockerfile`; health check path `/health/ready`; set `SIGNING_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGINS`. Run `prisma migrate deploy` as Render's pre-deploy command (single instance, so no race).
-- Vercel: root directory `apps/inbox`; set `API_URL` to the Render URL.
+- Neon gives a **pooled** and a **direct** connection string. The server uses the pooled one at runtime (`DATABASE_URL`); migrations use the direct one (`DIRECT_URL`, read by `prisma.config.ts`). If the pooler ever rejects a query the app needs, point `DATABASE_URL` at the direct string; at demo scale either works.
+- Render runs the image CI built and tested; migrations run in CI's `release` job before the deploy hook fires (§3), so Render needs no pre-deploy command and auto-deploy stays off.
 - The instance is private: every page needs sign-in (ARCHITECTURE §5.6). We complete setup with the code from Render's logs and invite users; `INTENTLOCK_DEMO=1` adds sample users at setup.
 - The **demo agents run on our laptop**, pointing at the instance with their API keys (`apps/demo/.env`), exactly like a team's agent apps. Model keys, GitHub tokens and Mailpit stay local; no secrets other than the server's own live on hosted services.
 - Policies are not deployed with the server: the demo `setup` script publishes them into the instance via the API.
@@ -233,12 +269,13 @@ flowchart LR
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
 curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
-# set ORG_NAME, PUBLIC_URL, POSTGRES_PASSWORD (optional: SMTP_*, GOOGLE_*, GITHUB_*); then:
+# set ORG_NAME, PUBLIC_URL (optional: SMTP_*, GOOGLE_*, GITHUB_*); then:
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
 docker compose -f docker-compose.selfhost.yml up -d
 docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"     # for the setup page
 ```
-Then: open `PUBLIC_URL`, which shows the setup page; paste the setup code and create the first admin. Invite teammates from the Team page (copy the link, or it is emailed when SMTP is set), create an agent and an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "Self-host in 10 minutes".
+Then: open `PUBLIC_URL`, which shows the setup page; paste the setup code and create the first admin. Invite teammates from the Team page (copy the link, or it is emailed when SMTP is set), create an agent and an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "60-second quickstart" and "Self-host for your team".
 
 The bundle is one file: the nginx config is inline (`configs.content`, Compose ≥ 2.23), the server and inbox images come from GHCR (`ghcr.io/abdullahmukadam/intentlock-server|inbox`, tag `INTENTLOCK_VERSION`), and each service also has a `build:` section so `up --build` from a clone builds them locally. The server runs with `TRUST_PROXY=1` so login rate limits and audit see the client IP from nginx. The compose project is named `intentlock-selfhost` so it never shares volumes with the dev `docker-compose.yml`.
 

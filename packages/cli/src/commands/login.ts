@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from "@intentlock/core";
 import type { Command } from "commander";
 
-import { readResponse } from "../api/api-client.js";
+import { readResponse, send } from "../api/api-client.js";
 import { CSRF_HEADER, SESSION_COOKIE } from "../constants/cli.constants.js";
 import { HttpMethod } from "../enums/http-method.enum.js";
 import { CliError } from "../errors.js";
@@ -31,7 +31,7 @@ export function registerLogin(program: Command, ctx: CliContext) {
                   : opts.token,
             };
       const url = opts.url.replace(/\/+$/, "");
-      const res = await ctx.fetch(url + API_ENDPOINTS.AUTH_LOGIN, {
+      const res = await send(ctx, url + API_ENDPOINTS.AUTH_LOGIN, {
         method: HttpMethod.POST,
         headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
         body: JSON.stringify({ email: opts.email, ...credentials }),

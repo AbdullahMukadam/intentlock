@@ -7,6 +7,7 @@ import type {
 
 import { MessageRole } from "./enums/message-role.enum.js";
 import { ToolChoice } from "./enums/tool-choice.enum.js";
+import { toProviderError } from "./provider-error.js";
 import { ProviderKind } from "./enums/provider-kind.enum.js";
 import type { ChatRequest, ChatResponse, LLMProvider, Message, ToolCallReq } from "./types.js";
 
@@ -37,7 +38,11 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 
   async chat(req: ChatRequest): Promise<ChatResponse> {
-    const completion = await this.#client.chat.completions.create(toParams(this.#model, req));
+    const completion = await this.#client.chat.completions
+      .create(toParams(this.#model, req))
+      .catch((err: unknown) => {
+        throw toProviderError(this.name, err);
+      });
     return fromCompletion(completion);
   }
 }

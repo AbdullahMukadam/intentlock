@@ -7,22 +7,20 @@ import { CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { LOGIN_PATH } from "@/lib/constants";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { errorMessage } from "@/lib/error-message";
 
 import { AuthLayout } from "./auth-layout";
 import { FormError, PasswordField } from "./form-field";
 
 function message(error: unknown) {
-  if (!(error instanceof ApiError)) return "Could not reset the password. Is the server running?";
-  if (error.code === ApiErrorCode.LINK_INVALID)
-    return "This reset link is invalid, used or expired. Ask for a new one.";
-  if (error.code === ApiErrorCode.PASSWORD_TOO_WEAK)
-    return "Choose a password that does not contain your email.";
-  if (error.code === ApiErrorCode.VALIDATION_FAILED) return "Use at least 12 characters.";
-  return "Could not reset the password. Try again.";
+  return errorMessage(error, "Could not reset the password.", {
+    [ApiErrorCode.LINK_INVALID]: "This reset link is invalid, used or expired. Ask for a new one.",
+    [ApiErrorCode.VALIDATION_FAILED]: "Use at least 12 characters.",
+  });
 }
 
 export function ResetForm({ token }: { token: string }) {

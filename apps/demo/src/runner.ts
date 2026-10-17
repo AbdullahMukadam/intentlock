@@ -24,6 +24,11 @@ const server = createRunner(async (mode, emit) => {
   }
 });
 
+server.on("error", (err) => {
+  console.error(`Cannot start the demo runner on ${HOST}:${port}: ${err.message}`);
+  process.exitCode = 1;
+});
+
 server.listen(port, HOST, () => {
   console.log(`demo runner on http://${HOST}:${port} (open /demo in the inbox)`);
 });

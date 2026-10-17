@@ -41,7 +41,9 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     await this.load();
-    this.timer = setInterval(() => void this.load(), LICENSE_RECHECK_MS);
+    this.timer = setInterval(() => {
+      this.load().catch((err: unknown) => this.log.error(err));
+    }, LICENSE_RECHECK_MS);
     this.timer.unref();
   }
 
@@ -94,8 +96,11 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
     let jws: string;
     try {
       jws = await readFile(path, "utf8");
-    } catch {
-      this.fallback(LicenseStatus.INVALID, `cannot read ${path}`);
+    } catch (err) {
+      this.fallback(
+        LicenseStatus.INVALID,
+        `cannot read ${path} (${(err as NodeJS.ErrnoException).code ?? String(err)})`,
+      );
       return;
     }
     const result = await verifyLicense(jws, this.vendorKey, new Date());

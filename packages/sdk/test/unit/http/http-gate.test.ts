@@ -25,6 +25,44 @@ describe("HttpGate", () => {
     ).rejects.toBeInstanceOf(GateUnavailableError);
   });
 
+  test("errors say why: network code, timeout, and the server's code and request id", async () => {
+    const refused = Object.assign(new TypeError("fetch failed"), {
+      cause: { code: "ECONNREFUSED" },
+    });
+    await expect(gate(() => Promise.reject(refused)).check("t", call)).rejects.toThrow(
+      "POST /v1/check failed: ECONNREFUSED",
+    );
+    const slow = new HttpGate({
+      baseUrl: "http://x/",
+      apiKey: "k",
+      timeoutMs: 20,
+      fetch: ((_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) =>
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason)),
+        )) as unknown as typeof globalThis.fetch,
+    });
+    await expect(slow.check("t", call)).rejects.toThrow(
+      "POST /v1/check failed: timed out after 20 ms",
+    );
+    await expect(
+      gate(async () =>
+        Response.json(
+          { statusCode: 503, error: "database_unavailable", requestId: "r-9" },
+          { status: 503 },
+        ),
+      ).check("t", call),
+    ).rejects.toThrow("POST /v1/check answered 503 (database_unavailable, request r-9)");
+    await expect(
+      gate(async () => Response.json({ error: "unauthorized" }, { status: 401 })).check("t", call),
+    ).rejects.toThrow("Intentlock server answered 401 (unauthorized)");
+    await expect(
+      gate(async () => new Response("<html>Bad Gateway</html>", { status: 502 })).check("t", call),
+    ).rejects.toThrow("POST /v1/check answered 502");
+    await expect(
+      gate(async () => new Response("<html>ok?</html>", { status: 200 })).check("t", call),
+    ).rejects.toThrow("POST /v1/check: unreadable response");
+  });
+
   test("4xx surfaces as HttpError with the server's body", async () => {
     const err = await gate(async () => Response.json({ error: "unauthorized" }, { status: 401 }))
       .check("t", call)
@@ -68,6 +106,32 @@ describe("HttpGate", () => {
         timeoutMs: 0,
       }),
     ).toBe("expired");
+  });
+
+  test("waitForHold retries a network failure and then sees the approval", async () => {
+    let calls = 0;
+    const fetch = vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new TypeError("fetch failed");
+      return Response.json({ status: "approved" });
+    });
+    expect(await gate(fetch).waitForHold("h1", { timeoutMs: 30_000 })).toBe("approved");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("waitForHold does not retry a 4xx", async () => {
+    const fetch = vi.fn(async () => Response.json({ error: "not_found" }, { status: 404 }));
+    await expect(gate(fetch).waitForHold("h1", { timeoutMs: 30_000 })).rejects.toBeInstanceOf(
+      HttpError,
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("waitForHold that is still failing at its deadline throws instead of expiring", async () => {
+    const fetch = vi.fn(async () => new Response("", { status: 503 }));
+    await expect(gate(fetch).waitForHold("h1", { timeoutMs: 300 })).rejects.toBeInstanceOf(
+      GateUnavailableError,
+    );
   });
 
   test("waitForHold stops when its signal aborts", async () => {

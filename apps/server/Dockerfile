@@ -7,8 +7,10 @@ FROM os AS build
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /repo
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
 COPY . .
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --offline --frozen-lockfile
 RUN pnpm turbo run build --filter=@intentlock/server
 RUN pnpm --filter @intentlock/server deploy --prod --legacy /out \
  && rm -rf /out/dist && cp -r apps/server/dist /out/dist

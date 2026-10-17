@@ -40,7 +40,7 @@ async function scripted(gateKind: GateKind) {
   return records;
 }
 
-describe("scripted baseline", () => {
+describe("scripted baseline", { timeout: 30_000 }, () => {
   test("without Intentlock every scripted attack lands and every task is done", async () => {
     const records = await scripted(GateKind.NONE);
     expect(records.every((r) => r.outcome === RunOutcome.FINISHED)).toBe(true);

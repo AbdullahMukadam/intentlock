@@ -27,7 +27,7 @@ export class ApiClient {
   }
 
   async request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
-    const res = await this.ctx.fetch(this.session.url.replace(/\/+$/, "") + path, {
+    const res = await send(this.ctx, this.session.url.replace(/\/+$/, "") + path, {
       method,
       headers: {
         cookie: this.session.cookie,
@@ -40,13 +40,35 @@ export class ApiClient {
   }
 }
 
+export async function send(ctx: CliContext, url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await ctx.fetch(url, init);
+  } catch (err) {
+    const code = (err as { cause?: { code?: unknown } }).cause?.code;
+    const reason =
+      typeof code === "string" ? code : err instanceof Error ? err.message : String(err);
+    throw new CliError(`Cannot reach ${new URL(url).origin}: ${reason}`, { cause: err });
+  }
+}
+
 export async function readResponse<T>(res: Response): Promise<T> {
   const text = await res.text();
-  const data: unknown = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  let json = true;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    json = false;
+  }
   if (!res.ok) {
-    const error = (data as { error?: unknown } | null)?.error;
+    const body = (data ?? {}) as { error?: unknown; requestId?: unknown };
+    const code = typeof body.error === "string" ? `: ${body.error}` : "";
+    const request = typeof body.requestId === "string" ? ` (request ${body.requestId})` : "";
+    throw new CliError(`Server answered ${res.status}${code}${request}`);
+  }
+  if (!json) {
     throw new CliError(
-      `Server answered ${res.status}${typeof error === "string" ? `: ${error}` : ""}`,
+      "Server answered with something that is not JSON; --url should be the API, e.g. https://intentlock.acme.dev/api",
     );
   }
   return data as T;

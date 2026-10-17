@@ -53,11 +53,12 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SecretReveal } from "@/components/secret-reveal";
 import { InviteMemberForm } from "@/components/team/invite-member-form";
-import { ApiError, api, apiUrl } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { LinkKind } from "@/lib/enums/link-kind.enum";
 import { UiAction } from "@/lib/enums/ui-action.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatRelative, initials, parseGroups } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import {
@@ -137,11 +138,7 @@ function MemberActions({
       });
       toast.success(done);
     } catch (e) {
-      toast.error(
-        e instanceof ApiError && e.code === ApiErrorCode.USER_LIMIT_REACHED
-          ? "Your license's user limit is reached."
-          : "Could not update this member.",
-      );
+      toast.error(errorMessage(e, "Could not update this member."));
     }
     onChanged();
   }
@@ -153,8 +150,8 @@ function MemberActions({
         params: { email: member.email },
       });
       onReveal(linkNotice(LinkKind.RESET, member.email, res));
-    } catch {
-      toast.error("Could not create a reset link.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not create a reset link."));
     }
   }
 
@@ -227,8 +224,12 @@ function GroupsEditor({
       });
       toast.success(`Saved groups for ${member.email}`);
       onDone(true);
-    } catch {
-      toast.error("Groups are lowercase letters, digits, - and _.");
+    } catch (e) {
+      toast.error(
+        errorMessage(e, "Could not save the groups.", {
+          [ApiErrorCode.VALIDATION_FAILED]: "Groups are lowercase letters, digits, - and _.",
+        }),
+      );
     }
   }
   return (
@@ -271,8 +272,8 @@ function InvitesPanel({
         params: { id: invite.id },
       });
       onReveal(linkNotice(LinkKind.INVITE, invite.email, res));
-    } catch {
-      toast.error("Could not resend the invite.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not resend the invite."));
     }
     onChanged();
   }
@@ -284,8 +285,8 @@ function InvitesPanel({
         params: { id: invite.id },
       });
       toast.success(`Revoked the invite for ${invite.email}`);
-    } catch {
-      toast.error("Could not revoke the invite.");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not revoke the invite."));
     }
     onChanged();
   }

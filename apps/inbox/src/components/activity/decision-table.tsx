@@ -16,11 +16,13 @@ import {
 import { Flag, ListFilter, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { type ActivityFilters, toAuditQuery } from "@/lib/activity-filters";
 import { apiUrl, request } from "@/lib/api";
+import { errorMessage } from "@/lib/error-message";
 import { formatShortTime, formatTime, humanize } from "@/lib/format";
 import { type AgentSummary, AuditPage, type AuditRow } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
@@ -83,6 +85,8 @@ export function DecisionTable({
       );
       setMore((m) => [...m, ...page.entries]);
       setCursor(page.nextCursor);
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not load more entries."));
     } finally {
       setLoadingMore(false);
     }

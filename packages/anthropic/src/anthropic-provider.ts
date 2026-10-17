@@ -6,6 +6,7 @@ import {
   ProviderKind,
   providerFromEnv as guardProviderFromEnv,
   type ProviderFromEnvOptions,
+  toProviderError,
 } from "@intentlock/guard";
 
 import { fromMessage, toParams } from "./mapping.js";
@@ -31,7 +32,12 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async chat(req: ChatRequest): Promise<ChatResponse> {
-    return fromMessage(await this.#client.messages.create(toParams(this.#model, req)));
+    const message = await this.#client.messages
+      .create(toParams(this.#model, req))
+      .catch((err: unknown) => {
+        throw toProviderError(this.name, err);
+      });
+    return fromMessage(message);
   }
 }
 

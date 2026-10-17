@@ -32,6 +32,7 @@ import {
 import { useApi } from "@/lib/use-api";
 import { can } from "@/lib/permissions";
 import { UiAction } from "@/lib/enums/ui-action.enum";
+import { errorMessage } from "@/lib/error-message";
 
 export function PolicyPanel({ agentId }: { agentId: string }) {
   const me = useMe();
@@ -112,7 +113,7 @@ export function PolicyPanel({ agentId }: { agentId: string }) {
           parsed.data?.errors.map((x) => `line ${x.line}: ${x.message}`) ?? ["Invalid policy."],
         );
       } else {
-        toast.error(e instanceof ApiError ? `Publish failed: ${e.code}` : "Publish failed.");
+        toast.error(errorMessage(e, "Publish failed."));
       }
     } finally {
       setBusy(false);

@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -51,13 +51,42 @@ describe("FileOutbox", () => {
       (await readFile(join(d, "plan1.jsonl"), "utf8")) + '{"planId":"plan1","clie',
     );
 
-    const second = new FileOutbox(d);
+    const errors: unknown[] = [];
+    const second = new FileOutbox(d, { onError: (e) => errors.push(e) });
     const recovered = await second.recover();
     expect(recovered[0]?.entries.map((e) => e.clientSeq)).toEqual([1, 2, 3]);
+    expect(errors.map((e) => (e as Error).message)).toEqual([
+      "Outbox plan1.jsonl line 4 is not a valid entry; skipped",
+    ]);
     expect(second.pending(10)[0]?.entries.map((e) => e.clientSeq)).toEqual([2, 3]);
     const next = await second.append("plan1", entry(4));
     expect(next.clientSeq).toBe(4);
     expect(next.prevLocalHash).toBe(recovered[0]?.entries[2]?.localHash);
+  });
+
+  test("reports an unreadable ack file and re-sends from the start", async () => {
+    const d = await dir();
+    const first = new FileOutbox(d);
+    await first.recover();
+    for (const n of [1, 2]) await first.append("plan1", entry(n));
+    await mkdir(join(d, "plan1.ack"));
+
+    const errors: unknown[] = [];
+    const second = new FileOutbox(d, { onError: (e) => errors.push(e) });
+    await second.recover();
+    expect(second.pending(10)[0]?.entries.map((e) => e.clientSeq)).toEqual([1, 2]);
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toMatch(/could not read .*plan1\.ack; treated as missing/);
+  });
+
+  test("a missing ack or done file is not an error", async () => {
+    const d = await dir();
+    const first = new FileOutbox(d);
+    await first.recover();
+    await first.append("plan1", entry(1));
+    const errors: unknown[] = [];
+    await new FileOutbox(d, { onError: (e) => errors.push(e) }).recover();
+    expect(errors).toEqual([]);
   });
 
   test("deletes a plan's files once it is complete and fully acked", async () => {

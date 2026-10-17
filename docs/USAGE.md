@@ -32,7 +32,7 @@ pnpm add @intentlock/guard @intentlock/sdk zod
 pnpm add @intentlock/anthropic      # only if you use Claude
 ```
 
-The MIT packages are published to npm at `0.1.0` (Phase 6); until then, depend on them from a clone of this repo (`workspace:*` or `pnpm link`). The CLI is not published to npm in v0.1; build and link it from a clone:
+The MIT packages are versioned together (ADR-062); `0.1.0` is the first npm release. Until it is on npm, depend on them from a clone of this repo (`workspace:*` or `pnpm link`). The CLI is not published to npm in v0.1; build and link it from a clone:
 
 ```bash
 pnpm install && pnpm --filter @intentlock/cli build
@@ -45,7 +45,7 @@ Requires Node ≥ 22.
 
 ### 3.1 Run the server
 
-Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#self-host-in-10-minutes); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time **setup code** to its logs (`docker compose logs server | grep "setup code"`). Open the inbox, which shows the setup page, paste the code and create the first admin with your email and a password.
+Self-host the server, inbox and Postgres with the compose bundle `deploy/docker-compose.selfhost.yml` (step by step in the root [README](../README.md#60-second-quickstart); details in [`DEPLOYMENT.md`](DEPLOYMENT.md) §10). On first boot the server prints a one-time **setup code** to its logs (`docker compose logs server | grep "setup code"`). Open the inbox, which shows the setup page, paste the code and create the first admin with your email and a password.
 
 ### 3.2 Invite your team
 
@@ -199,7 +199,20 @@ new OpenAICompatibleProvider({ baseURL, apiKey, model });
 new AnthropicProvider({ apiKey, model: "claude-sonnet-5-5" });
 ```
 
-To use another SDK, implement `LLMProvider` (`name` + `chat(request)`), mapping its tool-call format to `ToolCallReq` / `ToolResult`.
+To use another SDK, implement `LLMProvider` (`name` + `chat(request)`), mapping its tool-call format to `ToolCallReq` / `ToolResult`, and its errors with `toProviderError(name, err)`.
+
+If the model call fails (rate limit, outage, bad key), `run()` rejects with a `ProviderError`: `provider`, `status` (HTTP status or `null` for a network error), `retryable` (network errors, 408, 409, 429 and 5xx), and, when it happened after the plan was signed, `planId` and `messages` (the transcript so far). The guard also emits an `error` event. The built-in adapters already retry twice inside their SDKs; whether to retry the whole run is your call.
+
+```ts
+import { ProviderError } from "@intentlock/guard";
+
+try {
+  await guard.run({ user, task });
+} catch (err) {
+  if (err instanceof ProviderError && err.retryable) scheduleRetry(err.planId);
+  else throw err;
+}
+```
 
 ### 4.5 Keeping your own loop
 
@@ -302,7 +315,7 @@ Publishing creates a new immutable version. New plans use it immediately; runnin
 | `flushIntervalMs` | 5 000 | Upload interval. |
 | `maxUnacked` / `maxUnackedAgeMs` | 500 / 60 000 | If the server falls this far behind, calls block with `audit_backlog`. |
 | `handleSignals` | `true` | Flushes on `SIGTERM` / `SIGINT`. |
-| `onError` | — | Called with background errors (upload failures, JWKS reload). |
+| `onError` | — | Called with background errors: upload failures (retried with backoff), JWKS reload, hold-wait retries, and outbox lines or files that could not be recovered after a restart. |
 
 Call `gate.close()` when your process is done so the outbox flushes.
 
@@ -344,7 +357,9 @@ Common reasons:
 | `no_matching_rule` | No rule matched; `default: block`. |
 | *rule id* | A `block` rule matched; its `reason` is included. |
 | `token_expired` | Refreshed automatically by the guard; blocks only if refresh fails. |
-| `server_unavailable` | Could not reach the server when it was needed. |
+| `server_unavailable` | Could not reach the server when it was needed (network error, timeout or 5xx). |
+| `api_key_rejected` | The server answered 401: the API key is unknown or revoked, or the agent is disabled. |
+| `gate_rejected` | The server refused the check with another 4xx; the guard's `error` event has the server's error code. |
 | `audit_write_failed` / `audit_backlog` | The decision could not be made durable. |
 | `unknown_tool` / `invalid_args` | The model called a tool you did not register, or with bad arguments. |
 
@@ -352,7 +367,7 @@ Common reasons:
 
 1. The call pauses and a hold appears in the inbox (live) for eligible approvers.
 2. An approver opens it, sees the agent, the person, the tool and arguments, and approves or rejects.
-3. Approved → the tool runs. Rejected or timed out → the model gets an error telling it not to retry.
+3. Approved → the tool runs. Rejected or timed out → the model gets an error telling it not to retry. If the wait itself fails (server unreachable), the call does not run, the guard emits an `error` event with the cause, and the model is told the approval could not be confirmed.
 
 Approvals only come from signed-in people in the inbox; an agent's API key can never approve.
 

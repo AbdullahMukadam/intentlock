@@ -14,7 +14,7 @@ import { apiUrl } from "@/lib/api";
 import { AuditFormat } from "@/lib/enums/audit-format.enum";
 
 export function ActivityView({ filters }: { filters: ActivityFilters }) {
-  const agents = useAgents();
+  const { agents, failed: agentsFailed } = useAgents();
   const key = JSON.stringify(filters);
   const exportUrl = apiUrl(API_ENDPOINTS.AUDIT, {
     query: { ...toAuditQuery(filters), format: AuditFormat.JSONL },
@@ -42,7 +42,7 @@ export function ActivityView({ filters }: { filters: ActivityFilters }) {
             Decisions
           </PanelTitle>
         </PanelHeader>
-        <Filters key={`f${key}`} values={filters} agents={agents} />
+        <Filters key={`f${key}`} values={filters} agents={agents} agentsFailed={agentsFailed} />
         <DecisionTable key={`t${key}`} filters={filters} agents={agents} />
       </Panel>
     </div>

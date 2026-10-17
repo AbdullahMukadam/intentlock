@@ -15,7 +15,9 @@ export function CodeBlock({ code, label }: { code: string; label: string }) {
           variant="ghost"
           size="xs"
           onClick={() =>
-            navigator.clipboard.writeText(code).then(
+            (
+              navigator.clipboard?.writeText(code) ?? Promise.reject(new Error("no clipboard"))
+            ).then(
               () => setCopied(true),
               () => toast.error("Copy failed; select the text and copy it by hand."),
             )

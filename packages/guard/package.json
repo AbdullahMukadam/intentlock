@@ -1,9 +1,30 @@
 {
   "name": "@intentlock/guard",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Provider-agnostic agent guard: LLMProvider interface, planner, guarded tool loop.",
   "private": false,
   "license": "MIT",
+  "keywords": [
+    "llm",
+    "agents",
+    "tool-calling",
+    "authorization",
+    "prompt-injection",
+    "openai"
+  ],
+  "homepage": "https://github.com/AbdullahMukadam/intentgate/tree/main/packages/guard#readme",
+  "bugs": "https://github.com/AbdullahMukadam/intentgate/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbdullahMukadam/intentgate.git",
+    "directory": "packages/guard"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -19,7 +40,8 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsup"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",

@@ -8,6 +8,11 @@ const { server } = createReceiver((r) => {
   if (r.body) console.log(r.body.slice(0, 2000));
 });
 
+server.on("error", (err) => {
+  console.error(`Cannot start the webhook receiver on ${HOST}:${port}: ${err.message}`);
+  process.exitCode = 1;
+});
+
 server.listen(port, HOST, () => {
   console.log(`webhook receiver on http://${HOST}:${port}; anything that arrives is printed here`);
 });

@@ -24,6 +24,14 @@ export function timeoutResult(callId: string, holdId: string): ToolResult {
   };
 }
 
+export function holdUnconfirmedResult(callId: string, holdId: string): ToolResult {
+  return {
+    callId,
+    content: `Blocked by Intentlock (hold ${holdId}): the approval could not be confirmed. Do not retry it.`,
+    isError: true,
+  };
+}
+
 export function errorResult(callId: string, message: string): ToolResult {
   return { callId, content: `Tool failed: ${message}`, isError: true };
 }

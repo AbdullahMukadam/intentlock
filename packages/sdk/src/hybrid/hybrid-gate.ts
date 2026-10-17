@@ -73,7 +73,10 @@ export class HybridGate implements Gate {
     this.#outbox =
       this.#opts.outboxDir === null
         ? new MemoryOutbox()
-        : new FileOutbox(this.#opts.outboxDir, { fsync: this.#opts.fsync ?? true });
+        : new FileOutbox(this.#opts.outboxDir, {
+            fsync: this.#opts.fsync ?? true,
+            ...(opts.onError && { onError: opts.onError }),
+          });
     this.#worker = new OutboxWorker(this.#outbox, this.#http, {
       flushIntervalMs: this.#opts.flushIntervalMs,
       maxBatch: this.#opts.maxBatch,
@@ -171,7 +174,10 @@ export class HybridGate implements Gate {
     holdId: string,
     opts: { timeoutMs: number; signal?: AbortSignal },
   ): Promise<HoldOutcome> {
-    return waitForHold(this.#http, holdId, opts);
+    return waitForHold(this.#http, holdId, {
+      ...opts,
+      ...(this.#opts.onError && { onRetry: this.#opts.onError }),
+    });
   }
 
   async report(token: string, callId: string, outcome: ReportOutcome): Promise<void> {
