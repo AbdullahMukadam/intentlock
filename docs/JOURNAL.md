@@ -1229,3 +1229,20 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - SDK tests 34 (was 27: torn line reported, unreadable ack, missing files silent, hold-wait retry then approved, 4xx not retried, failing at deadline throws, JWKS retry and give-up); guard, anthropic, evals, demo and the server's hybrid suite green; lint, typecheck, prettier green
+
+### 2026-10-16 · Session 18 (cont.) · Phase 5.7 — inbox error messages and error pages
+
+**Done**
+- `lib/error-message.ts` `errorMessage(error, fallback, overrides)`: form overrides → shared sentences for codes that mean the same everywhere → 429 "Too many attempts" → 5xx "The server had a problem (request …)" with the request id from ADR-060 → unknown 4xx `fallback (code)`; no response at all → `fallback Can't reach the server.` The eight `message(error)` copies now hold only their form's overrides; every toast and form error that used a fixed sentence goes through it (API keys, CLI token, sessions, unlink, team actions, reset links, invites, policy publish / test / rollback, onboarding key, forgot password, load more)
+- `team-view` group edit blamed the group format for any failure → only for `validation_failed`; onboarding said "Use kebab-case" for any failure → only for `validation_failed`
+- `request()` turns a response that does not match its schema into `ApiError` `unexpected_response` instead of a raw `ZodError`
+- Agent filters (Overview, Activity) show a disabled "Could not load agents" entry when the list fails to load; Latest activity shows an error state (it keeps polling); hold list still falls back to ids for names
+- Route error pages: `(app)/error.tsx` inside the shell and `global-error.tsx` for a failing root layout, both through `components/route-error.tsx`: retry button, Next's digest as a reference, never the raw error message
+- `apps/inbox/vitest.config.ts` maps `@/` so component code can be imported in tests; components are rendered with `react-dom/server` `renderToStaticMarkup` (already installed), so no React Testing Library is needed for markup checks (interactive form tests stay in the Backlog)
+- STRUCTURE: error pages, `route-error`, `error-message`
+
+**Not checked**
+- `next build` and the dev server were not run: `next/font/google` downloads the fonts at build time and Abdullah is on limited data. `pnpm typecheck` (which runs `next typegen`) accepts the new route files
+
+**Numbers**
+- Inbox tests 70 (was 63: errorMessage cases, schema mismatch → ApiError, error page markup and digest); lint, typecheck, prettier green

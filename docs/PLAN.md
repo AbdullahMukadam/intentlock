@@ -262,8 +262,8 @@ Today errors already go through one place per layer: the server's global `HttpEx
 - [x] Retries only where they are safe (JWKS fetch, hold wait), with backoff; never for sign or check; the outbox upload already retries with backoff; tests
 
 **Inbox**
-- [ ] Route error boundaries (`error.tsx`, `global-error.tsx`); a network failure or an unexpected response shape shows a retryable error state instead of a blank page or Next's default error screen; tests for the error state
-- [ ] One shared error-message helper in `lib/` instead of eight `message(error)` copies; toasts include the server's error code; `agent-filter` and `latest-activity` show load errors; `team-view` group edit only blames the format on a 400; `request()` turns a schema mismatch into `ApiError` (`unexpected_response`)
+- [x] Route error boundaries (`error.tsx`, `global-error.tsx`); a network failure or an unexpected response shape shows a retryable error state instead of a blank page or Next's default error screen; tests for the error state
+- [x] One shared error-message helper in `lib/` instead of eight `message(error)` copies; toasts include the server's error code; `agent-filter` and `latest-activity` show load errors; `team-view` group edit only blames the format on a 400; `request()` turns a schema mismatch into `ApiError` (`unexpected_response`)
 
 **CLI, demo, evals**
 - [ ] One top-level handler per entry point: readable message and non-zero exit code for network errors, 4xx with the server's error code, and 5xx with the request id. CLI: wrap `fetch` in `api-client.ts` and guard `JSON.parse` in `session-store.ts`, which today print a stack trace

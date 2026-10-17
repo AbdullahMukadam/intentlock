@@ -370,12 +370,14 @@ Dockerfile                          # Next.js standalone output
 src/proxy.ts                        # no session cookie → /login, except /login, /setup, /invite/*, /reset/* (UX only; the server enforces access)
 src/app/                            # Better-T-Stack puts the App Router under src/ (ADR-029)
 ├── layout.tsx
+├── global-error.tsx                # last-resort error page when the root layout itself fails (own <html>)
 ├── login/page.tsx                  # email + password, Google/GitHub buttons, forgot password, ?error= from OAuth
 ├── setup/page.tsx                  # first run: setup code from the logs → first admin (ADR-058)
 ├── invite/[token]/page.tsx         # accept an invite: password or Google/GitHub
 ├── reset/[token]/page.tsx          # choose a new password
 ├── (app)/                          # signed-in shell: sidebar (sections, user card, theme), white content sheet, breadcrumb
 │   ├── layout.tsx
+│   ├── error.tsx                   # page errors inside the shell: retry, reference digest, never the raw message
 │   ├── page.tsx                    # Overview dashboard
 │   ├── activity/page.tsx           # decision explorer + export
 │   ├── runs/[planId]/page.tsx      # run detail
@@ -403,7 +405,7 @@ src/components/                     # app-specific; shared primitives come from 
 ├── auth/                           # auth-layout, form-field (incl. password field), provider-buttons + provider-icons,
 │                                   # setup-form, invite-form, reset-form
 └── *.tsx                           # app-shell, brand-mark, page-header, empty-state, detail-grid, secret-reveal, code-block,
-                                    # login-form, agent-filter, native-select, verdict-badge, loader
+                                    # login-form, agent-filter, native-select, verdict-badge, loader, route-error
 src/lib/
 ├── api.ts                          # typed client: same-origin /api/*, CSRF header on mutations, 401 → /login
 ├── schemas.ts                      # zod schemas for server responses the inbox reads
@@ -415,6 +417,7 @@ src/lib/
 ├── permissions.ts                  # can(role, UiAction): UI mirror of the server's @Roles
 ├── constants.ts                    # cookie / CSRF header names, /api prefix, login/setup paths, query params
 ├── auth-messages.ts                # OAuth ?error= codes → sentences
+├── error-message.ts                # errorMessage(error, fallback, overrides): every API error → one sentence (ADR-060)
 ├── fill-series.ts                  # zero buckets for empty hours/days in the stats series
 ├── user-agent.ts                   # "Chrome on Windows" labels for the sessions table
 ├── enums/                          # http-method, http-status, audit-verdict, audit-format, activity-param, time-range, stats-bucket,
