@@ -1345,3 +1345,14 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Not verified**
 - No local image build, to save Abdullah's data: the first CI run on `main` builds both images on GitHub's network and confirms it; the second run should show `pnpm fetch` as cached
+
+### 2026-10-17 · Session 18 (cont.) · Phase 6 — merged; release script
+
+**Done**
+- Abdullah merged `phase-6` (Phase 5.7 + Phase 6 so far) as PR #8. First CI run on `main` (39012562976, 8 m 57 s): `check`, `images (server)`, `images (inbox)` and `release` green; `release` skipped its steps (no secrets yet). This confirms the `pnpm fetch` Dockerfiles and the GHCR push → CI task ticked
+- `scripts/release.ts` (`pnpm release [--dry-run]`): stops unless the four MIT versions match, the branch is a clean `main` equal to `origin/main`, the tag is free and `npm whoami` works; skips packages already on npm at that version (a rerun after a partial publish finishes the job); builds, shows the npm dry run, asks for `yes`, runs `pnpm -r publish`, then creates and pushes the annotated `vX.Y.Z` tag. On Windows only `pnpm`/`npm` run through a shell (they are `.cmd`), so the tag message keeps its spaces
+- CONTRIBUTING "Releasing": first-release steps (npm org with 2FA, GHCR packages public) and `pnpm release`; STRUCTURE lists the script
+- Checked the guard by running `pnpm release --dry-run` with uncommitted changes: it stopped at "the working tree has uncommitted changes" before fetching, building or touching npm
+
+**Notes**
+- The script and these docs were written on `main` after the merge (uncommitted), then moved to the branch `release-script`

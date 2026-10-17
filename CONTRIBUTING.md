@@ -47,21 +47,19 @@ pnpm test && pnpm lint && pnpm typecheck && pnpm format
 
 The four MIT packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`) are versioned together (ADR-062); the server and inbox ship as Docker images.
 
-1. Bump `version` in the four `package.json` files to the same value and add a line to the journal.
-2. Check the packages build and contain only `dist/`, `README.md` and `LICENSE`:
-   ```bash
-   pnpm turbo run build --filter=@intentlock/core --filter=@intentlock/sdk --filter=@intentlock/guard --filter=@intentlock/anthropic
-   pnpm -r --filter "./packages/{core,sdk,guard,anthropic}" publish --dry-run --no-git-checks
-   ```
-3. Publish from a clean `main` (pnpm replaces `workspace:*` and `catalog:` with real versions; `publishConfig.access` is `public`):
+**First release only:** sign in at npmjs.com, turn on two-factor authentication, then avatar → **Add Organization** → `intentlock` (free plan, matches the `@intentlock/` scope). Make the GHCR packages public once: GitHub → profile → **Packages** → `intentlock-server` / `intentlock-inbox` → **Package settings** → **Change visibility** → Public.
+
+**Every release:**
+
+1. On a branch, bump `version` in the four `package.json` files to the same value, add a journal line, merge to `main`.
+2. On `main`, up to date and clean:
    ```bash
    npm login
-   pnpm -r --filter "./packages/{core,sdk,guard,anthropic}" publish
+   pnpm release --dry-run    # every check, the build and the npm dry run; publishes nothing
+   pnpm release              # the same, then asks you to type yes, publishes and pushes vX.Y.Z
    ```
-4. Tag the release and push the tag; CI pushes the server and inbox images as `X.Y.Z` and `X.Y`:
-   ```bash
-   git tag v0.1.0 && git push origin v0.1.0
-   ```
+   `scripts/release.ts` stops unless the four versions match, you are on a clean `main` equal to `origin/main`, the tag is free and you are logged in to npm. It builds the packages, shows the npm dry run (each package should list only `dist/`, `README.md`, `LICENSE`, `package.json`), publishes with `pnpm -r publish` (npm asks for your 2FA code; pnpm replaces `workspace:*` and `catalog:` with real versions) and pushes the tag. If publishing stops partway, run it again: packages already on npm at that version are skipped.
+3. The tag makes CI push the server and inbox images as `X.Y.Z` and `X.Y` (Actions tab). Optional release page: `gh release create vX.Y.Z --generate-notes`.
 
 ## Security issues
 

@@ -283,7 +283,7 @@ Today errors already go through one place per layer: the server's global `HttpEx
 - [ ] Record the ≤ 4 min demo video against our deployed instance (local compose for live-update shots): GitHub split screen → hold approval → run detail → policy edit/test/publish → dashboard → support and files clips → audit verify → 5-line code
 - [x] Dockerfiles for server (multi-stage, non-root) and inbox (Next.js standalone); `docker compose` full stack
 - [x] `deploy/docker-compose.scale.yml` (2 server instances + nginx + Postgres + inbox) and `deploy/load/scale-test.ts`; run the scale test from DEPLOYMENT §7 and record real numbers
-- [ ] CI: build and push images to GHCR on main; `prisma migrate deploy` as a release step
+- [x] CI: build and push images to GHCR on main; `prisma migrate deploy` as a release step
 - [ ] Deploy **our own private instance** per DEPLOYMENT §9 (we self-host like any customer team): Neon (pooled + direct URLs), server on Render (Docker, `/health/ready`, pre-deploy migrations), inbox on Vercel with the `/api` rewrite; sign-in required, nothing public; run the demo `setup` against it; note the date free-tier limits were checked in the journal
 - [ ] Write the resume bullet and LinkedIn post using real numbers from evals
 - [ ] Final journal entry with lessons learned
