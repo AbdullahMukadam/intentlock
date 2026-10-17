@@ -243,11 +243,11 @@ src/
 ├── common/                         # cross-cutting, one concern per file (ADR-033)
 │   ├── constants/                  # auth.constants.ts (metadata keys, CSRF header), http.constants.ts (Retry-After, X-Request-Id), db.constants.ts
 │   ├── decorators/                 # public, agent-auth, roles, current-user, current-agent (*.decorator.ts)
-│   ├── enums/                      # auth-kind, error-code, logger-context, prisma-error-code, driver-error-kind, pg-error-code, fs-error-code (*.enum.ts)
+│   ├── enums/                      # auth-kind, error-code, logger-context, prisma-error-code, driver-error-kind, pg-error-code, fs-error-code, server-timing-metric (*.enum.ts)
 │   ├── filters/                    # http-exception.filter.ts (ADR-060: 4xx pass through, transient DB → 503, bugs → 500)
 │   ├── guards/                     # csrf.guard.ts, roles.guard.ts
 │   ├── logger/                     # create-logger.util.ts (adds requestId to every line), pino-logger.service.ts
-│   ├── middleware/                 # request-id.middleware.ts (X-Request-Id + AsyncLocalStorage)
+│   ├── middleware/                 # request-id.middleware.ts (X-Request-Id + AsyncLocalStorage), server-timing.middleware.ts (Server-Timing: total + db time and query count)
 │   ├── pipes/                      # zod-validation.pipe.ts (global, fail closed)
 │   ├── schemas/                    # shared zod field schemas (email.schema.ts)
 │   ├── types/                      # auth.types.ts (SessionUser, AgentCaller, AuthedRequest), verdict-counts.type.ts

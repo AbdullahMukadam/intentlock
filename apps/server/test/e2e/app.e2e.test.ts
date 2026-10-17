@@ -31,6 +31,15 @@ describe("app", () => {
     expect(kept.headers["x-request-id"]).toBe("edge-123");
   });
 
+  it("reports total and database time in Server-Timing, counting the request's own queries", async () => {
+    const ready = await request(app.getHttpServer()).get("/health/ready").expect(200);
+    expect(ready.headers["server-timing"]).toMatch(
+      /^total;dur=\d+\.\d, db;dur=\d+\.\d;desc="[1-9]\d* queries"$/,
+    );
+    const none = await request(app.getHttpServer()).get("/health").expect(200);
+    expect(none.headers["server-timing"]).toMatch(/db;dur=0\.0;desc="0 queries"$/);
+  });
+
   it("boots and answers unknown routes with a JSON 404", async () => {
     const res = await request(app.getHttpServer()).get("/nope").expect(404);
     expect(res.body).toMatchObject({ statusCode: 404 });
