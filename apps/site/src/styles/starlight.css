@@ -24,3 +24,215 @@
   --sl-color-hairline-light: var(--border);
   --sl-color-hairline: var(--border);
 }
+
+:root {
+  --sl-nav-height: 3rem;
+  --sl-sidebar-width: 18.75rem;
+  --sl-content-width: 46rem;
+  --sl-text-h1: 2.25rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.1875rem;
+  --sl-text-h4: 1.0625rem;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6),
+h1#_top {
+  color: var(--foreground);
+  font-weight: 560;
+  letter-spacing: -0.025em;
+}
+
+.sl-markdown-content {
+  color: color-mix(in oklch, var(--foreground) 82%, var(--background));
+}
+
+.sl-markdown-content :is(strong, a, th) {
+  color: var(--foreground);
+}
+
+.sl-markdown-content a {
+  font-weight: 500;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.page > .header {
+  border-bottom-color: var(--border);
+}
+
+.sidebar-pane {
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+}
+
+.content-panel + .content-panel {
+  border-top: 0;
+}
+
+.sidebar-content {
+  gap: 0;
+  padding: 0;
+}
+
+@media (min-width: 50rem) {
+  .page > .header {
+    padding: 0;
+  }
+
+  .sidebar-pane {
+    border-inline-end-color: var(--border);
+  }
+}
+
+starlight-toc nav > h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+starlight-toc nav > h2::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M15 12H3'/%3E%3Cpath d='M17 18H3'/%3E%3Cpath d='M21 6H3'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+starlight-toc ul {
+  border-inline-start: 1px solid var(--border);
+}
+
+starlight-toc ul ul {
+  margin-inline-start: 0.75rem;
+}
+
+starlight-toc a {
+  margin-inline-start: -1px;
+  border-inline-start: 1px solid transparent;
+  border-radius: 0 !important;
+  padding: 0.3125rem 0.5rem 0.3125rem 0.75rem !important;
+  color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  font-size: 0.875rem;
+}
+
+starlight-toc a:hover {
+  color: var(--foreground);
+}
+
+starlight-toc a[aria-current="true"] {
+  border-inline-start-color: var(--foreground);
+  color: var(--foreground);
+}
+
+.sl-markdown-content :not(pre) > code {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.0625rem 0.3125rem;
+  color: var(--foreground);
+  font-size: 0.85em;
+}
+
+.sl-markdown-content .code-frame {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.sl-markdown-content .code-frame figcaption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+  padding: 0.375rem 0.5rem 0.375rem 1rem;
+  color: var(--foreground);
+  font-family: var(--font-mono-code);
+  font-size: 0.8125rem;
+}
+
+.sl-markdown-content .code-frame figcaption span {
+  flex: 1;
+  margin: 0;
+}
+
+.sl-markdown-content .code-frame svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+  flex-shrink: 0;
+}
+
+.sl-markdown-content .code-frame button {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  cursor: pointer;
+}
+
+.sl-markdown-content .code-frame button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.sl-markdown-content .code-frame .check-icon,
+.sl-markdown-content .code-frame button[data-copied] .copy-icon {
+  display: none;
+}
+
+.sl-markdown-content .code-frame button[data-copied] .check-icon {
+  display: block;
+}
+
+.sl-markdown-content pre.astro-code {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  overflow-x: hidden !important;
+}
+
+.sl-markdown-content pre.astro-code code {
+  font-family: var(--font-mono-code);
+}
+
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.sl-markdown-content :is(th, td) {
+  border-color: var(--border);
+  overflow-wrap: break-word;
+}
+
+.sl-markdown-content th {
+  white-space: nowrap;
+}
+
+@media (max-width: 50rem) {
+  .sl-markdown-content table {
+    font-size: 0.8125rem;
+  }
+
+  .sl-markdown-content td code {
+    overflow-wrap: anywhere;
+  }
+
+  .sl-markdown-content :is(th, td) {
+    padding-inline: 0.375rem;
+  }
+}

@@ -31,6 +31,7 @@ flowchart LR
 | Server | Docker image, `apps/server/Dockerfile` (multi-stage, `node:22-slim`, non-root) | Render free web service (§9) | More instances behind the LB (paid tier) |
 | Inbox | Docker image or Vercel, Next.js `output: "standalone"` | Vercel Hobby (§9) | More instances (stateless) |
 | Database | Managed Postgres 16 | Neon free (§9) | Vertical; pooler; read replica for audit reads |
+| Public website | Static `apps/site/dist` (`apps/site/wrangler.jsonc`) | Cloudflare Workers static assets (§9.2) | Cloudflare's network; not part of an install |
 | SDK clients | npm packages inside the user's app | User's infrastructure | With the app; one outbox dir per process |
 | Demo agent | Runs locally (needs GitHub + model keys) | Not deployed publicly | — |
 
@@ -40,31 +41,7 @@ The v0.1 free hosting choice and its limits are in §9 (ADR-017).
 
 All config comes from environment variables, validated with zod at boot (`apps/server/src/config/env.schema.ts`). The server refuses to start on invalid config.
 
-| Variable | Used by | Notes |
-| --- | --- | --- |
-| `DATABASE_URL` | server | Pooled URL in production |
-| `DIRECT_URL` | server (migrations) | Direct, non-pooled URL for `prisma migrate deploy` |
-| `DATABASE_POOL_MAX` | server | Connections per instance (default `10`). Instances × this must stay under the database's connection limit (Neon free and poolers have their own) |
-| `DATABASE_POOL_TIMEOUT_MS` | server | How long a query waits for a free connection before the request answers 503 (default `5000`) |
-| `DATABASE_TX_MAX_WAIT_MS`, `DATABASE_TX_TIMEOUT_MS` | server | Prisma transaction limits: wait to start (default `2000`) and total run time (default `5000`); exceeding either answers 503 |
-| `SIGNING_KEY` | server | Ed25519 PKCS8 PEM; **same value on every instance**; platform secret store only |
-| `SIGNING_KEY_PREVIOUS` | server | Optional; old key still published in JWKS during rotation |
-| `API_KEY_PEPPER` | server | Optional extra secret for API key hashing |
-| `CORS_ORIGINS` | server | Only needed if the inbox is served from another origin (avoid; see §10) |
-| `TRUST_PROXY` | server | Number of reverse proxies in front of the server (default `0`); `1` behind the bundled nginx or Render, so `req.ip` is the client, not the proxy. Never higher than the real hop count, or clients can spoof their IP |
-| `ORG_NAME` | server | Default name of the single organization, created on first boot (the setup page can rename it) |
-| `LICENSE_FILE` | server | Optional path to a license JWS; absent = Community edition |
-| `PUBLIC_URL` | server, inbox | External URL of the single origin: cookies, invite and reset links, OAuth callback (`PUBLIC_URL/api/v1/auth/oauth/<provider>/callback`) |
-| `SMTP_URL` | server | Optional, e.g. `smtps://user:pass@smtp.example.com:465` (`smtp://localhost:1025` = Mailpit in dev). Set = invite and reset links are also emailed and "forgot password" appears. Unset = links are only shown to copy |
-| `SMTP_FROM` | server | Sender address, e.g. `Intentlock <intentlock@acme.dev>` (required when `SMTP_URL` is set) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | server | Optional; both set = "Continue with Google". OAuth client type "Web application", redirect URI as in `PUBLIC_URL` above |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | server | Optional; both set = "Continue with GitHub". OAuth App callback URL as in `PUBLIC_URL` above |
-| `INTENTLOCK_DEMO` | server | `1` = completing setup also creates sample users with printed passwords; never set in real installs |
-| `API_URL` | inbox | Server base URL behind the `/api/*` rewrite (build time) |
-| `DEMO_RUNNER_URL` | inbox | Local demo runner behind `/demo-runner/*` (default `http://localhost:8790`; dev/recording only) |
-| `LLM_*`, `GITHUB_TOKEN` | demo, evals | Local only, never on the server |
-
-Key rotation: deploy with the new `SIGNING_KEY` and the old one in `SIGNING_KEY_PREVIOUS`; JWKS publishes both `kid`s; after the max token TTL (≤ 60 min) remove the old one.
+The variable reference (server, inbox, self-host bundle, agent apps) lives in the site: [`apps/site/src/content/docs/docs/deployment/environment-variables.md`](../apps/site/src/content/docs/docs/deployment/environment-variables.md) (ADR-066). Add a new variable there and to `env.schema.ts` in the same change. Signing-key rotation is on the site's [self-hosting](../apps/site/src/content/docs/docs/deployment/self-host.md#rotating-the-signing-key) page.
 
 ## 3. Release pipeline
 
@@ -196,7 +173,7 @@ Chosen in ADR-017. None of these need a credit card. Limits change often: re-che
 
 | Part | Service | Free-tier behaviour to plan for |
 | --- | --- | --- |
-| Server | **Render** free web service (Docker) | Sleeps after 15 minutes without inbound HTTP or WebSocket traffic; the first request then takes ~1 minute; kept awake by an external monitor on `/health` (§9.1 step 11, ADR-065). 750 instance hours/month per workspace, shared by all free services (one always-on instance uses ~720–744). Ephemeral disk. Single instance only. |
+| Server | **Render** free web service (Docker) | Sleeps after 15 minutes without inbound HTTP or WebSocket traffic; the first request then takes ~1 minute; kept awake by an external monitor on `/health` (§9.1, ADR-065). 750 instance hours/month per workspace, shared by all free services (one always-on instance uses ~720–744). Ephemeral disk. Single instance only. |
 | Database | **Neon** free Postgres | Permanent free plan: 0.5 GB storage, 100 CU-hours of compute and 5 GB public transfer per project per month. Compute scales to zero after 5 idle minutes (slower first query). |
 | Inbox | **Vercel** Hobby | Personal / non-commercial use. 100 GB transfer/month. Proxied (rewrite) requests time out after 30–120 s depending on the docs version; the hold long-poll waits at most 25 s. Cold starts possible. |
 | Images | **GHCR** | Public images. |
@@ -208,43 +185,14 @@ Limits last checked 2026-10-16 (Render, Neon and Vercel docs).
 
 ### 9.1 Step by step
 
-Traffic path: browser → Vercel (inbox, and `/api/*` rewritten to Render) → Render (server) → Neon. The browser only ever talks to the Vercel origin, so cookies are first-party and no CORS is needed. Demo agents on the laptop use the same `https://<vercel>/api` URL.
+The generic steps any team follows (Neon, migrate, signing key, Render, Vercel, first admin, checks, keep-awake monitor) and the Render variable table live in the site: [`apps/site/src/content/docs/docs/deployment/free-hosting.md`](../apps/site/src/content/docs/docs/deployment/free-hosting.md) (ADR-066). Our instance follows them with these differences:
 
-1. **Images.** Merge to `main` so CI pushes `ghcr.io/abdullahmukadam/intentlock-server:latest` (§3), then make the `intentlock-server` and `intentlock-inbox` packages public.
-2. **Neon.** Create a project in the region closest to the Render region you will pick. Copy two connection strings: the **pooled** one (host contains `-pooler`) and the **direct** one.
-3. **Migrate once** (creates the tables; later releases only apply new migrations). Either set the GitHub environment `production` secret `PRODUCTION_DIRECT_URL` to the direct string and re-run the `release` job, or run it from a clone with the direct string in `DIRECT_URL`:
-   ```bash
-   # PowerShell: $env:DIRECT_URL = '<direct>'    Bash: export DIRECT_URL='<direct>'
-   pnpm --filter @intentlock/server exec prisma migrate deploy
-   ```
-4. **Signing key.** Run the two commands one after the other (Windows PowerShell 5.1 has no `&&`):
-   ```bash
-   pnpm --filter @intentlock/cli build
-   node packages/cli/dist/bin.js keygen --env
-   ```
-   It writes the key to `./keys/` (gitignored) and prints a one-line `SIGNING_KEY="…"`; paste the part between the quotes into Render (the server accepts the `\n` escapes). Keep a copy in a password manager and delete `./keys/`: losing the key invalidates every signed plan, leaking it lets anyone sign plans.
-5. **Render.** New → Web Service → Existing image `ghcr.io/abdullahmukadam/intentlock-server:latest`, free instance, health check path `/health/ready`, environment as in the table below. Settings → Deploy Hook: copy it into the GitHub secret `RENDER_DEPLOY_HOOK`; turn off auto-deploy. Note the service URL (`https://<name>.onrender.com`).
-6. **Vercel.** Import the GitHub repo, root directory `apps/inbox`, framework Next.js, build command `cd ../.. && pnpm turbo run build --filter=@intentlock/inbox` (builds `core` and `ui` first), environment `API_URL=https://<name>.onrender.com` for Production (read at build time by the `/api` rewrite; Turbo passes it because `turbo.json` declares it on `build`; after changing it, **Redeploy**). Settings → Deployment Protection → Vercel Authentication **Disabled**: Intentlock has its own sign-in, and the demo agents call `/api` without a Vercel login. Use the production domain (Settings → Domains), not a per-deployment URL. Functions run in `sin1` (`apps/inbox/vercel.json`, ADR-063): keep Vercel, Render and Neon in one region (Vercel `sin1`, Render Singapore, Neon `ap-southeast-1`), or change all three together; a page payload from the wrong region costs a few hundred ms per page switch. Check: `curl.exe -i https://<domain>/api/v1/setup/status` answers `{"setupRequired":true}`; `DNS_HOSTNAME_RESOLVED_PRIVATE` means the build had no `API_URL` and forwards to `localhost`.
-7. **Point the server at the inbox.** Set `PUBLIC_URL` on Render to that production domain and redeploy (cookies, invite links and OAuth callbacks use it).
-8. **First admin.** Open `https://<name>.onrender.com/health/ready` to wake the server, then copy `One-time setup code: …` from Render → Logs. Open the Vercel URL, which shows `/setup`; create the admin. With `INTENTLOCK_DEMO=1`, setup also creates the sample users and prints their passwords once in the logs.
-9. **Demo agents (laptop).** In `apps/demo/.env`: `INTENTLOCK_URL=https://<vercel>/api`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`. Then `pnpm --filter @intentlock/demo setup-instance` (agents, policies, API keys into `apps/demo/.env`), `pnpm --filter @intentlock/demo seed`, and run an agent.
-10. **Check.** Signed out, every inbox page redirects to `/login`; Audit → Verify is OK; Account → Sessions shows your own IP (if it shows a Vercel or Render address, adjust `TRUST_PROXY`).
-11. **Keep the server awake (ADR-065).** Create a free HTTP monitor (UptimeRobot, or cron-job.org) that sends `GET https://<name>.onrender.com/health` every 5 minutes. Use `/health`, never `/health/ready`: `/health` does not touch the database, so Neon still scales to zero after 5 idle minutes and stays within its 100 CU-hours (keeping it awake would take ~186). Call Render directly, not through Vercel. The always-on instance uses ~744 of the workspace's 750 free hours a month, so it must be the only free Render service in that workspace. Expect the first request after 5 quiet minutes to take ~1 s longer while Neon wakes; the ~1 minute Render wake-up only happens if the monitor stops.
-
-| Render variable | Value |
-| --- | --- |
-| `DATABASE_URL` | Neon **pooled** string |
-| `SIGNING_KEY` | one-line PEM from step 4 |
-| `PUBLIC_URL` | `https://<vercel-project>.vercel.app` (after step 6) |
-| `ORG_NAME` | e.g. `Intentlock Demo` |
-| `TRUST_PROXY` | `2` (Vercel's proxy, then Render's); confirm with step 10 |
-| `INTENTLOCK_DEMO` | `1` for the sample users; leave unset otherwise |
-| `DATABASE_POOL_MAX` | `5` (one free instance; stays well under Neon's pooler limits) |
-| `API_KEY_PEPPER` | optional: a long random string, set once |
-| `GOOGLE_*`, `GITHUB_*` | optional: callback `<PUBLIC_URL>/api/v1/auth/oauth/<google\|github>/callback` |
-| `SMTP_URL`, `SMTP_FROM` | optional: invites and resets are emailed; otherwise copy the links |
-
-Not needed on Render: `DIRECT_URL` (migrations run in CI or from a clone), `CORS_ORIGINS` (single origin through the rewrite), `LICENSE_FILE` (Community edition).
+- **Images and releases.** CI builds and pushes the images (§3). Migrations run in the `release` job with the GitHub environment `production` secret `PRODUCTION_DIRECT_URL`; Render's deploy hook goes into the `RENDER_DEPLOY_HOOK` secret and Render's auto-deploy is off.
+- **Vercel check.** `curl.exe -i https://<domain>/api/v1/setup/status` answers `{"setupRequired":true}`; `DNS_HOSTNAME_RESOLVED_PRIVATE` means the build had no `API_URL` and forwards to `localhost`.
+- **Sample users.** `INTENTLOCK_DEMO=1` on Render: setup also creates the sample users and prints their passwords once in the logs.
+- **Demo agents (laptop).** In `apps/demo/.env`: `INTENTLOCK_URL=https://<vercel>/api`, `INTENTLOCK_ADMIN_EMAIL`, `INTENTLOCK_ADMIN_PASSWORD`. Then `pnpm --filter @intentlock/demo setup-instance` (agents, policies, API keys into `apps/demo/.env`), `pnpm --filter @intentlock/demo seed`, and run an agent.
+- **Regions (ADR-063).** Vercel `sin1`, Render Singapore, Neon `ap-southeast-1`.
+- **Monitor (ADR-065).** UptimeRobot or cron-job.org on Render's `/health` every 5 minutes.
 
 **Setup notes**
 - Neon gives a **pooled** and a **direct** connection string. The server uses the pooled one at runtime (`DATABASE_URL`); migrations use the direct one (`DIRECT_URL`, read by `prisma.config.ts`). If the pooler ever rejects a query the app needs, point `DATABASE_URL` at the direct string; at demo scale either works.
@@ -255,6 +203,16 @@ Not needed on Render: `DIRECT_URL` (migrations run in CI or from a clone), `CORS
 - Cold starts are acceptable: in hybrid mode only plan signing, holds and audit uploads touch the server. Open the inbox a minute before recording.
 - For shots that need live updates (split screen, holds appearing instantly), record against the local `docker compose` install, which has WebSockets; use the deployed instance to show it running online.
 - Free databases have no backups. Treat the deployment as a live demo; the source of truth for results is the repo (`packages/evals/results/`, journal).
+
+### 9.2 Public website on Cloudflare (ADR-069)
+
+The landing page and docs (`apps/site`) are a static Worker on Cloudflare, separate from the instance. Nothing deploys from a laptop; Workers Builds builds from GitHub.
+
+1. **Create.** Cloudflare dashboard → Workers & Pages → Create → Import a repository → this repo. Worker name `intentlock-site` (it must match `name` in `apps/site/wrangler.jsonc`).
+2. **Build settings.** Root directory: the repo root. Build command `pnpm turbo run build --filter=@intentlock/site`. Deploy command `npx wrangler deploy --config apps/site/wrangler.jsonc`. Non-production branch command `npx wrangler versions upload --config apps/site/wrangler.jsonc` (a preview URL per branch build).
+3. **Build variables** (build only, not runtime): `PNPM_VERSION=10.34.6` (the default 10.11.1 is older than the repo needs), `NODE_VERSION=24`, `SITE_URL=https://intentlock-site.<account>.workers.dev` (or the custom domain), `INBOX_URL=https://<vercel-domain>` (Sign in links).
+4. **Check.** `/` is the landing page, `/docs/` the docs with working search, an unknown path shows the 404 page, light/dark and phone width look right, `og:url` uses `SITE_URL`.
+5. **Inbox link.** Vercel → `NEXT_PUBLIC_DOCS_URL=<SITE_URL>/docs/` for Production → Redeploy. The sidebar shows "Docs" under General.
 
 ## 10. Self-hosting (what a customer team runs)
 
@@ -275,21 +233,8 @@ flowchart LR
 
 **One origin.** The inbox and API are served from the same origin through the bundled nginx (`/api/v1/*` → server `/v1/*`, `/api/socket.io` → server `/socket.io` with WebSocket upgrade, everything else → inbox). Session cookies then work with `SameSite=Lax`, with no CORS, and the browser never talks to the server's port directly.
 
-**Install**
-```bash
-curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
-curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
-# set ORG_NAME, PUBLIC_URL (optional: SMTP_*, GOOGLE_*, GITHUB_*); then:
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
-echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
-docker compose -f docker-compose.selfhost.yml up -d
-docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"     # for the setup page
-```
-Then: open `PUBLIC_URL`, which shows the setup page; paste the setup code and create the first admin. Invite teammates from the Team page (copy the link, or it is emailed when SMTP is set), create an agent and an API key for each agent app, and (optionally) put a license file in `./license/` and set `LICENSE_FILE=/license/<file>`. Step-by-step version: root README, "60-second quickstart" and "Self-host for your team".
+**Install, upgrade and operator responsibilities** are on the site's [self-hosting](../apps/site/src/content/docs/docs/deployment/self-host.md) page (ADR-066).
 
 The bundle is one file: the nginx config is inline (`configs.content`, Compose ≥ 2.23) and gzips API responses (`application/json`, `application/x-ndjson`; the inbox compresses its own, and on the hosted instance Vercel already serves brotli), the server and inbox images come from GHCR (`ghcr.io/abdullahmukadam/intentlock-server|inbox`, tag `INTENTLOCK_VERSION`), and each service also has a `build:` section so `up --build` from a clone builds them locally. The server runs with `TRUST_PROXY=1` so login rate limits and audit see the client IP from nginx. The compose project is named `intentlock-selfhost` so it never shares volumes with the dev `docker-compose.yml`.
-
-**Operator responsibilities** (documented in the README): TLS in front of nginx, Postgres backups, keeping `SIGNING_KEY` secret, upgrading by pulling new image tags (migrations run as a one-off `migrate` service in the compose file before `server` starts).
-
 **Free-hosted instance caveat (§9):** on Vercel + Render, the inbox reaches the API through a Next.js rewrite (`/api/*` → Render), which keeps cookies same-origin. Vercel rewrites don't proxy WebSockets, so the hosted demo relies on the inbox's 10 s polling for new holds. The self-host bundle has live WebSockets.
 

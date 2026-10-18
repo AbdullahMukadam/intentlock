@@ -430,6 +430,7 @@ src/lib/
 │                                   # sign-in-provider, theme-name
 ├── live-queries.ts                 # useLiveQueries() in the app shell: socket events → invalidate matching queries (EVENT_QUERY_PATHS)
 ├── prefetch.ts                     # pageQueryUrls(href, role) + prefetchPage(): sidebar hover/focus prefetch
+├── docs-url.ts                     # DOCS_URL from NEXT_PUBLIC_DOCS_URL (http(s) only, build time); sidebar "Docs" link hidden when null
 ├── stats-window.ts                 # statsWindow(rangeMs): Overview from/prevFrom rounded to 5 min (stable cache keys)
 ├── sign-out.ts                     # signOut(): logout, clear the query cache, go to /login
 └── socket.ts                       # connect(): one Socket.IO connection at /api/socket.io (polling fallback = refetchInterval in useApi)
@@ -489,27 +490,41 @@ src/
 Static public website: the landing page at `/`, the user docs at `/docs`. Nothing imports it and it is in no Docker image or the self-host bundle, so it can be deleted (then run `pnpm install` once to drop it from the lockfile). Builds locally with no downloads (`pnpm --filter @intentlock/site build`, output in `dist/`).
 
 ```
-astro.config.ts                     # static output, Starlight (docs sidebar, customCss), Tailwind via @tailwindcss/vite, no image service,
+astro.config.ts                     # static output, Starlight (collapsed sidebar groups, customCss, Header/Sidebar/PageTitle overrides,
+                                    # Expressive Code off), Markdown code via Shiki css-variables + wrap + the code-frame transformer,
+                                    # Tailwind via @tailwindcss/vite, no image service,
                                     # astro:env schema (INBOX_URL, URL, default http://localhost:3001, build time)
+wrangler.jsonc                      # Cloudflare Workers static assets: dist/, 404 page, no Worker code (ADR-069)
 public/                             # favicon.svg, og.png (1200×630 social image)
+test/
+├── unit/content/docs.test.ts       # docs drift checks: TypeScript samples type-check against the packages, internal links and
+│                                   # anchors resolve, every API_ENDPOINTS path is on the HTTP API page
+└── fixtures/docs-prelude.d.ts      # ambient values the samples use (github, provider, tools, …)
 src/
 ├── content.config.ts               # Starlight docs collection
-├── content/docs/docs/              # docs pages (Markdown/MDX), served under /docs
+├── content/docs/docs/              # the user docs, the single source for USAGE / env reference (ADR-066), served under /docs:
+│                                   # index, quick-start, concepts/, sdk/, reference/, deployment/, security, licensing
 ├── pages/index.astro               # landing page
 ├── layouts/site-layout.astro       # landing frame: meta + Open Graph, inline theme script (shares Starlight's saved theme), header, footer
 ├── components/
 │   ├── site-header.astro · site-footer.astro · brand-mark.astro
+│   ├── docs/                       # Starlight overrides: header (brand cell + tabs + Sign in), sidebar (search, icon groups,
+│                                   # GitHub / Sign in / theme toggle footer), page-title (title, description, copy-code script),
+│                                   # site-title (brand mark, links to /)
 │   ├── icon.astro                  # the few lucide icons the landing page uses, as inline SVG
 │   └── landing/                    # hero, how-it-works, features, code-sample, self-host, section-heading,
 │                                   # code-panel (astro:components <Code>, css-variables theme mapped to the --code-* tokens),
 │                                   # corners (frame corner marks), halftone-ring + pillar-art + patterns (CSS/SVG halftone art)
 ├── lib/
+│   ├── code-frame.ts               # Shiki transformer: docs code blocks in a frame with file name (fence title="…") and copy button
 │   ├── links.ts                    # DOCS_PATH, GITHUB_URL, SIGN_IN_URL (INBOX_URL + /login; INBOX_URL defaults to http://localhost:3001)
 │   └── button.ts                   # primary / outline button classes
 └── styles/
-    ├── palette.css                 # Geist Sans + Geist Mono (Fontsource, ADR-067) and the site's neutral light/dark palette; used by both files below
+    ├── palette.css                 # Geist Sans + Geist Mono (Fontsource, ADR-067), the site's neutral light/dark palette and the
+    │                               # --astro-code-* → --code-* mapping; used by both files below
     ├── site.css                    # landing: Tailwind (scans apps/site only) + @intentlock/ui theme + palette, halftone ring
-    └── starlight.css               # docs: @intentlock/ui tokens + palette mapped to Starlight's --sl-color-* and fonts
+    └── starlight.css               # docs: @intentlock/ui tokens + palette mapped to Starlight's --sl-color-* and fonts; headings,
+                                    # code blocks (no horizontal scroll), tables that fit at phone width
 ```
 
 ## 4. Dependency rules
@@ -528,6 +543,7 @@ flowchart BT
     inbox["apps/inbox"] -.->|pure validation in the browser| core
     inbox --> ui["ui"]
     site["apps/site"] -->|theme tokens| ui
+    site -.->|docs sample type-check, dev only| guard
 ```
 
 `packages/config` is a dev-only dependency of every package and app (tsconfig + lint presets); it is left out of the graph.

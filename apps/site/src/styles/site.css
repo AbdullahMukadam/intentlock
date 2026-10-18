@@ -10,20 +10,6 @@ body {
   font-feature-settings: normal;
 }
 
-:root {
-  --astro-code-foreground: var(--foreground);
-  --astro-code-background: var(--panel);
-  --astro-code-token-keyword: var(--code-atom);
-  --astro-code-token-constant: var(--code-number);
-  --astro-code-token-string: var(--code-string);
-  --astro-code-token-string-expression: var(--code-string);
-  --astro-code-token-comment: var(--code-comment);
-  --astro-code-token-function: var(--code-key);
-  --astro-code-token-parameter: var(--foreground);
-  --astro-code-token-punctuation: var(--code-punctuation);
-  --astro-code-token-link: var(--code-key);
-}
-
 .code-panel code {
   font-family: var(--font-mono-code);
 }

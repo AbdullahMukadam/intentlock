@@ -34,6 +34,6 @@ const decision = await gate.check(token, {
 await gate.close();
 ```
 
-Run a tool only when `decision.verdict === "allow"`; every error path blocks. Most apps use [`@intentlock/guard`](https://www.npmjs.com/package/@intentlock/guard), which drives the gate for you. Options and runtime behaviour: [USAGE.md](https://github.com/AbdullahMukadam/intentgate/blob/main/docs/USAGE.md) §4.6 and §6.
+Run a tool only when `decision.verdict === "allow"`; every error path blocks. Most apps use [`@intentlock/guard`](https://www.npmjs.com/package/@intentlock/guard), which drives the gate for you. Options and runtime behaviour: [Gates](https://github.com/AbdullahMukadam/intentgate/blob/main/apps/site/src/content/docs/docs/sdk/gates.md).
 
 License: MIT.

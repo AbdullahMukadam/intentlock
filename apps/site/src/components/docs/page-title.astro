@@ -1,0 +1,39 @@
+---
+const { title, description } = Astro.locals.starlightRoute.entry.data;
+---
+
+<h1 id="_top">{title}</h1>
+{description && <p class="lead">{description}</p>}
+
+<script>
+  document.addEventListener("click", async (event) => {
+    const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-copy]");
+    const code = button?.closest(".code-frame")?.querySelector("pre")?.innerText;
+    if (!button || code === undefined) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      button.dataset.copied = "";
+      setTimeout(() => delete button.dataset.copied, 1500);
+    } catch {
+      return;
+    }
+  });
+</script>
+
+<style>
+  h1 {
+    margin-top: 1rem;
+    color: var(--foreground);
+    font-size: var(--sl-text-h1);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+  }
+
+  .lead {
+    margin-top: 0.75rem;
+    color: color-mix(in oklch, var(--foreground) 82%, var(--background));
+    font-size: 1.125rem;
+    line-height: 1.55;
+  }
+</style>

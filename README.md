@@ -81,7 +81,7 @@ const result = await guard.run({
 });
 ```
 
-The guard runs the planner, signs the plan, checks every tool call, waits on holds and returns blocked calls to the model as error results. It works with any OpenAI-compatible API (OpenAI, Gemini, Groq, Ollama) and with Claude through `@intentlock/anthropic`. Full guide: [`docs/USAGE.md`](docs/USAGE.md).
+The guard runs the planner, signs the plan, checks every tool call, waits on holds and returns blocked calls to the model as error results. It works with any OpenAI-compatible API (OpenAI, Gemini, Groq, Ollama) and with Claude through `@intentlock/anthropic`. Full guide: the [docs](apps/site/src/content/docs/docs/), starting with the [agent guard](apps/site/src/content/docs/docs/sdk/guard.md).
 
 A policy, one per agent, versioned and edited in the inbox:
 

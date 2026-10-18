@@ -635,3 +635,25 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
 - **Decision:** `@fontsource-variable/geist@5.3.0` and `@fontsource-variable/geist-mono@5.3.0` in `apps/site` only (Abdullah approved; ~350 kB unpacked together). Imported once in `apps/site/src/styles/palette.css`, which both the landing page and the Starlight docs use; the `.woff2` files are bundled by Astro and served from the site's own origin. The same file sets the site's neutral palette (white, pure greys) on top of the `@intentlock/ui` tokens. The inbox keeps Inter and its warm palette.
 - **Alternatives:** the `geist` package (built for `next/font`); Google Fonts (a request to Google from every visitor, and a download at build); system fonts (did not match the reference).
 - **Consequences:** The site and the inbox use different fonts. Variable fonts mean one file per family and subset, all weights included.
+
+### ADR-068: Docs code blocks and drift checks
+- **Date:** 2026-10-18 · **Status:** Accepted · Details ADR-066 point 7
+- **Context:** The Starlight docs need code blocks that match the landing page (Abdullah: syntax colours from the `--code-*` tokens, no scrollbars on code blocks), and the docs must not drift from the packages, the API or each other once USAGE and the env reference move into the site.
+- **Decision:**
+  1. Starlight's Expressive Code is off (`expressiveCode: false`). Markdown code blocks use Astro's own Shiki with `theme: "css-variables"` and `wrap: true`, the same as the landing page's `<Code>`; the `--astro-code-*` → `--code-*` mapping lives once in `palette.css`.
+  2. `apps/site/test/unit/content/docs.test.ts` (Vitest, part of `pnpm test`): every `ts` code block is compiled with the TypeScript compiler API against the built packages (strict, one module per block, ambient values such as `github` or `provider` declared in `test/fixtures/docs-prelude.d.ts`); every internal `/docs/...` link must point at a page and, with `#anchor`, at a heading on it; every `API_ENDPOINTS` path must appear on the HTTP API page.
+  3. `@intentlock/core`, `sdk`, `guard`, `anthropic` (workspace), `zod` and `@types/node` (catalog) are dev dependencies of the site for that test only. No new third-party packages.
+  4. Besides USAGE and DEPLOYMENT §2, the generic free-hosting steps (DEPLOYMENT §9.1) and the self-host install (§10) move to the site's deployment pages; DEPLOYMENT keeps our instance's differences, the topology and the bundle internals.
+- **Alternatives:** Expressive Code with a custom theme (needs real colours to compute contrast, so the light/dark tokens would be duplicated, and it adds client JS for the copy button); checking links in the built `dist/` (needs a build in the test); type-checking samples with a remark plugin at build time (slower builds, errors far from the test runner).
+- **Consequences:** Code blocks have no copy button or file-name frames. `turbo build` of the site now builds the four MIT packages first. Samples must be complete enough to compile, using only the prelude's ambient names; `json`, `yaml`, `bash` and `txt` blocks are not checked.
+
+### ADR-069: Host the public website on Cloudflare Workers static assets
+- **Date:** 2026-10-18 · **Status:** Accepted · Supersedes ADR-066's "second Vercel project" consequence
+- **Context:** Abdullah chose Cloudflare for `apps/site`. The site is fully static (`dist/`), Astro needs Node ≥ 22.12, and the repo is a pnpm workspace (pnpm ≥ 10.26). Cloudflare's Astro guide (checked 2026-10-18) deploys a static Astro site as a Worker with static assets and no adapter; Workers Builds defaults to Node 24.18 and pnpm 10.11.1.
+- **Decision:**
+  1. `apps/site/wrangler.jsonc`: `name: intentlock-site`, `assets.directory: ./dist`, `not_found_handling: 404-page`, no `main` (no Worker code) and no `@astrojs/cloudflare` adapter.
+  2. Built and deployed by Git-connected Workers Builds from the repo root: build `pnpm turbo run build --filter=@intentlock/site`, deploy `npx wrangler deploy --config apps/site/wrangler.jsonc`, branch builds `npx wrangler versions upload --config apps/site/wrangler.jsonc`. Build variables `PNPM_VERSION=10.34.6`, `NODE_VERSION=24`, `SITE_URL`, `INBOX_URL`.
+  3. Wrangler is not a repo dependency: Workers Builds runs it with `npx`, and nothing deploys from a laptop.
+  4. The inbox shows a "Docs" link in the sidebar when `NEXT_PUBLIC_DOCS_URL` (an http(s) URL, inlined at build) is set; self-hosted builds leave it unset and the link is hidden.
+- **Alternatives:** Cloudflare Pages (works, but Cloudflare's current Astro guide targets Workers static assets and Pages gets no new features); a second Vercel project (the original plan; Abdullah chose Cloudflare); adding `wrangler` as a dev dependency for local `wrangler dev` (`astro preview` already serves `dist/`).
+- **Consequences:** One more config file in `apps/site` (deleted with the folder). The Workers Builds install runs at the repo root and installs the whole workspace. Static asset requests on Workers are free; limits are checked before deploying and noted in the journal.

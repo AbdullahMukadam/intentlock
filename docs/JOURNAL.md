@@ -1679,3 +1679,70 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Follow-up:** Abdullah meant every tag-style label, not only the hero badge (I had read "remove these tags" too narrowly). Removed the section labels, the card labels, the licence labels (licence names moved into the card titles) and the chips under the "How it works" steps; `tag.astro` deleted
 
 **Follow-up 2:** less space above section headings (was 80–96 px, now 48–56 px, same as below); header 52 px high (was 64) with smaller padding and Sign in button, and corner marks where its bottom line meets the frame; code blocks no longer scroll: the long lines in the samples are reflowed, the terminal commands use a `BASE` variable for the raw GitHub URL, and `<Code wrap>` wraps anything that is still too long on small screens
+
+### 2026-10-18 · Session 20 · Phase 6.6 — Starlight docs
+
+**Done**
+- 22 docs pages under `apps/site/src/content/docs/docs/`: introduction, quick start; concepts (plans and tokens, policies and versions, verdicts with every block reason, holds, audit chain, hybrid and remote gates); SDK guide (packages, agent guard, LLM providers incl. Anthropic and custom adapters, gates, core, testing); reference (policy, CLI, HTTP API); deployment (self-hosting, free hosting, environment variables); security model; licensing. Written from USAGE, DEPLOYMENT, ARCHITECTURE, README and checked against the source (CLI commands, env schema, error body shape, CSRF header, gate defaults)
+- Sidebar in six groups; Pagefind search indexes all pages; theme matches the landing page: Geist, neutral palette, black headings, brand mark that links to `/`, GitHub and Sign in in the header (Starlight `SiteTitle` and `SocialIcons` overrides)
+- Code blocks: Expressive Code off, Astro's Shiki with `css-variables` + `wrap`, mapped to the `--code-*` tokens (the mapping moved into `palette.css`, shared with the landing page); sample lines reflowed so nothing wraps at desktop width; tables fit at 390 px
+- One source of truth: `docs/USAGE.md` is a pointer table; DEPLOYMENT §2 (env reference), §9.1 generic steps and §10 install point to the site files, §9.1 keeps our instance's differences; README and the `sdk`, `guard`, `cli` READMEs link to the site files
+- `test/unit/content/docs.test.ts`: TypeScript samples type-checked against the packages, internal links and anchors checked, every `API_ENDPOINTS` path on the HTTP API page (ADR-068). A deliberately broken sample (`timeoutMs: "5000"`) failed the test as expected
+- PLAN: the four Docs tasks ticked; STRUCTURE updated
+
+**Problems hit and how they were solved**
+- A `:` inside a frontmatter `description` broke the YAML → reworded
+- Virtual sample files not found by the compiler → TypeScript uses `/` separators on Windows; names normalised
+- `overflow-wrap: anywhere` in table cells squeezed desktop columns ("Require d") → `break-word` on desktop, `anywhere` for code in cells only below 50rem, headers `nowrap`
+
+**Decisions**
+- ADR-068: docs code blocks (Astro Shiki, not Expressive Code) and drift checks; the site gets the MIT packages, `zod` and `@types/node` as dev dependencies (workspace/catalog, nothing new downloaded: `pnpm install --offline`)
+
+**Numbers**
+- `astro build` offline: 24 pages + Pagefind index in ~16 s; docs test 4/4 in ~9 s (type-check ~5 s)
+- Site `lint`, `typecheck` (`astro check`), `test` green; Prettier clean
+- Screenshots of `astro preview` (port 4400): guard page light and dark at 1440 px, policy reference full page, HTTP API and guard at 390 px, landing self-host section (unchanged)
+
+**Next**
+- Deploy: second Vercel project for `apps/site`, DEPLOYMENT §9 step, "Docs" link in the inbox sidebar
+
+**Notes for Abdullah**
+- Lockfile: besides the site's links, Astro's sitemap now resolves `zod` 4.6.7 (already in the store) instead of 4.6.5
+- The site's Turbo build now builds `core`, `sdk`, `guard` and `anthropic` first (dev dependencies), also on Vercel
+
+### 2026-10-18 · Session 20 (cont.) · Phase 6.6 — Deploy setup on Cloudflare
+
+**Done**
+- Abdullah chose Cloudflare instead of a second Vercel project. Cloudflare's Astro guide (checked today) serves a static Astro site as a Worker with static assets, no adapter: `apps/site/wrangler.jsonc` (`intentlock-site`, `./dist`, `404-page`, no `main`)
+- Inbox: sidebar "Docs" link under General when `NEXT_PUBLIC_DOCS_URL` is an http(s) URL (`lib/docs-url.ts`, opens in a new tab); hidden otherwise, so self-hosted builds are unchanged. `NEXT_PUBLIC_DOCS_URL` declared on `build` in `turbo.json`
+- DEPLOYMENT §9.2 (Workers Builds from the repo root, build and deploy commands, build variables, checks, inbox variable) and the §1 table; env reference page; STRUCTURE; PLAN deploy line now says Cloudflare (not ticked: nothing is deployed yet)
+
+**Decisions**
+- ADR-069: Cloudflare Workers static assets via Workers Builds; Wrangler runs through `npx` on Cloudflare, not a repo dependency; `PNPM_VERSION=10.34.6` because Workers Builds defaults to pnpm 10.11.1
+
+**Numbers**
+- Inbox 91 unit tests (2 new for `docsUrl`), lint and typecheck green; site test 4/4, `astro build` OK; Prettier clean
+
+**Next**
+- Abdullah creates the Worker in the Cloudflare dashboard (DEPLOYMENT §9.2), then the acceptance checks on the live URL and the inbox variable on Vercel
+
+**Notes for Abdullah**
+- Not checked in a browser: the inbox sidebar link (no local `next dev`); visible on the next Vercel preview with `NEXT_PUBLIC_DOCS_URL` set
+
+### 2026-10-18 · Session 20 (cont.) · Phase 6.6 — Docs layout like Abdullah's reference
+
+**Done** (reference: a docs site with a tabbed header and a bordered sidebar)
+- Header (Starlight `Header` override): brand cell as wide as the sidebar, equal-width mono uppercase tabs (Home, Docs, Self-host, API, GitHub ↗) with the current one underlined, black "Sign in ↗" block on the right; tabs and Sign in hidden below 50rem
+- Sidebar (`Sidebar` override): search at the top as a full-width row, groups as bordered rows with lucide icons and a chevron, only the current group open (`collapsed: true`), active page on a grey row, sticky footer with GitHub, a light/dark toggle (saves `starlight-theme`, shared with the landing page) and Sign in on phones
+- Page title (`PageTitle` override): title plus the page description in body-copy colour; no line under it
+- Code blocks: a Shiki transformer (`src/lib/code-frame.ts`) wraps each block in a frame with a file icon and the fence's `title="…"` (or a language label such as Terminal) and a copy button; main samples got file names (`agent.ts`, `policy.yaml`, `.env`, …)
+- Table of contents: "On this page" with an icon, a left rule, the current heading marked on it, nested headings indented
+- Content links underlined, 1.5 px
+- `header-links.astro` removed (replaced by the header)
+
+**Numbers**
+- Screenshots at 1366×768 light and dark, 390 px phone; site lint, `astro check`, tests (6) green; Prettier clean
+
+**Notes for Abdullah**
+- Not copied from the reference: version switcher, "Copy MD / Open in", "Ask AI", per-page icons in the sidebar
+- The copy button was not clicked in a test (headless Edge has no clipboard permission)

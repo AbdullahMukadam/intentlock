@@ -4,6 +4,17 @@
 :root {
   --font-inter: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono-code: "Geist Mono Variable", ui-monospace, "Cascadia Code", Menlo, monospace;
+  --astro-code-foreground: var(--foreground);
+  --astro-code-background: var(--panel);
+  --astro-code-token-keyword: var(--code-atom);
+  --astro-code-token-constant: var(--code-number);
+  --astro-code-token-string: var(--code-string);
+  --astro-code-token-string-expression: var(--code-string);
+  --astro-code-token-comment: var(--code-comment);
+  --astro-code-token-function: var(--code-key);
+  --astro-code-token-parameter: var(--foreground);
+  --astro-code-token-punctuation: var(--code-punctuation);
+  --astro-code-token-link: var(--code-key);
 }
 
 :root:not([data-theme="dark"]) {

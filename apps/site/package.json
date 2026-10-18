@@ -23,9 +23,15 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@intentlock/anthropic": "workspace:*",
     "@intentlock/config": "workspace:*",
+    "@intentlock/core": "workspace:*",
+    "@intentlock/guard": "workspace:*",
+    "@intentlock/sdk": "workspace:*",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
   }
 }

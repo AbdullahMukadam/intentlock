@@ -339,15 +339,15 @@ Added on 2026-10-17 after Phase 6.5 was merged: visitors need a page that explai
 - [x] Static HTML; the only scripts on the landing page are the inline theme script and Astro's link prefetch (Starlight turns it on; 1.1 kB gzipped)
 
 **Docs (Starlight, `/docs`)**
-- [ ] Sidebar, built-in search (Pagefind, static), theme matching the landing page
-- [ ] Pages: introduction; quick start (self-host bundle, first admin, first agent); concepts (plans and tokens, policies and versions, verdicts, holds, audit chain, hybrid vs remote gate); SDK guide (`core`, `sdk`, `guard`, `anthropic`, from USAGE); policy reference (every rule type); CLI; HTTP API (from `API_ENDPOINTS`); deployment (self-host, free hosting, env variables); security model; licensing
-- [ ] One source of truth: the user-facing text lives in the site; `docs/USAGE.md` and the user-facing parts of `docs/DEPLOYMENT.md` point to it instead of repeating it (per the ADR)
-- [ ] Code samples in the docs are type-checked against the packages in a test, and internal links are checked, so the docs cannot drift silently
+- [x] Sidebar, built-in search (Pagefind, static), theme matching the landing page
+- [x] Pages: introduction; quick start (self-host bundle, first admin, first agent); concepts (plans and tokens, policies and versions, verdicts, holds, audit chain, hybrid vs remote gate); SDK guide (`core`, `sdk`, `guard`, `anthropic`, from USAGE); policy reference (every rule type); CLI; HTTP API (from `API_ENDPOINTS`); deployment (self-host, free hosting, env variables); security model; licensing
+- [x] One source of truth: the user-facing text lives in the site; `docs/USAGE.md` and the user-facing parts of `docs/DEPLOYMENT.md` point to it instead of repeating it (per the ADR)
+- [x] Code samples in the docs are type-checked against the packages in a test, and internal links are checked, so the docs cannot drift silently
 
 **Deploy**
-- [ ] Second Vercel project (root `apps/site`, static); DEPLOYMENT §9 step; the inbox links to the docs (sidebar "Docs" → site URL, build-time env, hidden when unset)
+- [ ] Cloudflare Workers static assets for `apps/site` (Git-connected Workers Builds, `wrangler.jsonc`, ADR-069; was a second Vercel project); DEPLOYMENT §9 step; the inbox links to the docs (sidebar "Docs" → site URL, build-time env, hidden when unset)
 
-**Acceptance:** `astro build` works locally (no font download) and the site runs on the Vercel preview: `/` is the landing page, `/docs` is readable and searchable, light/dark and phone width checked; the inbox is unchanged and still private (its proxy tests untouched); deleting `apps/site` leaves the other apps' install, build and tests green; `pnpm test && pnpm lint && pnpm typecheck` green.
+**Acceptance:** `astro build` works locally (no font download) and the site runs on Cloudflare: `/` is the landing page, `/docs` is readable and searchable, light/dark and phone width checked; the inbox is unchanged and still private (its proxy tests untouched); deleting `apps/site` leaves the other apps' install, build and tests green; `pnpm test && pnpm lint && pnpm typecheck` green.
 
 ---
 

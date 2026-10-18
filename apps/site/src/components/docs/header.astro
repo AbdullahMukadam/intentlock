@@ -1,0 +1,120 @@
+---
+import { DOCS_PATH, GITHUB_URL, SIGN_IN_URL } from "../../lib/links";
+import Icon from "../icon.astro";
+import SiteTitle from "./site-title.astro";
+
+const TABS = [
+  { href: "/", label: "Home" },
+  { href: DOCS_PATH, label: "Docs" },
+  { href: "/docs/deployment/self-host/", label: "Self-host" },
+  { href: "/docs/reference/http-api/", label: "API" },
+];
+
+const path = Astro.url.pathname;
+const active = TABS.filter((t) => t.href !== "/" && path.startsWith(t.href)).sort(
+  (a, b) => b.href.length - a.href.length,
+)[0]?.href;
+---
+
+<div class="bar">
+  <div class="brand"><SiteTitle /></div>
+  <nav class="tabs" aria-label="Site">
+    {
+      TABS.map(({ href, label }) => (
+        <a href={href} aria-current={href === active ? "page" : undefined}>
+          {label}
+        </a>
+      ))
+    }
+    <a href={GITHUB_URL}>
+      GitHub
+      <Icon name="arrow-up-right" class="arrow" />
+    </a>
+  </nav>
+  <a class="sign-in" href={SIGN_IN_URL}>
+    Sign in
+    <Icon name="arrow-up-right" class="arrow" />
+  </a>
+</div>
+
+<style>
+  .bar {
+    display: flex;
+    height: 100%;
+    align-items: stretch;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+  }
+
+  .tabs,
+  .sign-in {
+    display: none;
+  }
+
+  .tabs a,
+  .sign-in {
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    font-family: var(--font-mono-code);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .tabs a {
+    display: flex;
+    flex: 1;
+    border-inline-end: 1px solid var(--border);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  }
+
+  .tabs a:hover {
+    color: var(--foreground);
+  }
+
+  .tabs a[aria-current="page"] {
+    border-bottom-color: var(--foreground);
+    color: var(--foreground);
+  }
+
+  .sign-in {
+    padding-inline: 1.75rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .sign-in:hover {
+    background: color-mix(in oklch, var(--primary), var(--background) 12%);
+  }
+
+  .arrow {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  @media (min-width: 50rem) {
+    .brand {
+      width: var(--sl-sidebar-width);
+      flex-shrink: 0;
+      border-inline-end: 1px solid var(--border);
+      padding-inline: 1rem;
+    }
+
+    .tabs {
+      display: flex;
+      flex: 1;
+    }
+
+    .sign-in {
+      display: flex;
+    }
+  }
+</style>

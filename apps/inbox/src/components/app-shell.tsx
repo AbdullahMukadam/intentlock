@@ -14,6 +14,7 @@ import {
 import { cn } from "@intentlock/ui/lib/utils";
 import {
   Activity,
+  BookOpen,
   Bot,
   ChevronsUpDown,
   Hand,
@@ -41,6 +42,7 @@ import { createContext, use, useEffect, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import Loader from "@/components/loader";
 import { api } from "@/lib/api";
+import { DOCS_URL } from "@/lib/docs-url";
 import { ThemeName } from "@/lib/enums/theme-name.enum";
 import { initials } from "@/lib/format";
 import { useLiveQueries } from "@/lib/live-queries";
@@ -50,7 +52,7 @@ import { signOut } from "@/lib/sign-out";
 
 type NavItem = { href: Route; label: string; icon: React.ComponentType<{ className?: string }> };
 
-const NAV: { section: string; items: NavItem[] }[] = [
+const NAV: { section: string; items: NavItem[]; docs?: boolean }[] = [
   {
     section: "Monitor",
     items: [
@@ -73,6 +75,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { href: "/account", label: "Account settings", icon: Settings },
       { href: "/demo", label: "Demo", icon: PlaySquare },
     ],
+    docs: true,
   },
 ];
 
@@ -180,7 +183,7 @@ function Sidebar({
         </div>
       </div>
       <nav className="flex flex-1 flex-col gap-5 overflow-y-auto" aria-label="Main">
-        {NAV.map(({ section, items }) => (
+        {NAV.map(({ section, items, docs }) => (
           <div key={section} className="grid gap-0.5">
             <div className="px-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
               {section}
@@ -208,6 +211,17 @@ function Sidebar({
                 </Link>
               );
             })}
+            {docs && DOCS_URL && (
+              <a
+                href={DOCS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                <BookOpen className="size-4 text-muted-foreground" />
+                Docs
+              </a>
+            )}
           </div>
         ))}
       </nav>
