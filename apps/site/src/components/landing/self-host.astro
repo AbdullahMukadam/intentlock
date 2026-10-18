@@ -6,7 +6,7 @@ import CodePanel from "./code-panel.astro";
 import Corners from "./corners.astro";
 import SectionHeading from "./section-heading.astro";
 
-const COMMANDS = `BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy
+const COMMANDS = `BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentlock/main/deploy
 curl -fsSLO $BASE/docker-compose.selfhost.yml
 curl -fsSL $BASE/selfhost.env.example -o .env
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env

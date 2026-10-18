@@ -15,6 +15,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3001 HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build --chown=node:node /repo/apps/inbox/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/inbox/.next/static ./apps/inbox/.next/static
+COPY --from=build --chown=node:node /repo/apps/inbox/public ./apps/inbox/public
 USER node
 EXPOSE 3001
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \

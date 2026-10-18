@@ -14,8 +14,8 @@ You need Docker with Compose v2.23 or newer and `openssl`. This runs Postgres, t
 
 ```bash
 mkdir intentlock && cd intentlock
-curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/docker-compose.selfhost.yml
-curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy/selfhost.env.example -o .env
+curl -fsSLO https://raw.githubusercontent.com/AbdullahMukadam/intentlock/main/deploy/docker-compose.selfhost.yml
+curl -fsSL https://raw.githubusercontent.com/AbdullahMukadam/intentlock/main/deploy/selfhost.env.example -o .env
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 echo "SIGNING_KEY=\"$(openssl genpkey -algorithm ed25519)\"" >> .env
 docker compose -f docker-compose.selfhost.yml up -d
@@ -32,7 +32,7 @@ docker compose -f docker-compose.selfhost.yml logs server | grep "setup code"
 No Docker, database or model key needed. Node ≥ 22, pnpm ≥ 10.26.
 
 ```bash
-git clone https://github.com/AbdullahMukadam/intentgate && cd intentgate
+git clone https://github.com/AbdullahMukadam/intentlock && cd intentlock
 pnpm install
 pnpm turbo run build --filter=@intentlock/evals
 pnpm --filter @intentlock/sdk run example

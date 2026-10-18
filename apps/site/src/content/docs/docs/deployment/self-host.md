@@ -12,7 +12,7 @@ You need Docker with Compose v2.23 or newer and `openssl`.
 ## Install
 
 ```bash
-BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy
+BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentlock/main/deploy
 curl -fsSLO $BASE/docker-compose.selfhost.yml
 curl -fsSL $BASE/selfhost.env.example -o .env
 ```

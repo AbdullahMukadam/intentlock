@@ -28,6 +28,6 @@ const result = await guard.run({
 
 Every tool call is checked against the signed plan before it runs; blocked, rejected and failed calls come back to the model as error results. `guard.start()` + `guard.execute(session, toolCalls)` let you keep your own loop.
 
-Full guide (options, explicit plans, policies, runtime behaviour): [Agent guard](https://github.com/AbdullahMukadam/intentgate/blob/main/apps/site/src/content/docs/docs/sdk/guard.md).
+Full guide (options, explicit plans, policies, runtime behaviour): [Agent guard](https://github.com/AbdullahMukadam/intentlock/blob/main/apps/site/src/content/docs/docs/sdk/guard.md).
 
-License: MIT. Part of [Intentlock](https://github.com/AbdullahMukadam/intentgate).
+License: MIT. Part of [Intentlock](https://github.com/AbdullahMukadam/intentlock).

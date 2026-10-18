@@ -1,6 +1,6 @@
 # @intentlock/anthropic
 
-Claude adapter for the [Intentlock](https://github.com/AbdullahMukadam/intentgate) agent guard. Implements `LLMProvider` from `@intentlock/guard`: maps tools to the Messages API, `tool_use` blocks to tool calls, and results (including blocked calls) to `tool_result` blocks with `is_error`.
+Claude adapter for the [Intentlock](https://github.com/AbdullahMukadam/intentlock) agent guard. Implements `LLMProvider` from `@intentlock/guard`: maps tools to the Messages API, `tool_use` blocks to tool calls, and results (including blocked calls) to `tool_result` blocks with `is_error`.
 
 ```bash
 pnpm add @intentlock/guard @intentlock/sdk @intentlock/anthropic

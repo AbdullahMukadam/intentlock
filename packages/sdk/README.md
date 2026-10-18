@@ -1,6 +1,6 @@
 # @intentlock/sdk
 
-Gates for [Intentlock](https://github.com/AbdullahMukadam/intentgate): sign a plan, check each tool call against it, wait on holds, report outcomes.
+Gates for [Intentlock](https://github.com/AbdullahMukadam/intentlock): sign a plan, check each tool call against it, wait on holds, report outcomes.
 
 | Gate              | Decisions                                                                                                    | Use when                                            |
 | ----------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
@@ -34,6 +34,6 @@ const decision = await gate.check(token, {
 await gate.close();
 ```
 
-Run a tool only when `decision.verdict === "allow"`; every error path blocks. Most apps use [`@intentlock/guard`](https://www.npmjs.com/package/@intentlock/guard), which drives the gate for you. Options and runtime behaviour: [Gates](https://github.com/AbdullahMukadam/intentgate/blob/main/apps/site/src/content/docs/docs/sdk/gates.md).
+Run a tool only when `decision.verdict === "allow"`; every error path blocks. Most apps use [`@intentlock/guard`](https://www.npmjs.com/package/@intentlock/guard), which drives the gate for you. Options and runtime behaviour: [Gates](https://github.com/AbdullahMukadam/intentlock/blob/main/apps/site/src/content/docs/docs/sdk/gates.md).
 
 License: MIT.

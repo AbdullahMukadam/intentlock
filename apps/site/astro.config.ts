@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, envField, passthroughImageService } from "astro/config";
 
 import { codeFrame } from "./src/lib/code-frame";
+import { FAVICON_LINKS } from "./src/lib/favicons";
 
 const group = (label: string, directory: string) => ({
   label,
@@ -30,6 +31,11 @@ export default defineConfig({
       title: "Intentlock",
       description: "Intent-based authorization for LLM agents.",
       customCss: ["./src/styles/starlight.css"],
+      favicon: "/favicon.ico",
+      head: FAVICON_LINKS.filter((attrs) => attrs.href !== "/favicon.ico").map((attrs) => ({
+        tag: "link" as const,
+        attrs,
+      })),
       expressiveCode: false,
       components: {
         Header: "./src/components/docs/header.astro",

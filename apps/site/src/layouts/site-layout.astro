@@ -2,6 +2,7 @@
 import "../styles/site.css";
 import SiteFooter from "../components/site-footer.astro";
 import SiteHeader from "../components/site-header.astro";
+import { FAVICON_LINKS } from "../lib/favicons";
 
 interface Props {
   title: string;
@@ -21,7 +22,7 @@ const ogImage = Astro.site ? new URL("/og.png", Astro.site).href : "/og.png";
     <title>{title}</title>
     <meta name="description" content={description} />
     {canonical && <link rel="canonical" href={canonical} />}
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {FAVICON_LINKS.map((attrs) => <link {...attrs} />)}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />

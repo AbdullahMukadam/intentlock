@@ -370,7 +370,8 @@ DTOs are never declared inside controllers; services never export mappers or typ
 
 ```
 Dockerfile                          # Next.js standalone output
-src/proxy.ts                        # no session cookie → /login, except /login, /setup, /invite/*, /reset/* (UX only; the server enforces access)
+src/proxy.ts                        # no session cookie → /login, except /login, /setup, /invite/*, /reset/* and the favicon files (UX only; the server enforces access)
+public/                             # favicons (16/32 px, apple-touch, android-chrome, site.webmanifest); favicon.ico lives in src/app/
 src/app/                            # Better-T-Stack puts the App Router under src/ (ADR-029)
 ├── layout.tsx
 ├── global-error.tsx                # last-resort error page when the root layout itself fails (own <html>)
@@ -495,7 +496,7 @@ astro.config.ts                     # static output, Starlight (collapsed sideba
                                     # Tailwind via @tailwindcss/vite, no image service,
                                     # astro:env schema (INBOX_URL, URL, default http://localhost:3001, build time)
 wrangler.jsonc                      # Cloudflare Workers static assets: dist/, 404 page, no Worker code (ADR-069)
-public/                             # favicon.svg, og.png (1200×630 social image)
+public/                             # favicons (ico, 16/32 px, apple-touch, android-chrome 192/512, site.webmanifest), og.png (1200×630)
 test/
 ├── unit/content/docs.test.ts       # docs drift checks: TypeScript samples type-check against the packages, internal links and
 │                                   # anchors resolve, every API_ENDPOINTS path is on the HTTP API page

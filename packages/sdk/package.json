@@ -12,11 +12,11 @@
     "audit",
     "prompt-injection"
   ],
-  "homepage": "https://github.com/AbdullahMukadam/intentgate/tree/main/packages/sdk#readme",
-  "bugs": "https://github.com/AbdullahMukadam/intentgate/issues",
+  "homepage": "https://github.com/AbdullahMukadam/intentlock/tree/main/packages/sdk#readme",
+  "bugs": "https://github.com/AbdullahMukadam/intentlock/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AbdullahMukadam/intentgate.git",
+    "url": "git+https://github.com/AbdullahMukadam/intentlock.git",
     "directory": "packages/sdk"
   },
   "engines": {

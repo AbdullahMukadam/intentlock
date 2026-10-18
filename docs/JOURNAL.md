@@ -1746,3 +1746,17 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - Not copied from the reference: version switcher, "Copy MD / Open in", "Ask AI", per-page icons in the sidebar
 - The copy button was not clicked in a test (headless Edge has no clipboard permission)
+
+### 2026-10-18 · Session 20 (cont.) · Repo rename and favicons
+
+**Done**
+- The GitHub repo is now `AbdullahMukadam/intentlock`: every link updated (README, site links and install commands, the package READMEs, `homepage`/`bugs`/`repository` in the four MIT `package.json` files). Left as written: the history in this journal and in ADR-001/ADR-029 (the old working name and folder name)
+- Abdullah's favicon set (starburst with a lock) everywhere: site `public/` (ico, 16/32 px, apple-touch, android-chrome 192/512, `site.webmanifest` named Intentlock), one list in `src/lib/favicons.ts` used by the landing layout and Starlight's `head`; `favicon.svg` removed. Inbox: `src/app/favicon.ico` replaced, the rest in a new `public/`, declared in the root `metadata`, copied into the Docker image
+- Inbox proxy: the six favicon files are skipped like `/favicon.ico`, so the sign-in page shows the icon; proxy test lists them (pages still redirect without a session)
+
+**Numbers**
+- Site and inbox lint, typecheck, tests green; Prettier clean; `astro build` emits all icon links on `/` and `/docs/`
+
+**Notes for Abdullah**
+- Your local git remote still points at `AbdullahMukadam/intentgate.git` (GitHub redirects): `git remote set-url origin https://github.com/AbdullahMukadam/intentlock.git`
+- The brand mark in the headers (lock in a black square) and `og.png` are unchanged

@@ -9,7 +9,7 @@ This runs Postgres, the server, the inbox and nginx on `http://localhost:8080`. 
 
 ```bash
 mkdir intentlock && cd intentlock
-BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy
+BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentlock/main/deploy
 curl -fsSLO $BASE/docker-compose.selfhost.yml
 curl -fsSL $BASE/selfhost.env.example -o .env
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
@@ -101,8 +101,8 @@ Groups are free-form labels you can match in policies.
 No Docker, database or model key needed. Node 22 or newer and pnpm 10.26 or newer:
 
 ```bash
-git clone https://github.com/AbdullahMukadam/intentgate
-cd intentgate
+git clone https://github.com/AbdullahMukadam/intentlock
+cd intentlock
 pnpm install
 pnpm turbo run build --filter=@intentlock/evals
 pnpm --filter @intentlock/sdk run example

@@ -40,6 +40,12 @@ describe("proxy", () => {
     "/api/v1/me",
     "/_next/static/x.js",
     "/favicon.ico",
+    "/favicon-16x16.png",
+    "/favicon-32x32.png",
+    "/apple-touch-icon.png",
+    "/android-chrome-192x192.png",
+    "/android-chrome-512x512.png",
+    "/site.webmanifest",
   ])("skips %s", (url) => {
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url })).toBe(false);
   });
