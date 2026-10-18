@@ -1537,3 +1537,13 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Merge the PR so production gets `sin1`, the one-query session check and the cache; then Phase 7 (stretch) per PLAN
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.5 merged; Phase 6.6 planned
+
+**Done**
+- Abdullah merged Phase 6.5 (PR #12, `35911b2`); new branch `phase-6.6` from `main`
+- PLAN: new **Phase 6.6 · Landing page and docs site (inbox)**. Decided with Abdullah: landing page at `/` for visitors without a session (signed-in users keep the Overview); landing and docs public only behind an inbox env flag (on for our hosted instance, off for self-hosted, which keeps "nothing visible without signing in"); docs built with Fumadocs; a phase of its own before Phase 7, replacing Phase 7's docs-site item. No code yet
+
+**Notes**
+- Needs an ADR for the flag-gated exception to the PRD's "nothing in the inbox is visible without signing in", and Abdullah's go-ahead plus an ADR for the Fumadocs dependencies
+- Builds can only be checked on the Vercel preview (no local `next build`: fonts download)

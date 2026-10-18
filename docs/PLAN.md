@@ -323,6 +323,36 @@ Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switchi
 
 ---
 
+## Phase 6.6 · Landing page and docs site (inbox) — `apps/inbox`
+
+Added on 2026-10-17 after Phase 6.5 was merged: the hosted instance should explain Intentlock to visitors and carry its documentation, in the inbox app rather than a separate site. Decided with Abdullah: the landing page is `/` for visitors without a session (signed-in users keep the Overview at `/`); landing and docs are public **only when an env flag is on** (our hosted instance), so a self-hosted team inbox keeps "nothing visible without signing in" by default; docs are built with Fumadocs. Replaces the Phase 7 docs-site item.
+
+**Access and routing**
+- [ ] ADR: public landing and docs pages as an explicit, flag-gated exception to "nothing in the inbox is visible without signing in" (PRD, ARCHITECTURE §5.6). The pages are static, make no API calls and show no team data; the server's default deny does not change
+- [ ] Env flag for the inbox (e.g. `INTENTLOCK_PUBLIC_SITE`), off by default; documented in DEPLOYMENT (env table, §9 for our instance, self-host bundle stays off); declared in `turbo.json` if the build reads it
+- [ ] `proxy.ts`: flag on and no session cookie → `/` shows the landing page and `/docs/*` is readable; every other app page still redirects to `/login`. With a session: `/` is the Overview and `/docs` stays readable. Flag off: exactly today's behaviour (`/` and `/docs` redirect to `/login`)
+- [ ] The landing and docs pages use their own layout (no app shell, no `/v1/me` call, no socket); the app sidebar gets a "Docs" link when the flag is on; sign in / sign out links in the right places
+
+**Landing page**
+- [ ] One page: what Intentlock does (agent declares a plan → Intentlock signs it → every tool call is checked → allow / block / hold → tamper-evident audit), a diagram of that flow, the main features (policies and versions, holds and the approval inbox, hybrid gate, audit chain verify, provider-agnostic guard), how to run it (self-host bundle, free hosting), licensing (MIT SDKs, ELv2 server), a short code sample, links to Docs, GitHub and Sign in
+- [ ] Built with `@intentlock/ui` and the inbox theme (light and dark), works at phone width, accessible (headings, contrast, keyboard), page metadata and an Open Graph image
+- [ ] Static: prerendered and served from Vercel's cache (`X-Vercel-Cache: HIT`), no client-side data fetching
+
+**Docs (Fumadocs)**
+- [ ] Ask before adding: `fumadocs-core`, `fumadocs-ui`, `fumadocs-mdx` (new runtime dependencies, ADR); check they work with Next 16, React 19, Tailwind 4, `reactCompiler`, `typedRoutes` and `output: "standalone"`
+- [ ] `/docs` in the inbox: MDX content in `apps/inbox/content/docs/`, sidebar and page tree, built-in search, theme matching the inbox
+- [ ] One source of truth: decide (in the ADR) how `docs/USAGE.md` and the user-facing parts of `docs/DEPLOYMENT.md` relate to the MDX pages, so the same text is not maintained twice
+- [ ] Pages: introduction; quick start (self-host bundle, first admin, first agent); concepts (plans and tokens, policies and versions, verdicts, holds, audit chain, hybrid vs remote gate); SDK guide (`core`, `sdk`, `guard`, `anthropic`, from USAGE); policy reference (every rule type); CLI; HTTP API (from `API_ENDPOINTS`); deployment (self-host, free hosting, env variables); security model; licensing
+- [ ] Code samples in the docs are type-checked against the packages in a test, and internal links are checked, so the docs cannot drift silently
+
+**Tests**
+- [ ] `proxy` tests: flag on/off × with/without session cookie × `/`, `/docs`, `/docs/<page>`, an app page
+- [ ] Public pages make no `/api` request and render without a session (test or measured on the preview); docs sample and link checks green
+
+**Acceptance:** with the flag on and signed out, `/` shows the landing page and `/docs` is readable and searchable, while every app page still redirects to `/login`; signed in, `/` is the Overview and the docs are one click away; with the flag off nothing public is added (proxy tests); landing and docs come from Vercel's cache on the preview; `pnpm test && pnpm lint && pnpm typecheck` green. Note: no local `next build` (fonts download), so builds are checked on the Vercel preview.
+
+---
+
 ## Phase 7 · Stretch (only after Phase 6)
 
 - [ ] `packages/mcp-proxy`: stdio proxy, enforces gate on `tools/call`, works in front of the GitHub MCP server
@@ -331,7 +361,7 @@ Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switchi
 - [ ] Second-admin approval for policy changes (paid feature candidate)
 - [ ] Per-tool argument redaction in the dashboard (paid feature candidate)
 - [ ] Audit retention purge per license `retentionDays` (with verifiable export before purge)
-- [ ] Docs site (Next.js / Fumadocs) in the monorepo
+- ~~Docs site (Next.js / Fumadocs) in the monorepo~~ moved to Phase 6.6 (in the inbox, flag-gated)
 - [ ] Taint tracking: mark data from private sources and hold writes that contain it
 - [ ] OpenTelemetry spans for checks
 - [ ] Cross-instance live events via Postgres `LISTEN/NOTIFY` (DEPLOYMENT §6.1)
