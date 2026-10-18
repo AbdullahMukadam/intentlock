@@ -1,5 +1,5 @@
 ---
-import { OUTLINE_BUTTON } from "../lib/button";
+import { OUTLINE_BUTTON_SMALL } from "../lib/button";
 import { DOCS_PATH, GITHUB_URL, SIGN_IN_URL } from "../lib/links";
 import BrandMark from "./brand-mark.astro";
 import Corners from "./landing/corners.astro";
@@ -46,7 +46,7 @@ const NAV = [
       >
         Docs
       </a>
-      <a href={SIGN_IN_URL} class:list={[OUTLINE_BUTTON, "h-8 px-3.5 text-sm"]}>Sign in</a>
+      <a href={SIGN_IN_URL} class={OUTLINE_BUTTON_SMALL}>Sign in</a>
     </div>
   </div>
 </header>

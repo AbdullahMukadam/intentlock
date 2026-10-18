@@ -202,7 +202,7 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 
 `apps/site` is optional: nothing depends on it and it is not part of the self-host bundle. Delete the folder and run `pnpm install` if you don't need it.
 
-Development: [`CONTRIBUTING.md`](CONTRIBUTING.md). Design docs: [`docs/`](docs).
+Development: [`CONTRIBUTING.md`](CONTRIBUTING.md). User docs: [`apps/site/src/content/docs/docs/`](apps/site/src/content/docs/docs/) (published on the website). Design docs: [`docs/`](docs).
 
 ## License
 

@@ -1,4 +1,14 @@
 import { BrandMark } from "@/components/brand-mark";
+import { FrameCorners } from "@/components/frame-corners";
+
+function HatchBand() {
+  return (
+    <div aria-hidden="true" className="relative h-8 border-y bg-hatch">
+      <FrameCorners />
+      <FrameCorners bottom />
+    </div>
+  );
+}
 
 export function AuthLayout({
   title,
@@ -12,24 +22,29 @@ export function AuthLayout({
   footer?: React.ReactNode;
 }) {
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-[400px]">
-        <div className="mb-6 flex items-center justify-center gap-2.5">
-          <BrandMark />
-          <span className="text-lg font-semibold tracking-tight">Intentlock</span>
-        </div>
-        <div className="bg-hatch rounded-2xl border bg-panel p-1.5">
-          <div className="rounded-xl border bg-card p-6 shadow-xs sm:p-7">
+    <main className="min-h-svh bg-hatch">
+      <div className="mx-auto flex min-h-svh w-full max-w-[460px] flex-col border-x bg-background">
+        <header className="relative flex h-14 items-center justify-center gap-2.5 border-b">
+          <BrandMark className="size-7" />
+          <span className="text-[17px] font-semibold tracking-tight">Intentlock</span>
+          <FrameCorners bottom />
+        </header>
+        <div className="flex flex-1 flex-col justify-center py-10">
+          <HatchBand />
+          <section className="px-6 py-8 sm:px-10">
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
             {description && (
               <p className="mt-1.5 text-[13px] text-muted-foreground">{description}</p>
             )}
             <div className="mt-6">{children}</div>
-          </div>
+          </section>
+          <HatchBand />
+          {footer && (
+            <div className="px-6 pt-5 text-center text-[13px] text-muted-foreground sm:px-10">
+              {footer}
+            </div>
+          )}
         </div>
-        {footer && (
-          <div className="mt-5 text-center text-[13px] text-muted-foreground">{footer}</div>
-        )}
       </div>
     </main>
   );

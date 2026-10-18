@@ -84,7 +84,7 @@ export function ResetForm({ token }: { token: string }) {
           required
         />
         <FormError>{error}</FormError>
-        <Button type="submit" size="lg" disabled={pending}>
+        <Button type="submit" size="lg" loading={pending}>
           {pending ? "Saving…" : "Set new password"}
         </Button>
       </form>

@@ -44,10 +44,10 @@ export function HoldCard({
   onResolved: () => void;
 }) {
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [resolving, setResolving] = useState<boolean | null>(null);
 
   async function resolve(approve: boolean) {
-    setBusy(true);
+    setResolving(approve);
     try {
       await api(approve ? API_ENDPOINTS.HOLD_APPROVE : API_ENDPOINTS.HOLD_REJECT, HoldView, {
         method: HttpMethod.POST,
@@ -58,7 +58,7 @@ export function HoldCard({
     } catch (e) {
       toast.error(message(e));
     } finally {
-      setBusy(false);
+      setResolving(null);
       onResolved();
     }
   }
@@ -104,16 +104,22 @@ export function HoldCard({
             className="sm:flex-1"
           />
           <div className="flex gap-2">
-            <Button onClick={() => resolve(true)} disabled={busy} className="flex-1">
-              <Check /> Approve
+            <Button
+              onClick={() => resolve(true)}
+              loading={resolving === true}
+              disabled={resolving === false}
+              className="flex-1"
+            >
+              {resolving !== true && <Check />} Approve
             </Button>
             <Button
               variant="outline"
               onClick={() => resolve(false)}
-              disabled={busy}
+              loading={resolving === false}
+              disabled={resolving === true}
               className="flex-1 text-destructive hover:text-destructive"
             >
-              <X /> Reject
+              {resolving !== false && <X />} Reject
             </Button>
           </div>
         </div>

@@ -1759,4 +1759,27 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes for Abdullah**
 - Your local git remote still points at `AbdullahMukadam/intentgate.git` (GitHub redirects): `git remote set-url origin https://github.com/AbdullahMukadam/intentlock.git`
-- The brand mark in the headers (lock in a black square) and `og.png` are unchanged
+- `og.png` is unchanged
+
+**Follow-up:** the new icon is also the brand mark (Abdullah): site header and footer, docs header, inbox sidebar and sign-in pages use `/apple-touch-icon.png` instead of the lock in a black square. Its background is opaque white, so it blends with `multiply` in light mode and `invert` + `screen` in dark mode (no visible square). The unused `lock-keyhole` icon was removed from the site. The docs type-check test timed out (106 s) when `pnpm test` ran site and inbox in parallel; its timeout is now 180 s (7 s alone)
+
+### 2026-10-18 · Session 20 (cont.) · Landing Sign in button, loading states in the inbox
+
+**Done**
+- Landing header: the Sign in button was as wide as the hero buttons (the base `px-5`/`h-11` won over the header's own size classes) → `lib/button.ts` keeps the size out of the base; new `OUTLINE_BUTTON_SMALL` (32 px high, `px-3`, 13 px text)
+- `@intentlock/ui` `Button`: `loading` prop shows a spinner (`Loader2Icon`), disables the button and sets `aria-busy`
+- Inbox: every submit button uses it (sign in, forgot password, setup, invite accept, password reset, account password, create agent, create API key, onboarding steps, invite member), plus publish policy, run policy test, load more decisions. New `SubmitButton` (`useFormStatus`) for the group editor. Buttons that had no busy state now have one: approve/reject a hold (only the clicked one spins), resend/revoke an invite, revoke an API key, unlink Google/GitHub, sign out other sessions, create/revoke the CLI token. "Continue with Google/GitHub" shows a spinner on the clicked link and ignores further clicks until the page leaves (reset on `pageshow` after Back)
+
+**Numbers**
+- Inbox 97 unit tests, lint and typecheck (inbox, ui, site) green; Prettier clean; landing header screenshot
+
+**Notes for Abdullah**
+- Not seen in a browser (no local `next dev`); no component test for the spinner (needs React Testing Library, backlog)
+
+**Follow-up (same day):** Docker Desktop had stopped (server: `ECONNREFUSED :5432`); restarted it and the existing Postgres/Mailpit containers (no pull). The local demo users (`admin@`, `approver@`, `member@acme-demo.dev`) had no passwords from an older seed, so nobody could sign in: set one shared demo password on those three rows with the server's `hashPassword` (local dev database only, no code change)
+
+**Follow-up 2:** the auth pages (sign in, setup, invite, reset, forgot password) use the landing page's frame: hatched page, bordered column, header with the brand, a hatched band above and below the form with square corner marks where the lines meet the column (`auth-layout.tsx`). Checked with screenshots of Abdullah's running `pnpm dev` (1366 px light, 390 px dark); inbox lint, typecheck, 97 tests, Prettier green
+
+**Follow-up 3:** the dashboard shell uses the same frame: hatched background behind a content column (max 1400 px, bordered left and right once there is room on both sides, ≥ 1656 px), header line with corner marks, sidebar with a right border and a 56 px brand row that lines up with the header (replaces the rounded floating card). Corner marks shared in `components/frame-corners.tsx`. Screenshots of the running dev server at 1920 px light and 1366 px dark (signed in as the demo admin)
+
+**Follow-up 4 (README check):** all ten READMEs read. `apps/server` still said the server prints "the first admin's login token" (gone since ADR-058) → setup code and `/setup`, plus a link to the env reference; `apps/inbox` now mentions `NEXT_PUBLIC_DOCS_URL` and the favicon files; new `apps/site/README.md` (commands, docs location, docs checks, fence titles, build variables, Cloudflare); root README links the user docs. The others (cli, core, sdk, guard, anthropic, demo, evals) were already current. Relative links checked, Prettier clean

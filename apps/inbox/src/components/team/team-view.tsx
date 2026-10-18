@@ -52,6 +52,7 @@ import { useMe } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SecretReveal } from "@/components/secret-reveal";
+import { SubmitButton } from "@/components/submit-button";
 import { InviteMemberForm } from "@/components/team/invite-member-form";
 import { api, apiUrl } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
@@ -246,9 +247,7 @@ function GroupsEditor({
         className="h-8 w-48"
         autoFocus
       />
-      <Button type="submit" size="sm">
-        Save
-      </Button>
+      <SubmitButton size="sm">Save</SubmitButton>
       <Button type="button" size="sm" variant="ghost" onClick={() => onDone(false)}>
         Cancel
       </Button>
@@ -265,7 +264,11 @@ function InvitesPanel({
   onChanged: () => void;
   onReveal: (r: Revealed) => void;
 }) {
+  const [resending, setResending] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+
   async function resend(invite: InviteView) {
+    setResending(invite.id);
     try {
       const res = await api(API_ENDPOINTS.INVITE_RESEND, InviteCreated, {
         method: HttpMethod.POST,
@@ -275,10 +278,12 @@ function InvitesPanel({
     } catch (e) {
       toast.error(errorMessage(e, "Could not resend the invite."));
     }
+    setResending(null);
     onChanged();
   }
 
   async function revoke(invite: InviteView) {
+    setRevoking(invite.id);
     try {
       await api(API_ENDPOINTS.INVITE, z.undefined(), {
         method: HttpMethod.DELETE,
@@ -288,6 +293,7 @@ function InvitesPanel({
     } catch (e) {
       toast.error(errorMessage(e, "Could not revoke the invite."));
     }
+    setRevoking(null);
     onChanged();
   }
 
@@ -352,14 +358,22 @@ function InvitesPanel({
                     )}
                   </TableCell>
                   <TableCell label="" className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => resend(invite)}>
-                      <RotateCcw /> Resend
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => resend(invite)}
+                      loading={resending === invite.id}
+                      disabled={revoking === invite.id}
+                    >
+                      {resending !== invite.id && <RotateCcw />} Resend
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={() => revoke(invite)}
+                      loading={revoking === invite.id}
+                      disabled={resending === invite.id}
                     >
                       Revoke
                     </Button>

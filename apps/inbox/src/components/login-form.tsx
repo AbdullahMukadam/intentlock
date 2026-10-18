@@ -54,7 +54,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
         <form action={submit} className="grid gap-4">
           <FormField label="Email" name="email" type="email" autoComplete="username" required />
           <FormError>{error}</FormError>
-          <Button type="submit" size="lg" disabled={pending}>
+          <Button type="submit" size="lg" loading={pending}>
             {pending ? "Sending…" : "Send reset link"}
           </Button>
         </form>
@@ -142,7 +142,7 @@ export function LoginForm({
             }
           />
           <FormError>{error}</FormError>
-          <Button type="submit" size="lg" disabled={pending}>
+          <Button type="submit" size="lg" loading={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>
         </form>

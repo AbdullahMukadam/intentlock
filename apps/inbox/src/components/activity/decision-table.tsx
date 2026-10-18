@@ -176,7 +176,7 @@ export function DecisionTable({
           {next != null && " shown"}
         </span>
         {next != null && (
-          <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+          <Button variant="outline" size="sm" onClick={loadMore} loading={loadingMore}>
             {loadingMore ? "Loading…" : "Load more"}
           </Button>
         )}

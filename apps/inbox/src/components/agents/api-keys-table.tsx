@@ -44,6 +44,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
   );
   const [revealed, setRevealed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [revoking, setRevoking] = useState<string | null>(null);
 
   async function create(form: FormData) {
     setBusy(true);
@@ -64,6 +65,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
 
   async function revoke(keyId: string, name: string) {
     if (!window.confirm(`Revoke "${name}"? Agents using it can no longer sign new plans.`)) return;
+    setRevoking(keyId);
     try {
       await api(API_ENDPOINTS.AGENT_API_KEY, z.undefined(), {
         method: HttpMethod.DELETE,
@@ -73,6 +75,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
     } catch (e) {
       toast.error(errorMessage(e, "Could not revoke the key."));
     }
+    setRevoking(null);
     reload();
   }
 
@@ -103,8 +106,8 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
                 required
                 className="h-8 w-56"
               />
-              <Button type="submit" size="sm" disabled={busy}>
-                <Plus /> Create key
+              <Button type="submit" size="sm" loading={busy}>
+                {!busy && <Plus />} Create key
               </Button>
             </form>
           </PanelActions>
@@ -166,6 +169,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
                           size="sm"
                           className="text-destructive hover:text-destructive"
                           onClick={() => revoke(k.id, k.name)}
+                          loading={revoking === k.id}
                         >
                           Revoke
                         </Button>

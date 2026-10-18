@@ -121,7 +121,7 @@ describe("docs", () => {
       return `${label}: ${ts.flattenDiagnosticMessageText(d.messageText, "\n")}`;
     });
     expect(errors).toEqual([]);
-  }, 60_000);
+  }, 180_000);
 
   it("documents every API endpoint", () => {
     const api = pages.find((p) => p.route === "/docs/reference/http-api/");

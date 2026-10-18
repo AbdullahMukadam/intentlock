@@ -6,10 +6,12 @@ The [Intentlock](../../README.md) service (NestJS + Prisma + Postgres): signs pl
 docker compose up -d                                   # Postgres (+ Mailpit for the demo)
 cp .env.example .env
 pnpm --filter @intentlock/server prisma migrate dev
-pnpm --filter @intentlock/server dev                   # http://localhost:3000, prints the first admin's login token
+pnpm --filter @intentlock/server dev                   # http://localhost:3000, prints a one-time setup code
 ```
 
-- Configuration is all environment variables (`.env.example`, server section). `SIGNING_KEY` comes from `intentlock keygen`; unset in development, a key is generated and printed once.
+On an empty database the server prints `One-time setup code: …`; open the inbox (`/setup`), paste it and create the first admin. With `INTENTLOCK_DEMO=1`, setup also creates sample users and logs their passwords once.
+
+- Configuration is all environment variables (`.env.example`, server section; every variable: [environment variables](../site/src/content/docs/docs/deployment/environment-variables.md)). `SIGNING_KEY` comes from `intentlock keygen`; unset in development, a key is generated and printed once.
 - Every route needs a session unless marked public (sign-in, health, JWKS) or agent-only (API key). Health: `/health`, `/health/ready`.
 - Stateless: any number of instances can share one database (`docs/DEPLOYMENT.md` §4–5). Migrations never run on boot; run `prisma migrate deploy` as a release step.
 - Tests: `pnpm --filter @intentlock/server test` (uses `TEST_DATABASE_URL`, which the e2e suite wipes).

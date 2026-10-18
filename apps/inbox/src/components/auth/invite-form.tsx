@@ -107,7 +107,7 @@ export function InviteForm({ token, error: oauthError }: { token: string; error:
             hint="At least 12 characters, not containing your email."
           />
           <FormError>{error}</FormError>
-          <Button type="submit" size="lg" disabled={pending}>
+          <Button type="submit" size="lg" loading={pending}>
             {pending ? "Joining…" : "Create account"}
           </Button>
         </form>

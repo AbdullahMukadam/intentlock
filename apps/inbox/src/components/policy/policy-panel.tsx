@@ -189,9 +189,8 @@ export function PolicyPanel({ agentId }: { agentId: string }) {
               />
               <Button
                 onClick={publish}
-                disabled={
-                  busy || !dirty || diagnostics.length > 0 || !message.trim() || conflict !== null
-                }
+                loading={busy}
+                disabled={!dirty || diagnostics.length > 0 || !message.trim() || conflict !== null}
               >
                 {busy ? "Publishing…" : `Publish as v${baseVersion + 1}`}
               </Button>

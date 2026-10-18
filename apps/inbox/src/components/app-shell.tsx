@@ -40,6 +40,7 @@ import { useTheme } from "next-themes";
 import { createContext, use, useEffect, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { FrameCorners } from "@/components/frame-corners";
 import Loader from "@/components/loader";
 import { api } from "@/lib/api";
 import { DOCS_URL } from "@/lib/docs-url";
@@ -172,9 +173,9 @@ function Sidebar({
 }) {
   const client = useQueryClient();
   return (
-    <div className="flex h-full flex-col gap-5 p-3">
-      <div className="flex items-center gap-2.5 px-1.5 pt-1">
-        <BrandMark />
+    <div className="flex h-full flex-col">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4">
+        <BrandMark className="size-7" />
         <div className="min-w-0">
           <div className="text-[15px] leading-tight font-semibold tracking-tight">Intentlock</div>
           <div className="truncate text-xs text-muted-foreground capitalize">
@@ -182,50 +183,52 @@ function Sidebar({
           </div>
         </div>
       </div>
-      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto" aria-label="Main">
-        {NAV.map(({ section, items, docs }) => (
-          <div key={section} className="grid gap-0.5">
-            <div className="px-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-              {section}
-            </div>
-            {items.map(({ href, label, icon: Icon }) => {
-              const active = isActive(pathname, href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={onNavigate}
-                  onMouseEnter={() => prefetchPage(client, href, me.role)}
-                  onFocus={() => prefetchPage(client, href, me.role)}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring/40",
-                    active &&
-                      "border-sidebar-border bg-sidebar-accent font-medium text-foreground shadow-xs",
-                  )}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 p-3">
+        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto" aria-label="Main">
+          {NAV.map(({ section, items, docs }) => (
+            <div key={section} className="grid gap-0.5">
+              <div className="px-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+                {section}
+              </div>
+              {items.map(({ href, label, icon: Icon }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onNavigate}
+                    onMouseEnter={() => prefetchPage(client, href, me.role)}
+                    onFocus={() => prefetchPage(client, href, me.role)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring/40",
+                      active &&
+                        "border-sidebar-border bg-sidebar-accent font-medium text-foreground shadow-xs",
+                    )}
+                  >
+                    <Icon
+                      className={cn("size-4", active ? "text-foreground" : "text-muted-foreground")}
+                    />
+                    {label}
+                  </Link>
+                );
+              })}
+              {docs && DOCS_URL && (
+                <a
+                  href={DOCS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
-                  <Icon
-                    className={cn("size-4", active ? "text-foreground" : "text-muted-foreground")}
-                  />
-                  {label}
-                </Link>
-              );
-            })}
-            {docs && DOCS_URL && (
-              <a
-                href={DOCS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sidebar-foreground outline-none hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                <BookOpen className="size-4 text-muted-foreground" />
-                Docs
-              </a>
-            )}
-          </div>
-        ))}
-      </nav>
-      <UserCard me={me} />
+                  <BookOpen className="size-4 text-muted-foreground" />
+                  Docs
+                </a>
+              )}
+            </div>
+          ))}
+        </nav>
+        <UserCard me={me} />
+      </div>
     </div>
   );
 }
@@ -258,7 +261,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-svh bg-background">
-      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 bg-sidebar md:block">
+      <aside className="sticky top-0 z-20 hidden h-svh w-64 shrink-0 border-r bg-sidebar md:block">
         <Sidebar me={me} license={license} pathname={pathname} />
       </aside>
       {drawer && (
@@ -284,9 +287,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
-      <div className="min-w-0 flex-1 md:py-3 md:pr-3">
-        <div className="flex min-h-svh flex-col bg-card md:min-h-[calc(100svh-1.5rem)] md:rounded-2xl md:border md:shadow-xs">
-          <header className="flex h-14 items-center gap-2 border-b border-dashed px-4 md:px-6">
+      <div className="min-w-0 flex-1 overflow-x-clip bg-hatch">
+        <div className="mx-auto flex min-h-svh w-full max-w-[1400px] flex-col bg-card min-[1656px]:border-x">
+          <header className="relative flex h-14 items-center gap-2 border-b px-4 md:px-6">
+            <FrameCorners bottom />
             <Button
               variant="ghost"
               size="icon-sm"

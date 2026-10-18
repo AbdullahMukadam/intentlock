@@ -85,7 +85,7 @@ export function CreateAgentForm({ onCancel }: { onCancel?: () => void }) {
                   Cancel
                 </Button>
               )}
-              <Button type="submit" disabled={busy}>
+              <Button type="submit" loading={busy}>
                 {busy ? "Creating…" : "Create agent"}
               </Button>
             </div>

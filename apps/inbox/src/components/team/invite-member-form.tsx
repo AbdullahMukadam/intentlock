@@ -105,7 +105,7 @@ export function InviteMemberForm({
               <Button type="button" variant="ghost" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={busy}>
+              <Button type="submit" loading={busy}>
                 {busy ? "Inviting…" : "Create invite"}
               </Button>
             </div>

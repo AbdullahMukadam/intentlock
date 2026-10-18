@@ -1,15 +1,18 @@
 import { cn } from "@intentlock/ui/lib/utils";
-import { LockKeyhole } from "lucide-react";
+import Image from "next/image";
 
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <span
+    <Image
+      src="/apple-touch-icon.png"
+      alt=""
+      width={32}
+      height={32}
+      unoptimized
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs",
+        "size-8 shrink-0 object-contain mix-blend-multiply dark:mix-blend-screen dark:invert",
         className,
       )}
-    >
-      <LockKeyhole className="size-4" strokeWidth={2.25} />
-    </span>
+    />
   );
 }

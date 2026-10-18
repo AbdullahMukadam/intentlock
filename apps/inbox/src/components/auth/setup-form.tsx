@@ -100,7 +100,7 @@ export function SetupForm() {
           hint="At least 12 characters, not containing your email."
         />
         <FormError>{error}</FormError>
-        <Button type="submit" size="lg" disabled={pending}>
+        <Button type="submit" size="lg" loading={pending}>
           {pending ? "Creating your account…" : "Create admin account"}
         </Button>
       </form>

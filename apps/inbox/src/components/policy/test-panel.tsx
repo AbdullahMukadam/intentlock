@@ -207,7 +207,7 @@ export function TestPanel({
             className="w-20"
           />
           <span>decisions</span>
-          <Button onClick={run} disabled={busy || disabled}>
+          <Button onClick={run} loading={busy} disabled={disabled}>
             {busy ? "Testing…" : "Run test"}
           </Button>
           {disabled && <span className="text-xs text-muted-foreground">Fix the errors first.</span>}

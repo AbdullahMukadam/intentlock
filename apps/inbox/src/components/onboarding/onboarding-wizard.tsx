@@ -239,7 +239,7 @@ export function OnboardingWizard() {
               </p>
               <FormError>{error}</FormError>
               <div>
-                <Button type="submit" disabled={busy}>
+                <Button type="submit" loading={busy}>
                   {busy ? "Creating…" : "Create agent"} <ArrowRight />
                 </Button>
               </div>
@@ -266,7 +266,7 @@ export function OnboardingWizard() {
                   />
                   <FormError>{error}</FormError>
                   <div>
-                    <Button type="submit" disabled={busy}>
+                    <Button type="submit" loading={busy}>
                       {busy ? "Creating…" : "Create key"} <ArrowRight />
                     </Button>
                   </div>

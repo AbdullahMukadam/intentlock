@@ -1,6 +1,10 @@
+"use client";
+
 import { API_ENDPOINTS } from "@intentlock/core";
 import { buttonVariants } from "@intentlock/ui/components/button";
 import { cn } from "@intentlock/ui/lib/utils";
+import { Loader2Icon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { apiUrl } from "@/lib/api";
 import { SignInProvider } from "@/lib/enums/sign-in-provider.enum";
@@ -24,6 +28,12 @@ export function ProviderButtons({
   methods: AuthMethods;
   query?: Record<string, string>;
 }) {
+  const [opening, setOpening] = useState<SignInProvider | null>(null);
+  useEffect(() => {
+    const reset = () => setOpening(null);
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
   const enabled = PROVIDERS.filter((p) => methods[p.id]);
   if (enabled.length === 0) return null;
   return (
@@ -32,9 +42,21 @@ export function ProviderButtons({
         <a
           key={id}
           href={providerHref(id, query)}
-          className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}
+          onClick={(e) => (opening ? e.preventDefault() : setOpening(id))}
+          aria-busy={opening === id || undefined}
+          aria-disabled={(opening !== null && opening !== id) || undefined}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "lg" }),
+            "w-full",
+            opening && "cursor-default",
+            opening !== null && opening !== id && "opacity-50",
+          )}
         >
-          <Icon className="size-4" />
+          {opening === id ? (
+            <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Icon className="size-4" />
+          )}
           Continue with {label}
         </a>
       ))}

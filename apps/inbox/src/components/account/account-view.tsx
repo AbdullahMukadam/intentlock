@@ -146,7 +146,7 @@ function PasswordPanel({ account, onChanged }: { account: Account; onChanged: ()
           />
           <FormError>{error}</FormError>
           <div>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" loading={busy}>
               {busy ? "Saving…" : account.hasPassword ? "Change password" : "Set password"}
             </Button>
           </div>
@@ -160,7 +160,10 @@ function MethodsPanel({ account, onChanged }: { account: Account; onChanged: () 
   const methods = useApi(apiUrl(API_ENDPOINTS.AUTH_METHODS), AuthMethods).data;
   const total = (account.hasPassword ? 1 : 0) + account.identities.length;
 
+  const [unlinking, setUnlinking] = useState<SignInProvider | null>(null);
+
   async function unlink(provider: SignInProvider, label: string) {
+    setUnlinking(provider);
     try {
       await api(API_ENDPOINTS.ACCOUNT_IDENTITY, z.undefined(), {
         method: HttpMethod.DELETE,
@@ -170,6 +173,7 @@ function MethodsPanel({ account, onChanged }: { account: Account; onChanged: () 
     } catch (e) {
       toast.error(errorMessage(e, `Could not unlink ${label}.`));
     }
+    setUnlinking(null);
     onChanged();
   }
 
@@ -220,6 +224,7 @@ function MethodsPanel({ account, onChanged }: { account: Account; onChanged: () 
                   disabled={total <= 1}
                   title={total <= 1 ? "Your only sign-in method can't be removed" : undefined}
                   onClick={() => unlink(id, label)}
+                  loading={unlinking === id}
                 >
                   Unlink
                 </Button>
@@ -243,13 +248,17 @@ function SessionsPanel() {
   const { data, error, reload } = useApi(apiUrl(API_ENDPOINTS.ACCOUNT_SESSIONS), AccountSessions);
   const others = data?.filter((s) => !s.current).length ?? 0;
 
+  const [signingOut, setSigningOut] = useState(false);
+
   async function signOutOthers() {
+    setSigningOut(true);
     try {
       await api(API_ENDPOINTS.ACCOUNT_SESSIONS, z.undefined(), { method: HttpMethod.DELETE });
       toast.success("Signed out of your other sessions.");
     } catch (e) {
       toast.error(errorMessage(e, "Could not sign out the other sessions."));
     }
+    setSigningOut(false);
     reload();
   }
 
@@ -262,7 +271,13 @@ function SessionsPanel() {
           {data && <PanelCount>{data.length}</PanelCount>}
         </PanelTitle>
         <PanelActions>
-          <Button variant="outline" size="sm" disabled={others === 0} onClick={signOutOthers}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={others === 0}
+            loading={signingOut}
+            onClick={signOutOthers}
+          >
             Sign out other sessions
           </Button>
         </PanelActions>
@@ -313,8 +328,11 @@ function SessionsPanel() {
 
 function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: () => void }) {
   const [token, setToken] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [revoking, setRevoking] = useState(false);
 
   async function create() {
+    setCreating(true);
     try {
       const res = await api(API_ENDPOINTS.ACCOUNT_CLI_TOKEN, CliToken, { method: HttpMethod.POST });
       setToken(res.token);
@@ -322,9 +340,11 @@ function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: ()
     } catch (e) {
       toast.error(errorMessage(e, "Could not create a CLI token."));
     }
+    setCreating(false);
   }
 
   async function revoke() {
+    setRevoking(true);
     try {
       await api(API_ENDPOINTS.ACCOUNT_CLI_TOKEN, z.undefined(), { method: HttpMethod.DELETE });
       toast.success("CLI token revoked.");
@@ -332,6 +352,7 @@ function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: ()
     } catch (e) {
       toast.error(errorMessage(e, "Could not revoke the CLI token."));
     }
+    setRevoking(false);
     onChanged();
   }
 
@@ -350,11 +371,13 @@ function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: ()
               size="sm"
               className="text-destructive hover:text-destructive"
               onClick={revoke}
+              loading={revoking}
+              disabled={creating}
             >
               Revoke
             </Button>
           )}
-          <Button size="sm" onClick={create}>
+          <Button size="sm" onClick={create} loading={creating} disabled={revoking}>
             {account.cliToken ? "Replace token" : "Create token"}
           </Button>
         </PanelActions>
