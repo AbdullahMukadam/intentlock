@@ -1,17 +1,19 @@
 ---
-import "../styles/site.css";
+import CodeSample from "../components/landing/code-sample.astro";
+import Features from "../components/landing/features.astro";
+import Hero from "../components/landing/hero.astro";
+import HowItWorks from "../components/landing/how-it-works.astro";
+import SelfHost from "../components/landing/self-host.astro";
+import SiteLayout from "../layouts/site-layout.astro";
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Intentlock</title>
-  </head>
-  <body>
-    <main class="mx-auto max-w-6xl border-x px-6 py-24">
-      <h1 class="text-4xl font-semibold tracking-tight">Intentlock</h1>
-      <a href="/docs/" class="text-muted-foreground underline">Docs</a>
-    </main>
-  </body>
-</html>
+<SiteLayout
+  title="Intentlock · Signed plans and approvals for AI agent tool calls"
+  description="Self-hosted, intent-based authorization for LLM agents: signed plans, policies, human approvals and a tamper-evident audit log for every tool call."
+>
+  <Hero />
+  <HowItWorks />
+  <Features />
+  <CodeSample />
+  <SelfHost />
+</SiteLayout>

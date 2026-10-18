@@ -1,7 +1,63 @@
-@import "@intentlock/ui/globals.css";
-@source "../**/*.astro";
+@import "tailwindcss" source("..");
+@import "@intentlock/ui/theme.css";
+@import "./palette.css";
+
+html {
+  scroll-padding-top: 4rem;
+}
+
+body {
+  font-feature-settings: normal;
+}
 
 :root {
-  --font-inter: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono-code: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --astro-code-foreground: var(--foreground);
+  --astro-code-background: var(--panel);
+  --astro-code-token-keyword: var(--code-atom);
+  --astro-code-token-constant: var(--code-number);
+  --astro-code-token-string: var(--code-string);
+  --astro-code-token-string-expression: var(--code-string);
+  --astro-code-token-comment: var(--code-comment);
+  --astro-code-token-function: var(--code-key);
+  --astro-code-token-parameter: var(--foreground);
+  --astro-code-token-punctuation: var(--code-punctuation);
+  --astro-code-token-link: var(--code-key);
+}
+
+.code-panel code {
+  font-family: var(--font-mono-code);
+}
+
+.halftone-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-7deg) scaleY(0.78);
+}
+
+.halftone-ring > span {
+  position: absolute;
+  inset: 0;
+}
+
+.halftone-ring > span:first-child {
+  background-image: radial-gradient(var(--foreground) 0.95px, transparent 1.35px);
+  background-size: 5px 5px;
+  mask-image: radial-gradient(
+    closest-side,
+    transparent 52%,
+    rgb(0 0 0 / 0.55) 60%,
+    #000 66%,
+    #000 82%,
+    rgb(0 0 0 / 0.4) 92%,
+    transparent 98%
+  );
+}
+
+.halftone-ring > span:last-child {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--foreground) 0 1.6px,
+    transparent 1.6px 3.6px
+  );
+  mask-image: radial-gradient(closest-side, transparent 64%, #000 69.5%, #000 79%, transparent 85%);
 }

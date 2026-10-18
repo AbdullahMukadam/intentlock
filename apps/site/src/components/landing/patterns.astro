@@ -1,0 +1,25 @@
+---
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+---
+
+<defs>
+  <pattern id={`${id}-dots`} width="4" height="4" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="0.95" fill="currentColor"></circle>
+  </pattern>
+  <pattern
+    id={`${id}-lines`}
+    width="4"
+    height="4"
+    patternUnits="userSpaceOnUse"
+    patternTransform="rotate(45)"
+  >
+    <rect width="1.7" height="4" fill="currentColor"></rect>
+  </pattern>
+  <pattern id={`${id}-stripes`} width="8" height="7" patternUnits="userSpaceOnUse">
+    <rect width="8" height="3.2" fill="currentColor"></rect>
+  </pattern>
+</defs>

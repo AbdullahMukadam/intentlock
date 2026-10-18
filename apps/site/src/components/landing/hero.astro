@@ -1,0 +1,54 @@
+---
+import { OUTLINE_BUTTON, PRIMARY_BUTTON } from "../../lib/button";
+import { DOCS_PATH } from "../../lib/links";
+import Icon from "../icon.astro";
+import Corners from "./corners.astro";
+import HalftoneRing from "./halftone-ring.astro";
+
+const PROVIDERS = ["OpenAI", "Anthropic", "Gemini", "Groq", "Ollama", "Your own LLM"];
+---
+
+<section aria-labelledby="hero-title" class="relative">
+  <div class="relative z-10 flex flex-col items-center px-5 pt-20 text-center sm:pt-28">
+    <h1
+      id="hero-title"
+      class="max-w-3xl text-[2.25rem] leading-[1.05] font-medium tracking-[-0.045em] text-balance sm:text-5xl md:text-[3.5rem]"
+    >
+      Signed plans and approvals for AI agent tool calls
+    </h1>
+    <p
+      class="mt-6 max-w-[34rem] text-base leading-relaxed text-pretty text-muted-foreground sm:text-[17px]"
+    >
+      Your agent declares a plan, Intentlock signs it, and every tool call is checked against it:
+      allow, block, or hold for a human. Every decision lands in a tamper-evident audit log.
+    </p>
+    <div class="mt-9 flex flex-wrap justify-center gap-3">
+      <a href={DOCS_PATH} class={PRIMARY_BUTTON}>
+        Read the docs
+        <Icon name="arrow-right" />
+      </a>
+      <a href="#self-host" class={OUTLINE_BUTTON}>Self-host in a minute</a>
+    </div>
+  </div>
+  <HalftoneRing class="mt-6 h-[210px] sm:h-[320px]" />
+</section>
+<div aria-hidden="true" class="bg-hatch relative h-8 border-y">
+  <Corners />
+</div>
+<section aria-labelledby="providers-title" class="relative border-b">
+  <h2 id="providers-title" class="border-b py-5 text-center text-sm font-medium">
+    Works with any model that calls tools
+  </h2>
+  <ul class="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
+    {
+      PROVIDERS.map((name) => (
+        <li class="flex h-24 items-center justify-center bg-background text-xl font-semibold tracking-[-0.03em] text-foreground/70">
+          {name}
+        </li>
+      ))
+    }
+  </ul>
+  <span class="absolute inset-x-0 bottom-0 block translate-y-full">
+    <Corners />
+  </span>
+</section>

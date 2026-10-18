@@ -1,0 +1,81 @@
+---
+import { OUTLINE_BUTTON, PRIMARY_BUTTON } from "../../lib/button";
+import { DOCS_PATH, GITHUB_URL } from "../../lib/links";
+import Icon from "../icon.astro";
+import CodePanel from "./code-panel.astro";
+import Corners from "./corners.astro";
+import SectionHeading from "./section-heading.astro";
+
+const COMMANDS = `BASE=https://raw.githubusercontent.com/AbdullahMukadam/intentgate/main/deploy
+curl -fsSLO $BASE/docker-compose.selfhost.yml
+curl -fsSL $BASE/selfhost.env.example -o .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
+echo "SIGNING_KEY=\\"$(openssl genpkey -algorithm ed25519)\\"" >> .env
+docker compose -f docker-compose.selfhost.yml up -d`;
+
+const OPTIONS = [
+  {
+    title: "Self-host bundle",
+    text: "Postgres, server, inbox and nginx on one origin with Docker Compose. The server prints a one-time setup code for the first admin.",
+  },
+  {
+    title: "Free hosting",
+    text: "Vercel for the inbox, Render for the server, Neon for Postgres. No credit card; the docs walk through every step.",
+  },
+];
+
+const LICENSES = [
+  {
+    title: "MIT for the SDKs you embed",
+    text: "@intentlock/core, sdk, guard and anthropic. Use them anywhere, including closed-source products.",
+  },
+  {
+    title: "Elastic License 2.0 for the server and inbox",
+    text: "Run and modify it for your team; not to be offered as a hosted service. A missing license key only changes limits, never enforcement.",
+  },
+];
+---
+
+<section aria-labelledby="self-host" class="relative">
+  <Corners />
+  <SectionHeading id="self-host" title="Your server, your audit log, running in a minute" />
+  <div class="grid gap-px border-t bg-border lg:grid-cols-[3fr_2fr]">
+    <CodePanel name="terminal · Docker Compose ≥ 2.23" code={COMMANDS} lang="bash" />
+    <ul class="grid gap-px bg-border">
+      {
+        OPTIONS.map(({ title, text }) => (
+          <li class="bg-background px-5 py-7 sm:px-6">
+            <h3 class="font-medium tracking-[-0.015em]">{title}</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+  <ul class="grid gap-px border-t bg-border md:grid-cols-2">
+    {
+      LICENSES.map(({ title, text }) => (
+        <li class="bg-background px-5 py-7 sm:px-6">
+          <h3 class="font-medium tracking-[-0.015em]">{title}</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{text}</p>
+        </li>
+      ))
+    }
+  </ul>
+  <div class="relative flex flex-col items-center border-t px-5 py-24 text-center">
+    <Corners />
+    <h2 class="text-[2rem] font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+      Put your agents on a plan.
+    </h2>
+    <p class="mt-4 max-w-md text-muted-foreground">
+      Open source SDKs, a self-hosted server, and an audit log you can check yourself.
+    </p>
+    <div class="mt-9 flex flex-wrap justify-center gap-3">
+      <a href={DOCS_PATH} class={PRIMARY_BUTTON}>
+        Get started
+        <Icon name="arrow-right" />
+      </a>
+      <a href={GITHUB_URL} class={OUTLINE_BUTTON}>View on GitHub</a>
+    </div>
+  </div>
+</section>

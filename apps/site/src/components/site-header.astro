@@ -1,0 +1,52 @@
+---
+import { OUTLINE_BUTTON } from "../lib/button";
+import { DOCS_PATH, GITHUB_URL, SIGN_IN_URL } from "../lib/links";
+import BrandMark from "./brand-mark.astro";
+import Corners from "./landing/corners.astro";
+
+const NAV = [
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#features", label: "Features" },
+  { href: "/#self-host", label: "Self-host" },
+  { href: DOCS_PATH, label: "Docs" },
+  { href: GITHUB_URL, label: "GitHub" },
+];
+---
+
+<header class="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md">
+  <a
+    href="#main"
+    class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-card focus:px-3 focus:py-2"
+  >
+    Skip to content
+  </a>
+  <div
+    class="relative mx-auto grid h-13 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 border-x px-4 sm:px-6 md:grid-cols-[1fr_auto_1fr]"
+  >
+    <span class="absolute inset-x-0 bottom-0 block translate-y-full">
+      <Corners />
+    </span>
+    <a href="/" class="flex items-center gap-2.5 text-[17px] font-semibold tracking-[-0.02em]">
+      <BrandMark />
+      Intentlock
+    </a>
+    <nav aria-label="Main" class="hidden items-center gap-7 text-sm md:flex">
+      {
+        NAV.map(({ href, label }) => (
+          <a href={href} class="text-foreground/75 transition-colors hover:text-foreground">
+            {label}
+          </a>
+        ))
+      }
+    </nav>
+    <div class="flex items-center justify-end gap-1">
+      <a
+        href={DOCS_PATH}
+        class="inline-flex h-8 items-center rounded-[5px] px-3 text-sm font-medium hover:bg-muted md:hidden"
+      >
+        Docs
+      </a>
+      <a href={SIGN_IN_URL} class:list={[OUTLINE_BUTTON, "h-8 px-3.5 text-sm"]}>Sign in</a>
+    </div>
+  </div>
+</header>

@@ -1,9 +1,10 @@
 @import "@intentlock/ui/tokens.css";
+@import "./palette.css";
 
 :root,
 :root[data-theme="light"] {
-  --sl-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --sl-font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --sl-font: var(--font-inter);
+  --sl-font-mono: var(--font-mono-code);
   --sl-color-white: var(--foreground);
   --sl-color-gray-1: color-mix(in oklch, var(--foreground) 88%, var(--background));
   --sl-color-gray-2: color-mix(in oklch, var(--foreground) 76%, var(--background));

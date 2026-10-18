@@ -1,0 +1,16 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div aria-hidden="true" class:list={["relative overflow-hidden", className]}>
+  <div class="absolute top-0 left-1/2 aspect-square w-[min(900px,150%)] -translate-x-1/2">
+    <div class="halftone-ring">
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+</div>

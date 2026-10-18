@@ -1617,3 +1617,65 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Port the landing page to Astro
+
+### 2026-10-18 · Session 19 (cont.) · Phase 6.6 — Landing page in `apps/site`
+
+**Done**
+- Abdullah approved the scaffold commit (`f138c17`)
+- The landing page from the reverted inbox version ported to `.astro` components (hero with halftone ring, "works with" row, 5-step how it works, three illustrated pillars + six features, guard and policy code sample, self-host commands, free hosting, licensing, closing call to action), with its own layout (header, footer, skip link)
+- Theme: an inline script in the head sets `data-theme` from Starlight's saved choice (`starlight-theme`) or the system setting, so the landing page and the docs follow the same switch
+- Sign in links come from `INBOX_URL` through `astro:env` (optional, must be a URL); without it they are left out
+- Icons: the eight lucide icons the page uses copied as inline SVG paths (`icon.astro`), so the site needs no React
+- Metadata: title, description, canonical and `og:url` when `SITE_URL` is set, Open Graph and Twitter tags, `favicon.svg`, `og.png` (1200×630)
+- `@intentlock/ui`: the Tailwind theme (`@theme`, dark variant, base layer, `bg-hatch`) moved from `globals.css` into `theme.css`, so the site imports Tailwind with `source("..")` and does not scan the inbox
+
+**Problems hit and how they were solved**
+- Importing the full `globals.css` made Tailwind scan every app (its `@source` covers `apps/**`): landing CSS 89 kB → `theme.css` split, 24 kB
+- Making the Open Graph PNG offline: Edge's new headless mode shrinks the viewport below `--window-size` and the old mode is gone → a scratch Node script drives Edge over the DevTools protocol with an exact 1200×630 viewport. The same script took full-page screenshots of `astro preview` (desktop light and dark, 375 px phone) to check the page
+- The hero headline wrapped onto three lines at desktop width → wider hero container (two lines, like the reference)
+- Abdullah's own `astro dev` on port 4321 kept the old `@intentlock/ui` exports in its cache and showed "./theme.css is not exported" → needs a restart
+
+**Numbers**
+- Landing page: 28.5 kB HTML (6.2 kB gzipped), 24 kB CSS, 2.5 kB prefetch script (1.1 kB gzipped); `astro build` ~8 s
+- Site lint, `astro check` (0 errors), Prettier clean; inbox typecheck and 89 unit tests green after the theme split
+
+**Notes for Abdullah**
+- The GitHub links point at `AbdullahMukadam/intentgate`, which is private: visitors get a 404 until it is public
+- Restart your `astro dev` to pick up the new `theme.css` export
+
+**Next**
+- Docs: Starlight pages (introduction, quick start, concepts, SDK guide, policy reference, CLI, HTTP API, deployment, security model, licensing), one source of truth with USAGE / DEPLOYMENT, code-sample and link checks
+
+### 2026-10-18 · Session 19 (cont.) · Phase 6.6 — Landing page polish
+
+**Done**
+- Abdullah's review: not as clean as the reference. Changes he asked for: the hero headline all black (no grey second line), no background dots, Geist Sans and Geist Mono, a cleaner and more polished page
+- Fonts: `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` 5.3.0 (Abdullah approved the install; ADR-067), bundled and served from the site
+- `palette.css`: the fonts plus a neutral palette for the site (white background, pure greys, near-black primary; a neutral dark theme), shared by the landing page and the docs
+- Look closer to the reference: nav centred between logo and Sign in; small corner marks where section lines meet the frame; buttons with a slight bevel (gradient + inset highlight) and 5 px corners; mono tags with a filled square marker; medium-weight headings with tighter tracking; roomier cards; feature icons in small bordered tiles; plain closing call to action with a subline
+- Halftone ring: the second mask layer was not intersected in Edge and showed a faint dotted square around the ring → one radial mask per layer with the fade built into its stops
+- Open Graph image rebuilt in Geist on white, matching the page
+
+**Numbers**
+- Checked with screenshots of `astro preview` (desktop light and dark, 390 px phone, full-size hero and features)
+- Site lint, `astro check` (0 errors) and Prettier clean
+
+### 2026-10-18 · Session 19 (cont.) · Phase 6.6 — Landing page, second review
+
+**Done** (Abdullah's second review)
+- Hero badge ("v0.1 · Intent-based authorization") removed; hero headline smaller (56 px at desktop, was 76 px)
+- Section headings all black: `SectionHeading` takes one `title`, no grey second half
+- Sign in is always in the header and footer: `INBOX_URL` now defaults to `http://localhost:3001` (the inbox dev port) instead of hiding the link when unset. This changes ADR-066 point 6; production still sets `INBOX_URL` at build
+- Step numbers (01–05) removed from "How it works"
+- Syntax highlighting for the three code blocks (`agent.ts`, `policy.yaml`, the terminal) with Astro's built-in `<Code>` (Shiki at build time, no client JS) in one `code-panel` component; both panels in a row stretch to the same height
+
+**Problems hit and how they were solved**
+- `<Code themes={{ light: "github-light", dark: "github-dark" }}>` failed the build ("Theme `github-light` is not included in this bundle") although Shiki 4.5 lists it → `theme="css-variables"`, with the `--astro-code-*` variables mapped to the `--code-*` tokens from `@intentlock/ui` (the inbox policy editor's colours), so light and dark follow the theme with no second Shiki theme
+
+**Numbers**
+- Screenshots of `astro preview`: full page light, code section light and dark
+- Site lint, `astro check` (0 errors), Prettier clean
+
+**Follow-up:** Abdullah meant every tag-style label, not only the hero badge (I had read "remove these tags" too narrowly). Removed the section labels, the card labels, the licence labels (licence names moved into the card titles) and the chips under the "How it works" steps; `tag.astro` deleted
+
+**Follow-up 2:** less space above section headings (was 80–96 px, now 48–56 px, same as below); header 52 px high (was 64) with smaller padding and Sign in button, and corner marks where its bottom line meets the frame; code blocks no longer scroll: the long lines in the samples are reflowed, the terminal commands use a `BASE` variable for the raw GitHub URL, and `<Code wrap>` wraps anything that is still too long on small screens

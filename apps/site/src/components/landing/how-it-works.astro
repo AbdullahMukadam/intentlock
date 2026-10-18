@@ -1,0 +1,51 @@
+---
+import Icon from "../icon.astro";
+import Corners from "./corners.astro";
+import SectionHeading from "./section-heading.astro";
+
+const STEPS = [
+  {
+    title: "Declare",
+    text: "Before it reads anything untrusted, the agent lists the tools it will call, optionally with pinned arguments.",
+  },
+  {
+    title: "Sign",
+    text: "Intentlock signs the plan with the agent's active policy version. A refresh never widens it.",
+  },
+  {
+    title: "Check",
+    text: "Every tool call the model makes is checked against the signed plan and the policy, in your process.",
+  },
+  {
+    title: "Decide",
+    text: "Allowed calls run. Blocked calls return an error to the model. Held calls wait for a person.",
+  },
+  {
+    title: "Audit",
+    text: "Every decision is appended to a hash-chained log you can verify in the inbox or offline.",
+  },
+];
+---
+
+<section aria-labelledby="how-it-works" class="relative border-b">
+  <Corners />
+  <SectionHeading id="how-it-works" title="One plan per request, checked on every tool call" />
+  <ol class="grid gap-px border-t bg-border md:grid-cols-5">
+    {
+      STEPS.map((step, i) => (
+        <li class="relative flex flex-col bg-background px-5 py-8 sm:px-6">
+          <h3 class="text-lg font-medium tracking-[-0.02em]">{step.title}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{step.text}</p>
+          {i < STEPS.length - 1 && (
+            <span
+              aria-hidden="true"
+              class="absolute top-1/2 -right-3 z-10 hidden size-6 -translate-y-1/2 items-center justify-center border border-input bg-background md:flex"
+            >
+              <Icon name="chevron-right" class="size-3.5" />
+            </span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</section>

@@ -334,9 +334,9 @@ Added on 2026-10-17 after Phase 6.5 was merged: visitors need a page that explai
 - [x] Removable: no package or app imports `apps/site`; deleting the folder leaves `pnpm install`, `build`, `test`, `lint`, `typecheck` working (STRUCTURE and README say so)
 
 **Landing page** (`/`)
-- [ ] One page in the style of Abdullah's reference (framed grid with hatched sides, dotted hero, mono tags, two-tone headings, halftone art in CSS/SVG): what Intentlock does (declare → sign → check → allow / block / hold → audit) with a diagram, the main features (policies and versions, holds and the approval inbox, hybrid gate, audit chain verify, provider-agnostic guard, fail closed), how to run it (self-host bundle, free hosting), licensing (MIT SDKs, ELv2 server), a short code sample, links to Docs, GitHub and Sign in
-- [ ] Light and dark, works at phone width, accessible (headings, contrast, keyboard, skip link), page metadata and an Open Graph image
-- [ ] Static HTML with no client JavaScript on the landing page
+- [x] One page in the style of Abdullah's reference (framed grid with hatched sides, dotted hero, mono tags, two-tone headings, halftone art in CSS/SVG): what Intentlock does (declare → sign → check → allow / block / hold → audit) with a diagram, the main features (policies and versions, holds and the approval inbox, hybrid gate, audit chain verify, provider-agnostic guard, fail closed), how to run it (self-host bundle, free hosting), licensing (MIT SDKs, ELv2 server), a short code sample, links to Docs, GitHub and Sign in
+- [x] Light and dark, works at phone width, accessible (headings, contrast, keyboard, skip link), page metadata and an Open Graph image
+- [x] Static HTML; the only scripts on the landing page are the inline theme script and Astro's link prefetch (Starlight turns it on; 1.1 kB gzipped)
 
 **Docs (Starlight, `/docs`)**
 - [ ] Sidebar, built-in search (Pagefind, static), theme matching the landing page

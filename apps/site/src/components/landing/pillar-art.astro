@@ -1,0 +1,88 @@
+---
+import Patterns from "./patterns.astro";
+
+export type PillarArt = "cube" | "sphere" | "chain";
+
+interface Props {
+  art: PillarArt;
+}
+
+const { art } = Astro.props;
+---
+
+<svg viewBox="0 0 160 160" aria-hidden="true" class="size-36 text-foreground">
+  <Patterns id={art} />
+  {
+    art === "cube" && (
+      <>
+        <polygon points="80,18 142,52 80,86 18,52" fill="url(#cube-dots)" />
+        <polygon points="18,52 80,86 80,150 18,116" fill="url(#cube-lines)" />
+        <polygon points="80,86 142,52 142,116 80,150" fill="currentColor" opacity="0.88" />
+        <ellipse cx="49" cy="102" rx="13" ry="18" fill="currentColor" opacity="0.75" />
+        <polygon
+          points="80,18 142,52 142,116 80,150 18,116 18,52"
+          fill="none"
+          stroke="currentColor"
+          stroke-opacity="0.35"
+        />
+      </>
+    )
+  }
+  {
+    art === "sphere" && (
+      <>
+        <defs>
+          <radialGradient id="sphere-shade" cx="0.36" cy="0.3" r="0.75">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.25" />
+            <stop offset="0.6" stop-color="#fff" stop-opacity="0.85" />
+            <stop offset="1" stop-color="#fff" />
+          </radialGradient>
+          <mask id="sphere-mask">
+            <circle cx="80" cy="80" r="58" fill="url(#sphere-shade)" />
+          </mask>
+        </defs>
+        <circle cx="80" cy="80" r="62" fill="url(#sphere-dots)" opacity="0.35" />
+        <g mask="url(#sphere-mask)">
+          <rect x="18" y="18" width="124" height="124" fill="url(#sphere-stripes)" />
+        </g>
+        <circle cx="80" cy="80" r="58" fill="none" stroke="currentColor" stroke-opacity="0.3" />
+      </>
+    )
+  }
+  {
+    art === "chain" && (
+      <>
+        <rect
+          x="16"
+          y="16"
+          width="62"
+          height="62"
+          rx="12"
+          fill="none"
+          stroke="url(#chain-dots)"
+          stroke-width="16"
+        />
+        <rect
+          x="49"
+          y="49"
+          width="62"
+          height="62"
+          rx="12"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="14"
+        />
+        <rect
+          x="82"
+          y="82"
+          width="62"
+          height="62"
+          rx="12"
+          fill="none"
+          stroke="url(#chain-lines)"
+          stroke-width="16"
+        />
+      </>
+    )
+  }
+</svg>

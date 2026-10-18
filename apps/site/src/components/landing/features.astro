@@ -1,0 +1,90 @@
+---
+import Icon, { type IconName } from "../icon.astro";
+import Corners from "./corners.astro";
+import PillarArt, { type PillarArt as Art } from "./pillar-art.astro";
+import SectionHeading from "./section-heading.astro";
+
+const PILLARS: { art: Art; title: string; text: string }[] = [
+  {
+    art: "cube",
+    title: "Prompt injection can't widen the scope",
+    text: "The plan is fixed before untrusted text is read. Anything that text asks for outside the plan is blocked.",
+  },
+  {
+    art: "sphere",
+    title: "Policies per agent, people in the loop",
+    text: "YAML rules for scope, amounts, recipients and who may approve. Risky calls wait in the approval inbox.",
+  },
+  {
+    art: "chain",
+    title: "A log you can verify",
+    text: "Each decision is hash-chained to the one before it. Verify the chain in the inbox or offline.",
+  },
+];
+
+const FEATURES: { icon: IconName; title: string; text: string }[] = [
+  {
+    icon: "shield-x",
+    title: "Fail closed",
+    text: "Server down, bad signature, expired token or a failed audit write: the call is blocked.",
+  },
+  {
+    icon: "history",
+    title: "Immutable policy versions",
+    text: "Live validation, dry-runs against past calls, diff, publish and roll back.",
+  },
+  {
+    icon: "inbox",
+    title: "Approval inbox",
+    text: "Holds show up live with the call, its arguments and the plan.",
+  },
+  {
+    icon: "layers",
+    title: "Hybrid gate",
+    text: "Decisions are made in your process; audit entries go to a local outbox first.",
+  },
+  {
+    icon: "bot",
+    title: "Provider-agnostic guard",
+    text: "One tool loop for OpenAI-compatible APIs, Anthropic, or your own provider.",
+  },
+  {
+    icon: "server",
+    title: "Self-hosted",
+    text: "Server, inbox and Postgres in one deployment per team. Your data stays with you.",
+  },
+];
+---
+
+<section aria-labelledby="features" class="relative border-b">
+  <Corners />
+  <SectionHeading id="features" title="Built to fail closed and to show its work" />
+  <ul class="grid gap-px border-t bg-border md:grid-cols-3">
+    {
+      PILLARS.map(({ art, title, text }) => (
+        <li class="flex flex-col bg-background px-5 pt-5 pb-8 sm:px-6">
+          <div class="flex h-64 items-center justify-center">
+            <PillarArt art={art} />
+          </div>
+          <h3 class="text-xl leading-snug font-medium tracking-[-0.025em] text-balance">{title}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
+        </li>
+      ))
+    }
+  </ul>
+  <ul class="grid gap-px border-t bg-border sm:grid-cols-2 lg:grid-cols-3">
+    {
+      FEATURES.map(({ icon, title, text }) => (
+        <li class="flex gap-4 bg-background px-5 py-7 sm:px-6">
+          <span class="flex size-9 shrink-0 items-center justify-center border border-input bg-card shadow-[0_1px_2px_rgb(0_0_0/0.05)]">
+            <Icon name={icon} class="size-[18px]" strokeWidth={1.75} />
+          </span>
+          <div>
+            <h3 class="font-medium tracking-[-0.015em]">{title}</h3>
+            <p class="mt-1 text-sm leading-relaxed text-muted-foreground">{text}</p>
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+</section>

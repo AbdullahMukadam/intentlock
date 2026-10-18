@@ -22,7 +22,7 @@ intentlock/
 │   ├── cli/                        # `intentlock` CLI: audit verify, keygen, policy validate
 │   ├── evals/                      # prompt-injection scenario suite + runner
 │   ├── mcp-proxy/                  # (stretch) MCP stdio proxy
-│   ├── ui/                         # shared shadcn/ui components + design tokens (styles/tokens.css, light + dark for `.dark` and `[data-theme="dark"]`; styles/globals.css = Tailwind + tokens) and Panel, Badge (ADR-059)
+│   ├── ui/                         # shared shadcn/ui components + design tokens (styles/tokens.css, light + dark for `.dark` and `[data-theme="dark"]`; styles/theme.css = Tailwind theme on top of the tokens; styles/globals.css = Tailwind + theme + sources for the inbox) and Panel, Badge (ADR-059)
 │   └── config/                     # shared tsconfig presets + eslint config incl. import-boundary rules (§4)
 ├── deploy/
 │   ├── docker-compose.selfhost.yml # what customers run: server + inbox + Postgres + nginx (GHCR images); nginx single-origin config inline
@@ -489,14 +489,27 @@ src/
 Static public website: the landing page at `/`, the user docs at `/docs`. Nothing imports it and it is in no Docker image or the self-host bundle, so it can be deleted (then run `pnpm install` once to drop it from the lockfile). Builds locally with no downloads (`pnpm --filter @intentlock/site build`, output in `dist/`).
 
 ```
-astro.config.ts                     # static output, Starlight (docs sidebar, customCss), Tailwind via @tailwindcss/vite, no image service
+astro.config.ts                     # static output, Starlight (docs sidebar, customCss), Tailwind via @tailwindcss/vite, no image service,
+                                    # astro:env schema (INBOX_URL, URL, default http://localhost:3001, build time)
+public/                             # favicon.svg, og.png (1200×630 social image)
 src/
 ├── content.config.ts               # Starlight docs collection
 ├── content/docs/docs/              # docs pages (Markdown/MDX), served under /docs
 ├── pages/index.astro               # landing page
+├── layouts/site-layout.astro       # landing frame: meta + Open Graph, inline theme script (shares Starlight's saved theme), header, footer
+├── components/
+│   ├── site-header.astro · site-footer.astro · brand-mark.astro
+│   ├── icon.astro                  # the few lucide icons the landing page uses, as inline SVG
+│   └── landing/                    # hero, how-it-works, features, code-sample, self-host, section-heading,
+│                                   # code-panel (astro:components <Code>, css-variables theme mapped to the --code-* tokens),
+│                                   # corners (frame corner marks), halftone-ring + pillar-art + patterns (CSS/SVG halftone art)
+├── lib/
+│   ├── links.ts                    # DOCS_PATH, GITHUB_URL, SIGN_IN_URL (INBOX_URL + /login; INBOX_URL defaults to http://localhost:3001)
+│   └── button.ts                   # primary / outline button classes
 └── styles/
-    ├── site.css                    # landing: @intentlock/ui globals (Tailwind + tokens), system font stacks
-    └── starlight.css               # docs: @intentlock/ui tokens mapped to Starlight's --sl-color-* (light and dark)
+    ├── palette.css                 # Geist Sans + Geist Mono (Fontsource, ADR-067) and the site's neutral light/dark palette; used by both files below
+    ├── site.css                    # landing: Tailwind (scans apps/site only) + @intentlock/ui theme + palette, halftone ring
+    └── starlight.css               # docs: @intentlock/ui tokens + palette mapped to Starlight's --sl-color-* and fonts
 ```
 
 ## 4. Dependency rules

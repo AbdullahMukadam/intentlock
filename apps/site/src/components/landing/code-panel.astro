@@ -1,0 +1,28 @@
+---
+import { Code } from "astro:components";
+import type { ComponentProps } from "astro/types";
+
+interface Props {
+  name: string;
+  code: string;
+  lang: ComponentProps<typeof Code>["lang"];
+}
+
+const { name, code, lang } = Astro.props;
+---
+
+<figure class="flex min-w-0 flex-col bg-background">
+  <figcaption
+    class="flex items-center gap-2 border-b px-5 py-3 font-mono text-xs text-muted-foreground sm:px-6"
+  >
+    <span aria-hidden="true" class="size-2 bg-foreground"></span>
+    {name}
+  </figcaption>
+  <Code
+    code={code}
+    lang={lang}
+    theme="css-variables"
+    wrap
+    class="code-panel flex-1 px-5 py-6 font-mono text-[12.5px] leading-[1.7] sm:px-6"
+  />
+</figure>

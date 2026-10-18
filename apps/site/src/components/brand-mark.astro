@@ -1,0 +1,18 @@
+---
+import Icon from "./icon.astro";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = "size-7" } = Astro.props;
+---
+
+<span
+  class:list={[
+    "flex shrink-0 items-center justify-center rounded-[6px] bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.18)]",
+    className,
+  ]}
+>
+  <Icon name="lock-keyhole" class="size-[55%]" strokeWidth={2.25} />
+</span>

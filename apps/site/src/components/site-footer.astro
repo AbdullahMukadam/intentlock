@@ -1,0 +1,30 @@
+---
+import { DOCS_PATH, GITHUB_URL, SIGN_IN_URL } from "../lib/links";
+import BrandMark from "./brand-mark.astro";
+
+const LINKS = [
+  { href: DOCS_PATH, label: "Docs" },
+  { href: GITHUB_URL, label: "GitHub" },
+  { href: SIGN_IN_URL, label: "Sign in" },
+];
+---
+
+<footer class="border-t bg-background">
+  <div
+    class="mx-auto flex max-w-6xl flex-col gap-4 border-x px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8"
+  >
+    <div class="flex items-center gap-2 text-[13px] text-muted-foreground">
+      <BrandMark class="size-6" />
+      <span>Intentlock · SDKs under MIT · server and inbox under the Elastic License 2.0</span>
+    </div>
+    <nav aria-label="Footer" class="flex gap-5 text-[13px]">
+      {
+        LINKS.map(({ href, label }) => (
+          <a href={href} class="text-muted-foreground hover:text-foreground">
+            {label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</footer>

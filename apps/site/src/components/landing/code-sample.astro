@@ -1,0 +1,60 @@
+---
+import CodePanel from "./code-panel.astro";
+import Corners from "./corners.astro";
+import SectionHeading from "./section-heading.astro";
+
+const AGENT = `import {
+  createGuard,
+  providerFromEnv,
+  toolset,
+} from "@intentlock/guard";
+import { HybridGate } from "@intentlock/sdk";
+
+const gate = new HybridGate({
+  baseUrl: process.env.INTENTLOCK_URL!,
+  apiKey: process.env.INTENTLOCK_API_KEY!,
+});
+
+const guard = createGuard({
+  provider: providerFromEnv(),
+  gate,
+  ...toolset([listIssues, postComment]),
+});
+
+await guard.run({
+  user: "alice@acme.dev",
+  task: "Triage open issues in acme/public-app",
+});`;
+
+const POLICY = `version: 1
+default: block
+rules:
+  - id: only-public-repo
+    match:
+      tool: "github_*"
+      args: { repo: { notGlob: acme/public-app } }
+    decision: block
+    reason: Only acme/public-app is in scope
+
+  - id: hold-comments
+    match: { tool: github_post_comment }
+    decision: hold
+    approvers: { roles: [approver, admin] }
+
+  - id: allow-in-plan
+    match: { inPlan: true }
+    decision: allow`;
+
+const FILES = [
+  { name: "agent.ts", code: AGENT, lang: "ts" as const },
+  { name: "policy.yaml", code: POLICY, lang: "yaml" as const },
+];
+---
+
+<section aria-labelledby="code" class="relative border-b">
+  <Corners />
+  <SectionHeading id="code" title="Wrap your tool loop, write a policy" />
+  <div class="grid gap-px border-t bg-border lg:grid-cols-2">
+    {FILES.map((file) => <CodePanel {...file} />)}
+  </div>
+</section>
