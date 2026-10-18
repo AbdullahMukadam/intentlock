@@ -16,7 +16,7 @@ const NODE_IO = [
   "@prisma/*",
   "pg",
 ];
-const APPS = ["@intentlock/server", "@intentlock/inbox", "@intentlock/demo"];
+const APPS = ["@intentlock/server", "@intentlock/inbox", "@intentlock/demo", "@intentlock/site"];
 const ELV2_PACKAGES = ["@intentlock/cli", "@intentlock/evals", "@intentlock/mcp-proxy"];
 
 // What each workspace package may NOT import. Arrows in STRUCTURE §4 point at what is allowed.
@@ -50,6 +50,7 @@ const BANNED = {
     ...PROVIDER_SDKS,
   ],
   demo: ["@intentlock/cli", "@intentlock/evals", ...APPS],
+  site: [...ELV2_PACKAGES, ...APPS, ...PROVIDER_SDKS],
 };
 
 // Boundaries apply to shipped code and tests, not to config files like eslint.config.js.
@@ -78,7 +79,7 @@ export function intentlock(pkg, ...extra) {
   const banned = BANNED[pkg];
   if (!banned) throw new Error(`Unknown package "${pkg}" in @intentlock/config/eslint`);
   return defineConfig(
-    { ignores: ["dist/**", "coverage/**", ".next/**", "next-env.d.ts"] },
+    { ignores: ["dist/**", "coverage/**", ".next/**", ".astro/**", "next-env.d.ts"] },
     js.configs.recommended,
     tseslint.configs.recommended,
     {

@@ -323,33 +323,31 @@ Added on 2026-10-17 after the first deploy (Vercel → Render → Neon): switchi
 
 ---
 
-## Phase 6.6 · Landing page and docs site (inbox) — `apps/inbox`
+## Phase 6.6 · Public website (landing page and docs) — `apps/site`
 
-Added on 2026-10-17 after Phase 6.5 was merged: the hosted instance should explain Intentlock to visitors and carry its documentation, in the inbox app rather than a separate site. Decided with Abdullah: the landing page is `/` for visitors without a session (signed-in users keep the Overview at `/`); landing and docs are public **only when an env flag is on** (our hosted instance), so a self-hosted team inbox keeps "nothing visible without signing in" by default; docs are built with Fumadocs. Replaces the Phase 7 docs-site item.
+Added on 2026-10-17 after Phase 6.5 was merged: visitors need a page that explains Intentlock and the documentation. First planned inside the inbox behind an env flag; changed the same day with Abdullah to a **separate static site in `apps/site`, built with Astro + Starlight**, so the inbox stays private with no exception ("nothing visible without signing in" is unchanged) and self-hosted teams never get marketing pages. Nothing depends on `apps/site`; anyone who does not want it can delete the folder. Replaces the Phase 7 docs-site item.
 
-**Access and routing**
-- [ ] ADR: public landing and docs pages as an explicit, flag-gated exception to "nothing in the inbox is visible without signing in" (PRD, ARCHITECTURE §5.6). The pages are static, make no API calls and show no team data; the server's default deny does not change
-- [ ] Env flag for the inbox (e.g. `INTENTLOCK_PUBLIC_SITE`), off by default; documented in DEPLOYMENT (env table, §9 for our instance, self-host bundle stays off); declared in `turbo.json` if the build reads it
-- [ ] `proxy.ts`: flag on and no session cookie → `/` shows the landing page and `/docs/*` is readable; every other app page still redirects to `/login`. With a session: `/` is the Overview and `/docs` stays readable. Flag off: exactly today's behaviour (`/` and `/docs` redirect to `/login`)
-- [ ] The landing and docs pages use their own layout (no app shell, no `/v1/me` call, no socket); the app sidebar gets a "Docs" link when the flag is on; sign in / sign out links in the right places
+**Setup**
+- [x] ADR: public website as its own Astro + Starlight app (`apps/site`), why not inside the inbox, why Astro over Fumadocs; removable; one source of truth for USAGE / DEPLOYMENT text
+- [x] Ask before adding `astro`, `@astrojs/starlight` and `@tailwindcss/vite` (new dependencies, exact versions, ADR); ARCHITECTURE allowed dependencies
+- [x] `apps/site`: `package.json` (`@intentlock/site`, private, ELv2), `astro.config.mjs` (static output, Starlight docs under `/docs`), Tailwind 4 with the theme tokens from `@intentlock/ui` (light and dark), `dev`/`build`/`typecheck`/`lint`/`test` scripts that Turbo picks up; `INBOX_URL` (build time) for the Sign in links; not in any Docker image or the self-host bundle
+- [x] Removable: no package or app imports `apps/site`; deleting the folder leaves `pnpm install`, `build`, `test`, `lint`, `typecheck` working (STRUCTURE and README say so)
 
-**Landing page**
-- [ ] One page: what Intentlock does (agent declares a plan → Intentlock signs it → every tool call is checked → allow / block / hold → tamper-evident audit), a diagram of that flow, the main features (policies and versions, holds and the approval inbox, hybrid gate, audit chain verify, provider-agnostic guard), how to run it (self-host bundle, free hosting), licensing (MIT SDKs, ELv2 server), a short code sample, links to Docs, GitHub and Sign in
-- [ ] Built with `@intentlock/ui` and the inbox theme (light and dark), works at phone width, accessible (headings, contrast, keyboard), page metadata and an Open Graph image
-- [ ] Static: prerendered and served from Vercel's cache (`X-Vercel-Cache: HIT`), no client-side data fetching
+**Landing page** (`/`)
+- [ ] One page in the style of Abdullah's reference (framed grid with hatched sides, dotted hero, mono tags, two-tone headings, halftone art in CSS/SVG): what Intentlock does (declare → sign → check → allow / block / hold → audit) with a diagram, the main features (policies and versions, holds and the approval inbox, hybrid gate, audit chain verify, provider-agnostic guard, fail closed), how to run it (self-host bundle, free hosting), licensing (MIT SDKs, ELv2 server), a short code sample, links to Docs, GitHub and Sign in
+- [ ] Light and dark, works at phone width, accessible (headings, contrast, keyboard, skip link), page metadata and an Open Graph image
+- [ ] Static HTML with no client JavaScript on the landing page
 
-**Docs (Fumadocs)**
-- [ ] Ask before adding: `fumadocs-core`, `fumadocs-ui`, `fumadocs-mdx` (new runtime dependencies, ADR); check they work with Next 16, React 19, Tailwind 4, `reactCompiler`, `typedRoutes` and `output: "standalone"`
-- [ ] `/docs` in the inbox: MDX content in `apps/inbox/content/docs/`, sidebar and page tree, built-in search, theme matching the inbox
-- [ ] One source of truth: decide (in the ADR) how `docs/USAGE.md` and the user-facing parts of `docs/DEPLOYMENT.md` relate to the MDX pages, so the same text is not maintained twice
+**Docs (Starlight, `/docs`)**
+- [ ] Sidebar, built-in search (Pagefind, static), theme matching the landing page
 - [ ] Pages: introduction; quick start (self-host bundle, first admin, first agent); concepts (plans and tokens, policies and versions, verdicts, holds, audit chain, hybrid vs remote gate); SDK guide (`core`, `sdk`, `guard`, `anthropic`, from USAGE); policy reference (every rule type); CLI; HTTP API (from `API_ENDPOINTS`); deployment (self-host, free hosting, env variables); security model; licensing
+- [ ] One source of truth: the user-facing text lives in the site; `docs/USAGE.md` and the user-facing parts of `docs/DEPLOYMENT.md` point to it instead of repeating it (per the ADR)
 - [ ] Code samples in the docs are type-checked against the packages in a test, and internal links are checked, so the docs cannot drift silently
 
-**Tests**
-- [ ] `proxy` tests: flag on/off × with/without session cookie × `/`, `/docs`, `/docs/<page>`, an app page
-- [ ] Public pages make no `/api` request and render without a session (test or measured on the preview); docs sample and link checks green
+**Deploy**
+- [ ] Second Vercel project (root `apps/site`, static); DEPLOYMENT §9 step; the inbox links to the docs (sidebar "Docs" → site URL, build-time env, hidden when unset)
 
-**Acceptance:** with the flag on and signed out, `/` shows the landing page and `/docs` is readable and searchable, while every app page still redirects to `/login`; signed in, `/` is the Overview and the docs are one click away; with the flag off nothing public is added (proxy tests); landing and docs come from Vercel's cache on the preview; `pnpm test && pnpm lint && pnpm typecheck` green. Note: no local `next build` (fonts download), so builds are checked on the Vercel preview.
+**Acceptance:** `astro build` works locally (no font download) and the site runs on the Vercel preview: `/` is the landing page, `/docs` is readable and searchable, light/dark and phone width checked; the inbox is unchanged and still private (its proxy tests untouched); deleting `apps/site` leaves the other apps' install, build and tests green; `pnpm test && pnpm lint && pnpm typecheck` green.
 
 ---
 
@@ -361,7 +359,7 @@ Added on 2026-10-17 after Phase 6.5 was merged: the hosted instance should expla
 - [ ] Second-admin approval for policy changes (paid feature candidate)
 - [ ] Per-tool argument redaction in the dashboard (paid feature candidate)
 - [ ] Audit retention purge per license `retentionDays` (with verifiable export before purge)
-- ~~Docs site (Next.js / Fumadocs) in the monorepo~~ moved to Phase 6.6 (in the inbox, flag-gated)
+- ~~Docs site (Next.js / Fumadocs) in the monorepo~~ moved to Phase 6.6 (`apps/site`, Astro + Starlight)
 - [ ] Taint tracking: mark data from private sources and hold writes that contain it
 - [ ] OpenTelemetry spans for checks
 - [ ] Cross-instance live events via Postgres `LISTEN/NOTIFY` (DEPLOYMENT §6.1)

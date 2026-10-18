@@ -1,0 +1,25 @@
+@import "@intentlock/ui/tokens.css";
+
+:root,
+:root[data-theme="light"] {
+  --sl-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sl-font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: color-mix(in oklch, var(--foreground) 88%, var(--background));
+  --sl-color-gray-2: color-mix(in oklch, var(--foreground) 76%, var(--background));
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: color-mix(in oklch, var(--foreground) 40%, var(--background));
+  --sl-color-gray-5: color-mix(in oklch, var(--foreground) 16%, var(--background));
+  --sl-color-gray-6: var(--muted);
+  --sl-color-gray-7: var(--panel);
+  --sl-color-black: var(--background);
+  --sl-color-accent-low: var(--muted);
+  --sl-color-accent: var(--primary);
+  --sl-color-accent-high: var(--foreground);
+  --sl-color-text-invert: var(--primary-foreground);
+  --sl-color-bg-nav: var(--background);
+  --sl-color-bg-sidebar: var(--background);
+  --sl-color-bg-inline-code: var(--muted);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline: var(--border);
+}

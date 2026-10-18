@@ -1547,3 +1547,73 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes**
 - Needs an ADR for the flag-gated exception to the PRD's "nothing in the inbox is visible without signing in", and Abdullah's go-ahead plus an ADR for the Fumadocs dependencies
 - Builds can only be checked on the Vercel preview (no local `next build`: fonts download)
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.6 — Public-site flag and routing
+
+**Done**
+- ADR-066: public landing and docs as an opt-in exception to "nothing visible without signing in"; PRD, ARCHITECTURE §5.6, DEPLOYMENT (env table, §9.1 steps 6 and 10, setup notes) and STRUCTURE updated
+- Inbox flag `INTENTLOCK_PUBLIC_SITE` (`1` = on, like `INTENTLOCK_DEMO`; build time, declared on `build` in `turbo.json`; in `apps/inbox/.env.example`, empty). `lib/public-site.ts`: `isPublicSite()`, `isDocsPath()`
+- `proxy.ts`: flag on and no session → `/` is rewritten to `/landing` and `/docs`, `/docs/*` pass; signed in → as before; flag off → as before for every path. `/landing` itself always redirects to `/`, so it is only reachable through the rewrite
+
+**Numbers**
+- Inbox: 116 unit tests green (proxy: 45, incl. the flag on/off × cookie × `/`, `/docs`, `/docs/<page>`, `/holds` table, `0`/`true` not counting as on, `/docsx` not counting as docs, `/landing` redirect); lint, Prettier, `tsc` clean
+
+**Notes**
+- With the flag on, `/` without a session rewrites to a page that does not exist yet (404) until the landing page task; the flag is off everywhere until then
+- Fumadocs' default search route is `/api/search`, which our `/api/*` rewrite sends to the server and the proxy skips; the docs task has to put search elsewhere (or use static search)
+
+**Next**
+- Landing and docs layout without the app shell, sidebar "Docs" link; then the landing page
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.6 — Landing page
+
+**Done**
+- Design from Abdullah's reference (monochrome, framed grid with hatched sides, dotted hero, mono tag labels, two-tone headings, halftone art). The halftone ring and the three card illustrations are CSS gradients and inline SVG patterns in `currentColor`, so there are no image files and dark mode inverts them
+- `(site)` route group with its own layout (sticky header with section links, Docs, GitHub, Sign in; footer with the licences): no app shell, no `/v1/me`, no socket
+- `/landing`: hero, "works with" row (OpenAI, Anthropic, Gemini, Groq, Ollama, your own LLM), how it works (declare → sign → check → allow/block/hold → audit as a 5-step diagram), features (signed plans, policies and holds, audit chain + fail closed, policy versions, approval inbox, hybrid gate, provider-agnostic guard, self-hosted), code sample (guard + policy, from USAGE), self-host commands (from README), free hosting, licensing, closing call to action
+- Page metadata (title, description, canonical `/`, Open Graph, Twitter) and `app/opengraph-image.tsx` (`next/og`, static); `/opengraph-image` is public with the flag on (proxy + tests)
+
+**Numbers**
+- Inbox: 118 unit tests green; lint, Prettier, `tsc` clean. Not seen in a browser yet (no local `next dev`/`next build`): layout at phone width, dark mode, the halftone art and `X-Vercel-Cache: HIT` are checked on the Vercel preview
+
+**Notes for Abdullah**
+- The GitHub links point at `AbdullahMukadam/intentgate`, which is private: visitors get a 404 until it is public
+- `/docs` links 404 until the Fumadocs task; the sidebar "Docs" link comes with it
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.6 — Change of direction: separate Astro site
+
+**Done**
+- Abdullah decided to move the landing page and docs out of the inbox into a separate static site, `apps/site`, built with Astro + Starlight. The two entries above (flag, proxy routing, landing page in the inbox) were never committed and are reverted: the inbox is exactly as on `main`, still fully private with no flag. The landing components are kept outside the repo to port
+- PLAN Phase 6.6 rewritten for `apps/site`: setup (ADR, dependencies, scaffold, removable), landing page, Starlight docs, deploy as a second Vercel project
+
+**Decisions**
+- A separate app over a flag inside the inbox: no exception to "nothing visible without signing in", self-hosted teams never see marketing pages, and the site can be deleted without touching anything else
+- Astro + Starlight over Fumadocs: static HTML by default, static search (Pagefind, no clash with the inbox's `/api/*` rewrite), no fit risk with Next 16 / `typedRoutes` / `reactCompiler`, and it builds locally without downloading fonts
+- `apps/site` rather than `apps/docs`, so it is not confused with the root `docs/` (design docs)
+
+**Next**
+- ADR and the dependency list for Abdullah's approval before any install
+
+### 2026-10-17 · Session 19 (cont.) · Phase 6.6 — `apps/site` scaffold
+
+**Done**
+- ADR-066 accepted; Abdullah approved the install. `astro@7.4.0`, `@astrojs/starlight@0.42.6`, `@tailwindcss/vite@4.3.3`, dev `@astrojs/check@0.9.10` in `apps/site` only (versions from the npm registry on 2026-10-17); ARCHITECTURE allowed dependencies
+- `apps/site` (`@intentlock/site`, private, ELv2): `astro.config.ts` (static, Starlight with docs under `/docs`, Tailwind 4 through Vite, `passthroughImageService`), content collection, a placeholder landing page and docs intro, `dev`/`build`/`preview`/`typecheck` (`astro check`)/`lint`/`test` scripts; `SITE_URL` and `INBOX_URL` declared on `build` in `turbo.json`; `.astro/` in `.gitignore`, `.prettierignore`, `.dockerignore`
+- Theme shared with the inbox: the `@intentlock/ui` tokens moved from `globals.css` into `tokens.css` (exported), dark tokens now apply to `.dark` (inbox, next-themes) and `[data-theme="dark"]` (Starlight). The docs map them to Starlight's `--sl-color-*` without Tailwind; the landing page imports the full `globals.css`. The site uses system font stacks (no font download)
+- Removable: `@intentlock/site` added to the ESLint `APPS` list (nothing may import it) and a `site` entry in the import rules (no ELv2 packages, apps or provider SDKs); STRUCTURE (tree, `apps/site` section, graph) and README say it can be deleted
+
+**Problems hit and how they were solved**
+- Starlight 0.39+ no longer accepts `label` on an `autogenerate` sidebar entry → a group with `items: [{ autogenerate }]`
+- ESLint flagged `process` in `astro.config.mjs` → `astro.config.ts`, like the inbox's `next.config.ts`
+
+**Numbers**
+- Install: 122 packages downloaded, 1,003 reused from the store, ~3 min
+- `astro build` locally, offline: `/`, `/docs/`, `/404.html` and the Pagefind index in ~13 s
+- Repo `pnpm lint` 13/13 and `pnpm typecheck` 14/14 green (includes `astro check`: 0 errors); inbox 89 unit tests green after the token split
+
+**Notes for Abdullah**
+- The server and inbox Docker builds run `pnpm fetch` + a full install, so their build stage now also downloads the site's packages (not in the final images)
+- Deleting `apps/site` needs one `pnpm install` afterwards to drop it from the lockfile
+
+**Next**
+- Port the landing page to Astro

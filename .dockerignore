@@ -1,6 +1,7 @@
 **/node_modules
 **/dist
 **/.next
+**/.astro
 **/.turbo
 **/coverage
 **/*.tsbuildinfo

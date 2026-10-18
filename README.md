@@ -198,6 +198,9 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 | [`apps/server`](apps/server)                                 | NestJS policy, hold and audit service                                    | ELv2    |
 | [`apps/inbox`](apps/inbox)                                   | Next.js approval inbox, policy editor, dashboard                         | ELv2    |
 | [`apps/demo`](apps/demo), [`packages/evals`](packages/evals) | Demo agents, eval suite                                                  | ELv2    |
+| [`apps/site`](apps/site)                                     | Public website: landing page and docs (Astro + Starlight)                | ELv2    |
+
+`apps/site` is optional: nothing depends on it and it is not part of the self-host bundle. Delete the folder and run `pnpm install` if you don't need it.
 
 Development: [`CONTRIBUTING.md`](CONTRIBUTING.md). Design docs: [`docs/`](docs).
 

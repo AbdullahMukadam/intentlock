@@ -7,7 +7,7 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "env": ["API_URL", "DEMO_RUNNER_URL"]
+      "env": ["API_URL", "DEMO_RUNNER_URL", "SITE_URL", "INBOX_URL"]
     },
     "test": {
       "dependsOn": ["^build"],

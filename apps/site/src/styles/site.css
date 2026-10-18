@@ -1,0 +1,7 @@
+@import "@intentlock/ui/globals.css";
+@source "../**/*.astro";
+
+:root {
+  --font-inter: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono-code: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+}

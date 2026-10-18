@@ -3,5 +3,6 @@ CLAUDE.md
 pnpm-lock.yaml
 **/dist/
 **/.next/
+**/.astro/
 **/coverage/
 apps/server/prisma/migrations/

@@ -64,6 +64,7 @@ temp
 *.pem
 apps/demo/sandbox/
 apps/server/src/generated/
+.astro/
 
 # Self-host bundle local files
 deploy/license/

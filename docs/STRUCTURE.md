@@ -12,7 +12,8 @@ intentlock/
 ├── apps/
 │   ├── server/                     # NestJS policy + audit service
 │   ├── inbox/                      # Next.js approval inbox, audit viewer, split-screen demo page
-│   └── demo/                       # three demo agents (github, support, files), setup + seed scripts, runner
+│   ├── demo/                       # three demo agents (github, support, files), setup + seed scripts, runner
+│   └── site/                       # public website: landing page + docs (Astro + Starlight, static; ADR-066). Optional: delete it if you don't need it
 ├── packages/
 │   ├── core/                       # pure: schemas, hashing, tokens, plan matching, policy engine, check(), audit hashing
 │   ├── sdk/                        # Gate interface: HybridGate (+ outbox), HttpGate, LocalGate, PassThroughGate
@@ -21,7 +22,7 @@ intentlock/
 │   ├── cli/                        # `intentlock` CLI: audit verify, keygen, policy validate
 │   ├── evals/                      # prompt-injection scenario suite + runner
 │   ├── mcp-proxy/                  # (stretch) MCP stdio proxy
-│   ├── ui/                         # shared shadcn/ui components + design tokens (styles/globals.css) and Panel, Badge (ADR-059)
+│   ├── ui/                         # shared shadcn/ui components + design tokens (styles/tokens.css, light + dark for `.dark` and `[data-theme="dark"]`; styles/globals.css = Tailwind + tokens) and Panel, Badge (ADR-059)
 │   └── config/                     # shared tsconfig presets + eslint config incl. import-boundary rules (§4)
 ├── deploy/
 │   ├── docker-compose.selfhost.yml # what customers run: server + inbox + Postgres + nginx (GHCR images); nginx single-origin config inline
@@ -483,6 +484,21 @@ src/
 └── receiver.ts                     # `run receiver`: the receiver on 127.0.0.1:8787, prints what arrives
 ```
 
+### `apps/site` — Astro + Starlight (ADR-066)
+
+Static public website: the landing page at `/`, the user docs at `/docs`. Nothing imports it and it is in no Docker image or the self-host bundle, so it can be deleted (then run `pnpm install` once to drop it from the lockfile). Builds locally with no downloads (`pnpm --filter @intentlock/site build`, output in `dist/`).
+
+```
+astro.config.ts                     # static output, Starlight (docs sidebar, customCss), Tailwind via @tailwindcss/vite, no image service
+src/
+├── content.config.ts               # Starlight docs collection
+├── content/docs/docs/              # docs pages (Markdown/MDX), served under /docs
+├── pages/index.astro               # landing page
+└── styles/
+    ├── site.css                    # landing: @intentlock/ui globals (Tailwind + tokens), system font stacks
+    └── starlight.css               # docs: @intentlock/ui tokens mapped to Starlight's --sl-color-* (light and dark)
+```
+
 ## 4. Dependency rules
 
 ```mermaid
@@ -498,6 +514,7 @@ flowchart BT
     demo["apps/demo"] --> guard
     inbox["apps/inbox"] -.->|pure validation in the browser| core
     inbox --> ui["ui"]
+    site["apps/site"] -->|theme tokens| ui
 ```
 
 `packages/config` is a dev-only dependency of every package and app (tsconfig + lint presets); it is left out of the graph.
