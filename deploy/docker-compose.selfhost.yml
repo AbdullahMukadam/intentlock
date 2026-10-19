@@ -1,7 +1,7 @@
 name: intentlock-selfhost
 
 x-server: &server
-  image: ghcr.io/abdullahmukadam/intentlock-server:${INTENTLOCK_VERSION:-0.2.0}
+  image: ghcr.io/abdullahmukadam/intentlock-server:${INTENTLOCK_VERSION:-0.2.1}
   build:
     context: ..
     dockerfile: apps/server/Dockerfile
@@ -63,7 +63,7 @@ services:
         condition: service_completed_successfully
 
   inbox:
-    image: ghcr.io/abdullahmukadam/intentlock-inbox:${INTENTLOCK_VERSION:-0.2.0}
+    image: ghcr.io/abdullahmukadam/intentlock-inbox:${INTENTLOCK_VERSION:-0.2.1}
     build:
       context: ..
       dockerfile: apps/inbox/Dockerfile

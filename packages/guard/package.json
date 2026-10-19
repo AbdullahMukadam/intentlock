@@ -1,6 +1,6 @@
 {
   "name": "@intentlock/guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Provider-agnostic agent guard: LLMProvider interface, planner, guarded tool loop.",
   "private": false,
   "license": "MIT",

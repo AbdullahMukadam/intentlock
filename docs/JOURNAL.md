@@ -1923,3 +1923,77 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Abdullah: commit, merge to `main`, `npm login`, `pnpm release` (publishes the five packages, pushes `v0.2.0`; CI builds the 0.2.0 images)
+
+### 2026-10-19 · Session 22 · Phase 6.7 — Docs site polish, TriStack triage-bot plan
+
+**Done**
+- Docs home links the MCP proxy page (it existed but the deployed site predates it; redeploy needed)
+- Every docs page has "Copy Markdown" and an "Open" menu (GitHub source, View as Markdown, ChatGPT, Claude, Cursor) in `components/docs/page-actions.astro`; brand marks from Simple Icons (Cursor from Lobe Icons, recoloured to `currentColor`)
+- Each docs page is also served as raw Markdown at `/<slug>.md` (`src/pages/[...slug].md.ts`, shared `lib/markdown.ts`); the LLM links point the model at it
+- Sidebar rewritten as explicit groups by task (Get started, How it works, SDK, Reference, Self-hosting, Project), all expanded; MCP proxy listed as "Protect an MCP server" under Get started; the two gates pages labelled "Hybrid vs remote" and "Configure a gate"; dead `sidebar.order` frontmatter removed. URLs unchanged
+- PLAN.md: "Early user 1: TriStack issue-triage bot" under Phase 6.7 Launch
+
+**Problems hit and how they were solved**
+- Python rewrites on Windows saved files with CRLF, which broke the docs test's code-fence parser (3 failures) → normalised every touched file to LF
+- Port 4321 held by a running `pnpm dev` that showed `FailedToLoadModuleSSR` after the new files appeared → previewed the build on another port; the dev server needs a restart
+
+**Numbers**
+- Site: typecheck 0 errors, lint clean, build 27 pages plus one `.md` per page, tests 9/9
+
+**Next**
+- TriStack triage bot, first task of "Early user 1" in PLAN.md (work happens in the TriStack repo on a `triage-bot` branch)
+
+**Notes for Abdullah**
+- Site changes are uncommitted; commit and redeploy the site (`SITE_URL` set at build) for the MCP proxy page, page actions and new sidebar to go live
+- A new docs page must now be added to the sidebar list in `apps/site/astro.config.ts`
+
+### 2026-10-19 · Session 23 · Phase 6.7 — TriStack triage bot package
+
+**Done**
+- Early user 1, first task: bot package, tools, workflow and tests on TriStack's `triage-bot` branch (TriStack commit `8461b43d`)
+  - `.github/triage-bot/`: standalone Node 22 package (npm, outside the Bun workspaces), runs `node src/main.ts` with Node's type stripping, no build step; depends on published `@intentlock/guard` and `@intentlock/sdk` 0.2.0 plus `zod` (`@intentlock/core` as a dev dependency for the tests)
+  - Tools `github_get_issue`, `github_list_labels`, `github_search_issues`, `github_add_label` (label is a zod enum of the 22 triage labels), `github_post_comment`; no close, edit, PR or file tools
+  - `policy.yaml`: `only-tristack`, `known-labels` (`in` list), `hold-comments` (admin/approver, 1800 s), `allow-in-plan`; guard `holdTimeoutMs` 30 min, job timeout 45 min
+  - `.github/workflows/triage.yaml`: `workflow_dispatch` with an issue number, `issues: write` + `contents: read`, sparse checkout of the bot only, model `gemini-3.5-flash-lite` (ADR-012)
+
+**Problems hit and how they were solved**
+- A query like `fastapi repo:other/x` would make GitHub search also cover the other repo (two `repo:` qualifiers are ORed), outside what the policy sees → the search tool drops every `word:value` token from the model's query; test pins the final `q`
+- The guard runs one turn's calls in parallel, so asserted write and block order was flaky → tests sort before comparing
+- TriStack's oxlint `anti-slop` rules flag `unknown` parameters and `typeof` checks → typed the GitHub request body and parse labels as objects only
+
+**Decisions**
+- Plain `fetch` to the GitHub REST API instead of Octokit: five endpoints, one fewer dependency (no ADR; small and local to the bot)
+
+**Numbers**
+- Bot tests 7/7 (three runs in a row), `tsc --noEmit` clean, oxlint clean, 49 npm packages installed
+
+**Next**
+- Agent, member user, API key and policy in the deployed Intentlock; policy validated and dry-run
+
+**Notes for Abdullah**
+- `workflow_dispatch` only works for workflows on the default branch, so the live run needs `triage.yaml` on TriStack `main` first (or a test repo)
+- Labels `python`, `go`, `rust`, the framework labels and `needs-repro` do not exist in TriStack yet; GitHub creates them with a default colour on first use, so create them first if colours matter
+- TriStack needs secrets `INTENTLOCK_URL`, `INTENTLOCK_API_KEY`, `LLM_API_KEY` and a repo variable `TRIAGE_USER` (the bot member's email)
+- The `triage-bot` branch is committed locally, not pushed
+
+### 2026-10-19 · Session 23 (cont.) · Phase 6.7 — First live triage run, two HybridGate audit bugs
+
+**Done**
+- TriStack: `triage.yaml` alone on `main` (`5cfcdaa0`, pushed by Abdullah; `workflow_dispatch` needs the file on the default branch), `triage-bot` pushed; the bot logs gate errors through `onError` (`e6ac151d`); test issue #18 (FastAPI bug report)
+- Fixed in `packages/sdk` (uncommitted, not released), tests in `test/unit/hybrid/hybrid-gate.test.ts` (first `HybridGate` unit tests, fake server with a real signed token)
+
+**Problems hit and how they were solved**
+- Live run on #18: plan signed, `github_get_issue` and one `github_add_label` allowed, every other call in the turn blocked with `audit_write_failed` (the bot failed closed, job green). The error was invisible until the bot passed `onError`: a ZodError on `usage[1]`. `HybridGate` snapshots the per-step usage with `[...u]`; the array is sparse when a later step is used before an earlier one, so the snapshot has `undefined` holes and `hashClientEntry` rejects it → `Array.from(u, (n) => n ?? 0)`. `LocalGate` writes no entries, so the bot's FakeProvider tests could not see it
+- Found while checking that code: when all required steps have run, `report()` marks the plan complete and, once acked, `MemoryOutbox` deleted the plan state; the next entry restarted at `clientSeq` 1 with the genesis hash. The server rejects it as `conflicts_with_stored` but still acks through its last seq, so the SDK drops it: decisions after completion were missing from the audit log. The outbox now removes the files but keeps `{ clientSeq, localHash }` of the last entry. Ceiling: a process restart after completion still loses the head (files are gone), and one small object per finished plan stays in memory
+
+**Numbers**
+- sdk 36/36 (both new tests fail without the fixes), guard 43 + 1 skipped, mcp-proxy 20/20; sdk typecheck, lint, prettier clean. Server e2e (`hybrid.e2e.test.ts`) not run (needs the test database)
+- Live runs: 2 runs on #18, each ~20 s, 7 decisions per run (2 allow, 5 `audit_write_failed`)
+
+**Next**
+- Release 0.2.1 with the fix, bump the bot to it, rerun #18: labels, a held comment approved in the inbox, then an injected issue
+
+**Notes for Abdullah**
+- The model's final text claimed four labels were added when only one was; the audit log, not the model's summary, is the record
+- Both live runs left a pending hold in the inbox: `HybridGate.check` creates the hold on the server before the outbox append, and when the append failed it returned `audit_write_failed` without cancelling the hold, so approving it did nothing. Gone in practice with the usage fix; whether the gate should cancel the hold on a failed append is open (needs a server route)
+- Release 0.2.1 prepared (five packages, self-host bundle default, env docs, CHANGELOG heading); Abdullah runs `pnpm release`

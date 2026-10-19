@@ -48,7 +48,7 @@ These are read by `docker-compose.selfhost.yml` from `.env`, next to the server 
 | --- | --- | --- |
 | `POSTGRES_PASSWORD` | | Required. Password of the bundled Postgres. |
 | `HTTP_PORT` | `8080` | Port nginx listens on. |
-| `INTENTLOCK_VERSION` | the bundle's release (`0.2.0`) | Image tag to run. Change it to upgrade. |
+| `INTENTLOCK_VERSION` | the bundle's release (`0.2.1`) | Image tag to run. Change it to upgrade. |
 
 The bundle sets `DATABASE_URL`, `DIRECT_URL` and `TRUST_PROXY` itself.
 

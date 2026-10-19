@@ -366,6 +366,26 @@ Added on 2026-10-19 with Abdullah after reviewing an outside MVP list. The produ
 - [ ] Find 2–3 early users (start now, in parallel with the items above); note who and their workload in the journal, without personal details
 - [ ] Fix what they hit (false blocks, confusing errors, setup friction); each fix gets a test and a journal line
 
+**Early user 1: TriStack issue-triage bot** (added 2026-10-19 with Abdullah)
+
+TriStack (`github.com/AbdullahMukadam/tristack`, local `C:\Users\Abdullah\Desktop\tristack`) is Abdullah's open-source CLI that scaffolds Python, Go and Rust backends; it launches publicly on 2026-10-20. The bot triages its new issues, guarded by Intentlock: real public issues are the prompt-injection surface, so this is dogfooding, not a staged demo. The TriStack launch never waits on the bot.
+
+- **Where:** a branch `triage-bot` in the TriStack repo (never `main` until it works). The bot is a standalone Node 22 package in `.github/triage-bot/` (own `package.json`, outside TriStack's Bun workspaces, so the CLI build is untouched) plus `.github/workflows/triage.yaml`. It depends on the published `@intentlock/guard`, `@intentlock/sdk` 0.2.0 and `zod`; follow `/docs/protect-your-agent/`. Intentlock code is never copied into TriStack.
+- **Trigger:** `issues: opened` and `workflow_dispatch` with an issue number (for testing). Task given to the guard: "Triage issue #N in AbdullahMukadam/tristack". The plan is made from this task before the issue body is read.
+- **Tools** (adapted from `apps/demo/src/agents/github/tools.ts`, Octokit with the workflow's `GITHUB_TOKEN`, permissions `issues: write`, `contents: read`): `github_get_issue`, `github_list_labels`, `github_search_issues` (similar issues), `github_add_label`, `github_post_comment`. No close, edit, PR or file tools exist at all.
+- **What it does:** labels language and framework (`python`, `go`, `rust`, `fastapi`, `axum`, ...) and type (`bug`, `enhancement`, `question`, `needs-repro`); comments asking for missing details (`tristack --version`, OS, the exact command and chosen options) and links likely duplicates.
+- **Policy** (agent `tristack-triage`, published in the deployed inbox): `default: block`; block any `github_*` call whose `repo` is not `AbdullahMukadam/tristack`; `github_add_label` only with `label` `in` the fixed label list; hold every `github_post_comment` for `admin`/`approver` (`timeoutSeconds` 1800) for at least the first week; allow the rest in plan. Validate with `intentlock policy validate` and dry-run sample calls (including an injected off-repo read and an unknown label) before publishing.
+- **Identity:** the plan's `user` is a dedicated team member (for example a `triage-bot` member account), not Abdullah, so Abdullah can approve its holds without `self: true`.
+- **Model:** `LLM_PROVIDER=openai-compatible`, `gemini-3.5-flash-lite` on Gemini's free tier (ADR on model choice). Backups only if it rate-limits: GitHub Models (free in Actions, `models: read`) or Groq, both untested with the guard.
+- **Secrets** (TriStack repo secrets, never in the workflow file): `INTENTLOCK_URL`, `INTENTLOCK_API_KEY`, `LLM_API_KEY`. If the Intentlock server is asleep or unreachable the gate fails closed and the bot does nothing; the job must still exit cleanly.
+- **Tests:** `FakeProvider` runs in the bot package: a normal bug report gets labels and a held comment; an issue body telling the bot to read another repo or close issues gets blocked calls and no side effects; the server unreachable means no GitHub writes.
+
+- [x] Bot package, tools, workflow and tests on the `triage-bot` branch in TriStack (TriStack commit `8461b43d`; plain `fetch` instead of Octokit, workflow is `workflow_dispatch` only until merge)
+- [ ] Agent, member user, API key and policy in the deployed Intentlock; policy validated and dry-run
+- [ ] Live run via `workflow_dispatch` on a test issue: labels applied, comment held and approved in the inbox, an injected issue blocked, all visible in the audit log
+- [ ] Merge to TriStack `main` and turn on `issues: opened`; journal what it blocked and held in the first week (real numbers only)
+- [ ] Copy the bot (tools, policy, workflow) into a public example for other maintainers once it has run for a week
+
 **After launch (v0.2, decide with early-user feedback)**
 - The MCP proxy (Phase 7) is the next headline feature; a Python SDK is not planned
 - Plan extension mid-run and non-blocking holds (webhook/callback approvals) only when a user needs them; plan extension needs an ADR first because it touches "never widen a signed plan"

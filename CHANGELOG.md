@@ -4,6 +4,13 @@ Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthrop
 
 ## Unreleased
 
+## 0.2.1 · 2026-10-19
+
+### Fixed
+
+- `HybridGate`: a check was blocked with `audit_write_failed` when an earlier call used a later plan step than any call before it (the per-step usage saved with the audit entry had gaps and failed validation). Found by the TriStack triage bot: every call after the first label in a turn was blocked
+- `HybridGate`: after all required plan steps had run, later audit entries restarted at sequence 1; the server rejected them as conflicting and they were missing from the audit log. The outbox now keeps the chain head when it cleans up a finished plan
+
 ## 0.2.0 · 2026-10-19
 
 ### Added
