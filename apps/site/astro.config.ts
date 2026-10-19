@@ -43,7 +43,11 @@ export default defineConfig({
         PageTitle: "./src/components/docs/page-title.astro",
       },
       sidebar: [
-        { label: "Start here", collapsed: true, items: ["docs", "docs/quick-start"] },
+        {
+          label: "Start here",
+          collapsed: true,
+          items: ["docs", "docs/quick-start", "docs/protect-your-agent"],
+        },
         group("Concepts", "concepts"),
         group("SDK guide", "sdk"),
         group("Reference", "reference"),

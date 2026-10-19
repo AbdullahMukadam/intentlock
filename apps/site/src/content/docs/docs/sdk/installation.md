@@ -18,7 +18,7 @@ pnpm add @intentlock/guard @intentlock/sdk zod
 pnpm add @intentlock/anthropic
 ```
 
-The second line is only needed if you use Claude. The MIT packages are versioned together; `0.1.0` is the first npm release. Until it is on npm, depend on them from a clone of the repository (`workspace:*` or `pnpm link`).
+The second line is only needed if you use Claude. The packages are versioned together; the [changelog](https://github.com/AbdullahMukadam/intentlock/blob/main/CHANGELOG.md) lists what changed in each release.
 
 Requires Node 22 or newer.
 

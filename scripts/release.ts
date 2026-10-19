@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 
-const PACKAGES = ["core", "sdk", "guard", "anthropic"];
-const FILTER = "./packages/{core,sdk,guard,anthropic}";
+const PACKAGES = ["core", "sdk", "guard", "anthropic", "mcp-proxy"];
+const FILTER = "./packages/{core,sdk,guard,anthropic,mcp-proxy}";
 const BRANCH = "main";
 const ROOT = join(import.meta.dirname, "..");
 
@@ -47,8 +47,21 @@ const versions = PACKAGES.map((p) => {
 });
 const version = versions[0]!;
 if (versions.some((v) => v !== version))
-  fail("the four packages must have the same version (ADR-062)");
+  fail("the published packages must have the same version (ADR-062, ADR-071)");
 const tag = `v${version}`;
+
+step("Release files");
+const pinned: [string, string][] = [
+  ["deploy/docker-compose.selfhost.yml", `\${INTENTLOCK_VERSION:-${version}}`],
+  ["deploy/selfhost.env.example", `INTENTLOCK_VERSION=${version}`],
+  ["CHANGELOG.md", `## ${version} · `],
+];
+for (const [file, expected] of pinned) {
+  if (!readFileSync(join(ROOT, file), "utf8").includes(expected)) {
+    fail(`${file} must contain \`${expected}\` (see CONTRIBUTING "Releasing")`);
+  }
+}
+console.log(`self-host bundle and CHANGELOG.md are at ${version}`);
 
 step("Git");
 const branch = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { capture: true }).out;
@@ -87,7 +100,7 @@ else if (publishNeeded) {
   console.log(
     `already on npm at ${version}: ${alreadyPublished.join(", ")} (an earlier run stopped partway); pnpm skips those and publishes the rest`,
   );
-} else console.log(`all four packages are already on npm at ${version}; only the tag is left`);
+} else console.log(`all packages are already on npm at ${version}; only the tag is left`);
 
 if (publishNeeded) {
   step("Build");

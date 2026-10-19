@@ -48,7 +48,7 @@ File-level layout, naming conventions and import rules are in `STRUCTURE.md`.
 | `packages/anthropic` | `AnthropicProvider` implementing `LLMProvider` (format mapping only) | `guard`, `@anthropic-ai/sdk` | Anthropic API |
 | `packages/cli` | `intentlock` binary: `audit verify`, `keygen`, `policy validate/test/push/pull`, `login`, `users`, `agents`, `keys` | `core`, `commander` | Local files + server API |
 | `packages/evals` | Scenario format, mock tool backends, runner, metrics, results table | `guard`, `sdk` | Model API (configurable) |
-| `packages/mcp-proxy` (stretch) | stdio MCP proxy enforcing gate on `tools/call` | `sdk`, `@modelcontextprotocol/sdk` | stdio + upstream |
+| `packages/mcp-proxy` | stdio MCP proxy enforcing gate on `tools/call`, plan file, return-and-retry holds (ADR-070) | `sdk`, `@modelcontextprotocol/sdk` | stdio + upstream |
 | `apps/server` | REST API, signing key custody, policy store, holds, audit log, WebSocket gateway, users + sessions, licensing | `core`, NestJS, Prisma, `pino` | DB |
 | `apps/inbox` | Sign-in; dashboard (overview, activity, run detail); approvals; policy editor; agents + API keys; audit verify | `core` (pure validation in the browser), Next.js, Tailwind, shadcn/ui, CodeMirror, Recharts | HTTP + WS |
 | `apps/demo` | Three demo agents (GitHub, support inbox, files/ops), seed scripts, split-screen runner | `guard`, `sdk` (+ `anthropic` optional), `@octokit/rest` | GitHub, Mailpit, local sandbox, model API |

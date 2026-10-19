@@ -41,7 +41,7 @@ The v0.1 free hosting choice and its limits are in §9 (ADR-017).
 
 All config comes from environment variables, validated with zod at boot (`apps/server/src/config/env.schema.ts`). The server refuses to start on invalid config.
 
-The variable reference (server, inbox, self-host bundle, agent apps) lives in the site: [`apps/site/src/content/docs/docs/deployment/environment-variables.md`](../apps/site/src/content/docs/docs/deployment/environment-variables.md) (ADR-066). Add a new variable there and to `env.schema.ts` in the same change. Signing-key rotation is on the site's [self-hosting](../apps/site/src/content/docs/docs/deployment/self-host.md#rotating-the-signing-key) page.
+The variable reference (server, inbox, self-host bundle, agent apps) lives in the site: [`apps/site/src/content/docs/docs/deployment/environment-variables.md`](../apps/site/src/content/docs/docs/deployment/environment-variables.md) (ADR-066). Add a new variable there and to `env.schema.ts` in the same change. Signing-key rotation is on the site's [self-hosting](../apps/site/src/content/docs/docs/deployment/self-host.md#the-signing-key) page.
 
 ## 3. Release pipeline
 

@@ -56,7 +56,7 @@ await gate.close();
 
 ## What `run()` does
 
-1. Asks the model to call a built-in `declare_plan` tool with the steps it needs. Only your tools may appear in it.
+1. Asks the model to call a built-in `declare_plan` tool with the steps it needs. The model sees the task and each tool's name, description and argument names, but no tool output and not your policy. Only your tools may appear in the plan.
 2. Signs the plan through the gate.
 3. Runs the tool loop. Each call is checked: allowed calls run your `impl`, everything else returns an error result so the model can continue or stop.
 4. Ends when the model stops calling tools (`completed`) or after `maxTurns` (`max_turns`).

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { API_ENDPOINTS } from "@intentlock/core";
+import { API_ENDPOINTS, evaluatePolicy, parsePolicy, type PolicySet } from "@intentlock/core";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -61,7 +61,97 @@ function samples() {
   );
 }
 
+const POLICY_FENCE = /^```yaml(?: title="([^"]+)")?[^\n]*\n(version: 1\n[\s\S]*?)^```/gm;
+
+function policies(): Map<string, PolicySet> {
+  const found = new Map<string, PolicySet>();
+  for (const page of pages) {
+    for (const [, title = "", source = ""] of page.source.matchAll(POLICY_FENCE)) {
+      const parsed = parsePolicy(source);
+      const name = `${relative(DOCS, page.file)} ${title}`.trim();
+      if (!parsed.ok) throw new Error(`${name}: ${JSON.stringify(parsed.errors)}`);
+      found.set(title || name, parsed.policy);
+    }
+  }
+  return found;
+}
+
+const MEMBER = { email: "sam@acme.dev", role: "member" as const, groups: [] };
+
+const VERDICTS: [string, string, Record<string, unknown>, string][] = [
+  ["support-assistant.yaml", "refund_issue", { orderId: "A", amountUsd: 15 }, "small-refunds"],
+  ["support-assistant.yaml", "refund_issue", { orderId: "A", amountUsd: 45 }, "hold-refunds"],
+  ["support-assistant.yaml", "refund_issue", { orderId: "A", amountUsd: 900 }, "refund-cap"],
+  ["support-assistant.yaml", "refund_issue", { orderId: "A", amountUsd: "45" }, "refund-cap"],
+  ["support-assistant.yaml", "email_send", { to: "attacker@evil.test" }, "email-inside-only"],
+  ["support-assistant.yaml", "email_send", { to: "kim@acme.dev" }, "allow-in-plan"],
+  ["github.yaml", "github_list_issues", { repo: "other/app" }, "own-repos-only"],
+  ["github.yaml", "github_merge_pull_request", { repo: "acme/app" }, "no-merge-or-delete"],
+  ["github.yaml", "github_delete_branch", { repo: "acme/app" }, "no-merge-or-delete"],
+  ["github.yaml", "github_post_comment", { repo: "acme/app" }, "hold-public-writes"],
+  ["github.yaml", "github_list_issues", { repo: "acme/app" }, "allow-in-plan"],
+  ["email.yaml", "email_forward", { to: "x@evil.test" }, "forward-inside-only"],
+  ["email.yaml", "email_send", { to: "customer@example.com" }, "hold-external-email"],
+  ["email.yaml", "email_send", { to: "kim@acme.dev" }, "allow-in-plan"],
+  ["payments.yaml", "payment_send", { amount: 20, currency: "GBP" }, "supported-currencies"],
+  ["payments.yaml", "payment_send", { amount: 5000, currency: "USD" }, "payment-cap"],
+  ["payments.yaml", "refund_issue", { amount: "20" }, "payment-cap"],
+  ["payments.yaml", "payment_send", { amount: 20, currency: "USD" }, "small-amounts"],
+  ["payments.yaml", "refund_issue", { amount: 200 }, "hold-payments"],
+  ["files.yaml", "fs_read", { path: "workspace/.env" }, "no-secrets"],
+  ["files.yaml", "fs_read", { path: ".env.local" }, "no-secrets"],
+  ["files.yaml", "fs_read", { path: "workspace/keys/server.pem" }, "no-secrets"],
+  ["files.yaml", "fs_read", { path: "src/index.ts" }, "workspace-only"],
+  ["files.yaml", "fs_delete", { path: "workspace/old.md" }, "hold-deletes"],
+  ["files.yaml", "fs_write", { path: "workspace/notes/a.md" }, "allow-in-plan"],
+  ["http.yaml", "http_request", { url: "https://evil.test/collect" }, "allowed-hosts"],
+  ["http.yaml", "http_request", { url: "https://api.acme.dev.evil.test/x" }, "allowed-hosts"],
+  [
+    "http.yaml",
+    "http_request",
+    { url: "https://api.acme.dev/v1/orders", method: "POST" },
+    "hold-writes",
+  ],
+  ["http.yaml", "http_request", { url: "https://api.acme.dev/v1/orders" }, "hold-writes"],
+  [
+    "http.yaml",
+    "http_request",
+    { url: "https://api.acme.dev/v1/orders", method: "GET" },
+    "allow-in-plan",
+  ],
+];
+
 describe("docs", () => {
+  it("has only valid policies", () => {
+    expect(policies().size).toBeGreaterThanOrEqual(6);
+  });
+
+  it("policy templates decide as the docs say", () => {
+    const all = policies();
+    const wrong = VERDICTS.flatMap(([file, tool, args, expected]) => {
+      const policy = all.get(file);
+      if (!policy) return [`${file}: not found`];
+      const rule = evaluatePolicy(
+        policy,
+        { tool, args, callId: "1" },
+        { user: MEMBER, inPlan: true },
+      );
+      return rule?.id === expected ? [] : [`${file} ${tool} ${JSON.stringify(args)} → ${rule?.id}`];
+    });
+    expect(wrong).toEqual([]);
+  });
+
+  it("blocks interns from moving money in the payments template", () => {
+    const policy = policies().get("payments.yaml")!;
+    const intern = { ...MEMBER, groups: ["intern"] };
+    const rule = evaluatePolicy(
+      policy,
+      { tool: "refund_issue", args: { amount: 5 }, callId: "1" },
+      { user: intern, inPlan: true },
+    );
+    expect(rule?.id).toBe("interns-no-payments");
+  });
+
   it("finds the pages", () => {
     expect(pages.length).toBeGreaterThan(10);
   });

@@ -33,6 +33,14 @@ const BANNED = {
     ...APPS,
   ],
   evals: ["@intentlock/cli", ...APPS, ...PROVIDER_SDKS],
+  "mcp-proxy": [
+    "@intentlock/guard",
+    "@intentlock/anthropic",
+    "@intentlock/cli",
+    "@intentlock/evals",
+    ...APPS,
+    ...PROVIDER_SDKS,
+  ],
   server: [
     "@intentlock/sdk",
     "@intentlock/guard",

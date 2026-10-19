@@ -1,0 +1,64 @@
+{
+  "name": "@intentlock/mcp-proxy",
+  "version": "0.2.0",
+  "description": "Put Intentlock in front of any stdio MCP server: planned tools only, every call checked, holds and audit.",
+  "private": false,
+  "license": "Elastic-2.0",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "llm",
+    "agents",
+    "authorization",
+    "prompt-injection",
+    "claude"
+  ],
+  "homepage": "https://github.com/AbdullahMukadam/intentlock/tree/main/packages/mcp-proxy#readme",
+  "bugs": "https://github.com/AbdullahMukadam/intentlock/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbdullahMukadam/intentlock.git",
+    "directory": "packages/mcp-proxy"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "intentlock-mcp": "dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsup"
+  },
+  "dependencies": {
+    "@intentlock/core": "workspace:*",
+    "@intentlock/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@intentlock/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

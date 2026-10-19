@@ -57,12 +57,12 @@ The quickstart bundle is the production bundle; for a real install, edit `.env` 
 - `ORG_NAME`, and `PUBLIC_URL` set to the `https://` address your team opens (session cookies are then marked secure; invite links and OAuth callbacks use it).
 - `SMTP_URL` and `SMTP_FROM` to email invites and enable "forgot password"; without them, links are only shown to copy.
 - `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` for "Continue with Google/GitHub" (existing and invited users only, matched by verified email). Callback: `<PUBLIC_URL>/api/v1/auth/oauth/<google|github>/callback`.
-- `INTENTLOCK_VERSION` pinned to a release tag instead of `latest`.
+- `INTENTLOCK_VERSION`: the release to run (defaults to the one this bundle came with; see `CHANGELOG.md`).
 - A license file in `./license/` with `LICENSE_FILE=/license/<file>`. Without one you run the Community edition.
 
 Agent apps get `INTENTLOCK_URL=<PUBLIC_URL>/api` and an `INTENTLOCK_API_KEY` from Agents → API keys. Teammates can also be invited from the [CLI](packages/cli): `intentlock users invite bob@acme.dev --role approver`.
 
-You are responsible for TLS in front of port 8080, Postgres backups (the `pgdata` volume), and keeping `SIGNING_KEY` secret and backed up (losing it invalidates every signed plan; leaking it lets anyone sign plans). To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first as a one-off `migrate` service. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
+You are responsible for TLS in front of port 8080, Postgres backups (the `pgdata` volume), and keeping `SIGNING_KEY` secret and backed up (leaking it lets anyone sign plans; losing it only stops running plans). Rotation, leaks and loss: [The signing key](apps/site/src/content/docs/docs/deployment/self-host.md#the-signing-key). To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first as a one-off `migrate` service. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
 
 ## Add it to your agent
 
@@ -181,7 +181,7 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 
 ## Roadmap
 
-- MCP proxy that enforces Intentlock in front of any MCP server
+- MCP proxy: remote (HTTP) MCP servers, resources and prompts (stdio tools ship now, see `packages/mcp-proxy`)
 - Taint tracking: hold writes that contain data read from private sources
 - Visual policy builder; second-admin approval for policy changes; argument redaction
 - Audit retention with verifiable export; OpenTelemetry spans; cross-instance live events; sharded audit chains
@@ -195,6 +195,7 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 | [`packages/guard`](packages/guard)                           | Provider-agnostic agent guard, OpenAI-compatible adapter, `FakeProvider` | MIT     |
 | [`packages/anthropic`](packages/anthropic)                   | Claude adapter                                                           | MIT     |
 | [`packages/cli`](packages/cli)                               | `intentlock` CLI                                                         | ELv2    |
+| [`packages/mcp-proxy`](packages/mcp-proxy)                   | `intentlock-mcp` on npm: guards any stdio MCP server (ADR-070, ADR-071)  | ELv2    |
 | [`apps/server`](apps/server)                                 | NestJS policy, hold and audit service                                    | ELv2    |
 | [`apps/inbox`](apps/inbox)                                   | Next.js approval inbox, policy editor, dashboard                         | ELv2    |
 | [`apps/demo`](apps/demo), [`packages/evals`](packages/evals) | Demo agents, eval suite                                                  | ELv2    |
