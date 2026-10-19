@@ -1,6 +1,6 @@
 {
   "name": "@intentlock/sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Gates: HybridGate (local decisions + audit outbox), HttpGate, LocalGate, PassThroughGate.",
   "private": false,
   "license": "MIT",

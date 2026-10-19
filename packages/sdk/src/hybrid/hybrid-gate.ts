@@ -124,7 +124,7 @@ export class HybridGate implements Gate {
       call,
       (id) => {
         const u = this.#usageFor(id);
-        usage = [...u];
+        usage = Array.from(u, (n) => n ?? 0);
         return u;
       },
       this.#now(),

@@ -36,10 +36,7 @@ export class FileOutbox extends MemoryOutbox {
       state.pending = entries.filter((e) => e.clientSeq > acked);
       state.done = done;
       recovered.push({ planId, entries });
-      if (done && state.pending.length === 0) {
-        this.plans.delete(planId);
-        await this.remove(planId);
-      }
+      if (done && state.pending.length === 0) await this.remove(planId);
     }
     return recovered;
   }

@@ -6,7 +6,7 @@ export interface PlanBacklog {
 }
 
 type PlanState = {
-  last: ClientEntry | null;
+  last: Pick<ClientEntry, "clientSeq" | "localHash"> | null;
   pending: ClientEntry[];
   done: boolean;
   queue: Promise<unknown>;
@@ -24,7 +24,7 @@ export class MemoryOutbox {
     const next = state.queue.then(async () => {
       const chained = await chainClientEntry(state.last, entry);
       await this.persistEntry(planId, chained);
-      state.last = chained;
+      state.last = { clientSeq: chained.clientSeq, localHash: chained.localHash };
       state.pending.push(chained);
       return chained;
     });
@@ -79,7 +79,6 @@ export class MemoryOutbox {
 
   private async removeIfFinished(planId: string, state: PlanState) {
     if (!state.done || state.pending.length > 0) return;
-    this.plans.delete(planId);
     await this.remove(planId);
   }
 
