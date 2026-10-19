@@ -14,13 +14,14 @@
 | 5 · More agents + evals | Fri 16 | Support and files demo agents; 30-scenario eval suite with attack rate, utility, latency |
 | 5.5 · Improvements | before Ship | Setup page + invites, email/password and Google/GitHub sign-in, team and account pages, onboarding, dashboard and UI redesign |
 | 6 · Ship | Sat 17 | Deployed private instance, demo video, README, npm publish, resume bullet |
+| 6.7 · MVP launch | after Ship | Releases, CI, "protect your own agent" guide, policy templates, key rotation, early users |
 | 7 · Stretch | after | MCP proxy, docs site |
 
 ---
 
 ## Phase 0 · Foundation (Sun 11, ~3 h)
 
-- [ ] Claim the `@intentlock` npm scope (create the npm org) and the GitHub repo name; note the result in ADR-001 — **manual step for Abdullah**
+- [x] Claim the `@intentlock` npm scope (create the npm org) and the GitHub repo name; note the result in ADR-001 — **manual step for Abdullah**
 **Scaffold with Better-T-Stack (everything except NestJS)** — see STRUCTURE §7 for the exact commands
 - [x] Run `create-better-t-stack --help` first and compare flags with STRUCTURE §7 (the CLI changes often); do a `--dry-run`
 - [x] Scaffold the monorepo into the repo root (Turborepo addon, pnpm, Next.js frontend, no backend/db/auth/API); keep `docs/` and `CLAUDE.md` untouched (`--directory-conflict merge`)
@@ -40,7 +41,7 @@
 - [x] Vitest workspace config; one passing smoke test per package
 - [x] `tsup` build for packages (ESM + d.ts)
 - [x] `docker-compose.yml` with Postgres 16; `.env.example` (incl. `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`); `.gitignore` covers `.env*`, keys
-- [ ] GitHub Actions: install → lint → typecheck → test on push and PR
+- [x] GitHub Actions: install → lint → typecheck → test on push and PR
 - [x] Fill in the Commands section of `CLAUDE.md`
 - [x] Journal entry
 
@@ -279,12 +280,12 @@ Today errors already go through one place per layer: the server's global `HttpEx
 - [x] Licenses: root `LICENSE` = Elastic License 2.0; `LICENSE` (MIT) inside `packages/core`, `sdk`, `guard`, `anthropic` with `"license": "MIT"` in their package.json; `"license": "Elastic-2.0"` elsewhere; README section explaining which is which
 - [x] Per-package READMEs; `CONTRIBUTING.md` (note: contributions to ELv2 parts need a CLA before the product is sold)
 - [x] Self-host bundle: `deploy/docker-compose.selfhost.yml` (server + inbox + Postgres, images from GHCR) + README "Self-host in 10 minutes" (env, bootstrap admin, first login, add teammates, apply a license)
-- [ ] Changesets or manual versioning; publish only the MIT packages `@intentlock/core`, `sdk`, `guard`, `anthropic` to npm at `0.1.0`; server and inbox ship as Docker images
+- [x] Changesets or manual versioning; publish only the MIT packages `@intentlock/core`, `sdk`, `guard`, `anthropic` to npm at `0.1.0`; server and inbox ship as Docker images
 - [ ] Record the ≤ 4 min demo video against our deployed instance (local compose for live-update shots): GitHub split screen → hold approval → run detail → policy edit/test/publish → dashboard → support and files clips → audit verify → 5-line code
 - [x] Dockerfiles for server (multi-stage, non-root) and inbox (Next.js standalone); `docker compose` full stack
 - [x] `deploy/docker-compose.scale.yml` (2 server instances + nginx + Postgres + inbox) and `deploy/load/scale-test.ts`; run the scale test from DEPLOYMENT §7 and record real numbers
 - [x] CI: build and push images to GHCR on main; `prisma migrate deploy` as a release step
-- [ ] Deploy **our own private instance** per DEPLOYMENT §9 (we self-host like any customer team): Neon (pooled + direct URLs), server on Render (Docker, `/health/ready`, pre-deploy migrations), inbox on Vercel with the `/api` rewrite; sign-in required, nothing public; run the demo `setup` against it; note the date free-tier limits were checked in the journal
+- [x] Deploy **our own private instance** per DEPLOYMENT §9 (we self-host like any customer team): Neon (pooled + direct URLs), server on Render (Docker, `/health/ready`, pre-deploy migrations), inbox on Vercel with the `/api` rewrite; sign-in required, nothing public; run the demo `setup` against it; note the date free-tier limits were checked in the journal
 - [ ] Write the resume bullet and LinkedIn post using real numbers from evals
 - [ ] Final journal entry with lessons learned
 
@@ -351,9 +352,46 @@ Added on 2026-10-17 after Phase 6.5 was merged: visitors need a page that explai
 
 ---
 
+## Phase 6.7 · MVP launch — `docs`, `apps/site`, `packages/*`
+
+Added on 2026-10-19 with Abdullah after reviewing an outside MVP list. The product is built; what is left is shipping it so a stranger can protect their own agent. npm publish and the deployed instance are done; the Phase 6 README and video can run in parallel. **Pitch:** "Your AI agent can only do what the task needs. Anything risky waits for a human. Everything is logged."
+
+**Before launch**
+- [x] Releases (npm `0.1.0` and the `0.1.0` images were already out): the self-host bundle defaults to the pinned tag (`INTENTLOCK_VERSION=0.1.0`, was `latest`); `CHANGELOG.md`; the upgrade steps were already in the README and self-host docs; `pnpm release` stops unless the bundle default and a `## X.Y.Z` changelog heading match the version (CI already existed, Phase 0 item ticked)
+- [x] "Protect your own agent" guide in the docs site (`/docs/protect-your-agent/`, under Start here): wrap an existing agent in about 10 minutes with `createGuard()`, covering a hold on a risky action, a spending/amount limit, and reading the audit log, not only prompt injection; its code samples go through the docs type-check test
+- [x] Policy templates (`/docs/reference/policy-templates/`: GitHub, email, payments and refunds, files, outbound HTTP; a site test parses every full policy in the docs and checks each template's verdicts) from the demo policies (GitHub, email/support with refund limits, file access); add a payments template only if it reuses existing rule types; each template passes `intentlock policy validate` in a test and is linked from the guide
+- [x] Signing key backup and rotation: `SIGNING_KEY_PREVIOUS` already existed (ADR on keys); self-host docs "The signing key" now cover backup, planned rotation (wait 2 h: 60 min TTL + 60 min refresh window), a leaked key (no overlap, restart agent apps for the 10 min JWKS cache) and a lost key; unit test `keys.service.test.ts` (old token valid during the overlap, refused after, public-only previous key, unknown key, production without a key) instead of an e2e test, since no database is involved
+
+**Launch**
+- [ ] Find 2–3 early users (start now, in parallel with the items above); note who and their workload in the journal, without personal details
+- [ ] Fix what they hit (false blocks, confusing errors, setup friction); each fix gets a test and a journal line
+
+**After launch (v0.2, decide with early-user feedback)**
+- The MCP proxy (Phase 7) is the next headline feature; a Python SDK is not planned
+- Plan extension mid-run and non-blocking holds (webhook/callback approvals) only when a user needs them; plan extension needs an ADR first because it touches "never widen a signed plan"
+
+**Acceptance:** the self-host bundle uses pinned tags; someone outside the project follows the guide and gets a hold and a block on their own agent; key rotation test green; `pnpm test && pnpm lint && pnpm typecheck` green.
+
+---
+
+## Phase 7.1 · MCP proxy — `packages/mcp-proxy`
+
+Added on 2026-10-19 with Abdullah, as the first item after the Phase 6.7 build work: put Intentlock in front of any stdio MCP server, so Claude Desktop, Cursor or Claude Code are guarded without code changes. Design in ADR-070 (plan file, return-and-retry holds).
+
+- [x] ADR-070; package scaffold (`@intentlock/mcp-proxy`, ELv2, bin `intentlock-mcp`, tsup, eslint boundaries); `@modelcontextprotocol/sdk` installed offline from the local store
+- [x] Plan file (zod-validated, core plan steps) and CLI arguments (`--plan`, `--user`, `--list-tools`, `-- <upstream command>`), env `INTENTLOCK_URL`, `INTENTLOCK_API_KEY`, `INTENTLOCK_USER`, `INTENTLOCK_OUTBOX_DIR`
+- [x] Proxy: `tools/list` shows only planned upstream tools; `tools/call` goes through the gate; allowed calls forwarded and reported; blocked calls return an error result with the reason; token refresh, then re-sign the plan file when refresh fails; fail closed on gate errors
+- [x] Holds return and retry: the held call returns at once; a repeat of the same call (canonical tool + args) runs on approval, blocks on rejection, repeats the message while pending, re-checks after expiry
+- [x] Tests with in-memory MCP transports and a fake upstream server: listing, allow, block (not in plan, policy), hold pending → approved → runs once, rejected, different args never match an approval, refresh and re-sign, gate failure blocks, upstream error reported
+- [x] Docs page "MCP proxy" in the site (Claude Desktop / Cursor / Claude Code config, plan file, `--list-tools`, holds, limits); README and STRUCTURE updated
+
+**Acceptance:** the proxy in front of a local test MCP server allows planned calls, blocks off-plan and off-policy calls, and runs a held call only after approval; `pnpm test && pnpm lint && pnpm typecheck` green. Trying it against the real GitHub MCP server needs a download, so ask Abdullah first.
+
+---
+
 ## Phase 7 · Stretch (only after Phase 6)
 
-- [ ] `packages/mcp-proxy`: stdio proxy, enforces gate on `tools/call`, works in front of the GitHub MCP server
+- `packages/mcp-proxy`: moved to Phase 7.1
 - ~~Inbox team page (list, add, disable, re-issue token) for admins~~ moved to Phase 5.5
 - [ ] Visual policy rule builder (paid feature candidate)
 - [ ] Second-admin approval for policy changes (paid feature candidate)

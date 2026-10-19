@@ -1783,3 +1783,143 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Follow-up 3:** the dashboard shell uses the same frame: hatched background behind a content column (max 1400 px, bordered left and right once there is room on both sides, ≥ 1656 px), header line with corner marks, sidebar with a right border and a 56 px brand row that lines up with the header (replaces the rounded floating card). Corner marks shared in `components/frame-corners.tsx`. Screenshots of the running dev server at 1920 px light and 1366 px dark (signed in as the demo admin)
 
 **Follow-up 4 (README check):** all ten READMEs read. `apps/server` still said the server prints "the first admin's login token" (gone since ADR-058) → setup code and `/setup`, plus a link to the env reference; `apps/inbox` now mentions `NEXT_PUBLIC_DOCS_URL` and the favicon files; new `apps/site/README.md` (commands, docs location, docs checks, fence titles, build variables, Cloudflare); root README links the user docs. The others (cli, core, sdk, guard, anthropic, demo, evals) were already current. Relative links checked, Prettier clean
+
+### 2026-10-19 · Session 21 · Phase 6.7 — MVP launch plan
+
+**Done**
+- Reviewed an outside MVP list with Abdullah; added Phase 6.7 to PLAN.md: releases with pinned tags and a changelog, CI, a "protect your own agent" guide, policy templates from the demo policies, signing key rotation with a test, 2–3 early users
+- Deferred: MCP proxy is the first item after launch (Python SDK not planned); plan extension and non-blocking holds wait for a user who needs them (plan extension needs an ADR, it touches "never widen a signed plan")
+
+**Next**
+- Open Phase 6 items (deployed instance, README, video), then Phase 6.7
+
+**Notes for Abdullah**
+- npm `0.1.0` was already published (Abdullah): ticked the scope claim (Phase 0) and the publish item (Phase 6)
+
+### 2026-10-19 · Session 21 (cont.) · Phase 6.7 — Pinned releases and changelog
+
+**Done**
+- Ticked from Abdullah's status: npm scope (Phase 0), npm publish and the deployed instance (Phase 6); CI already ran on push and PR (Phase 0 item ticked)
+- Self-host bundle and `selfhost.env.example` default to `INTENTLOCK_VERSION=0.1.0` instead of `latest` (the `v0.1.0` CI run pushed both images); README, self-host and environment-variable docs updated. The scale compose stays on `latest` (local test stack)
+- `CHANGELOG.md`: 0.1.0 and Unreleased (changes since the tag)
+- `scripts/release.ts` stops unless the bundle default, the env example and a `## X.Y.Z · ` changelog heading match the package version; CONTRIBUTING "Releasing" step 1 says what to bump
+
+**Numbers**
+- `pnpm release --dry-run`: new check passes at 0.1.0, fails with a clear message when the compose default is changed; site tests (6) green; Prettier clean
+
+**Next**
+- "Protect your own agent" guide (Phase 6.7)
+
+### 2026-10-19 · Session 21 (cont.) · Phase 6.7 — "Protect your own agent" guide
+
+**Done**
+- `apps/site/.../docs/protect-your-agent.md` (sidebar: Start here): a support assistant with `orders_lookup`, `email_send`, `refund_issue`; install → tools → guard → policy (email domain block, $500 cap, auto-allow ≤ $20, hold above) → validate / test with `--calls` / push → try it (allow, hold, block, injection) → audit (Activity, Audit, export + `audit verify`) → limits
+- Limits stated plainly: amounts are capped per call, not in total (no spend counter; bound a run with `lte` plus `maxCalls`); a signed plan cannot grow; holds need the server; fail closed
+- Docs prelude: `orders`, `mailer`, `payments` and the three tools as globals, so the samples go through the docs type-check test
+
+**Numbers**
+- The guide's policy run through core `evaluatePolicy` (scratch script, not committed): $15 allow `small-refunds`, $45 hold `hold-refunds`, $900 block `refund-cap`, `"45"` (string) block `refund-cap`, outside email block `email-inside-only`, inside email allow. The policy-template task turns this into a committed test
+- Site tests (6), lint and `astro build` green; Prettier clean
+
+**Next**
+- Policy templates (Phase 6.7)
+
+**Notes for Abdullah**
+- Not checked live: a real model run of the guide's agent against a server
+
+### 2026-10-19 · Session 21 (cont.) · Phase 6.7 — Policy templates
+
+**Done**
+- `docs/reference/policy-templates.md` (Reference, after the policy reference; CLI and HTTP API moved down one): GitHub (own repos, no merge/delete, hold public writes), email (forward inside only, hold external mail, `self: true`), payments and refunds (interns blocked, currency allowlist, cap 1,000, auto ≤ 50, hold for finance), files (no secrets, workspace only, hold deletes), outbound HTTP (host allowlist, hold non-GET/HEAD). Linked from the guide
+- Templates live as a docs page, not as files in the repo: copy-paste is how they are used, and the docs are already the one source of truth for user-facing text
+- Site test: every ```yaml block starting with `version: 1` in the docs is parsed with core `parsePolicy` (what `intentlock policy validate` uses); 30 call → rule-id checks with `evaluatePolicy` (guide's support policy and each template, including malformed amounts, look-alike hosts, dotfiles) plus the intern group case. Replaces the guide's scratch script
+
+**Numbers**
+- Site tests 9 (was 6); both a broken template (`timeoutSeconds` over the max) and a changed limit (`lte: 50` → `500`) fail the test, then restored
+
+**Next**
+- Signing key backup and rotation (Phase 6.7)
+
+### 2026-10-19 · Session 21 (cont.) · Phase 6.7 — Signing key backup and rotation
+
+**Done**
+- Rotation was already built (`SIGNING_KEY_PREVIOUS`, both kids in the JWKS) and had a three-line doc but no test
+- `apps/server/test/unit/keys/keys.service.test.ts`: a token signed with the old key verifies during the overlap and is refused (`invalid_token`) after `SIGNING_KEY_PREVIOUS` is removed; the JWKS lists 2 then 1 keys; a public-only previous key works; a token from an unknown key is refused; production refuses to start without a key. Unit test, not e2e as planned: `KeysService` needs no database
+- Self-host docs "The signing key" (replaces "Rotating the signing key"): what the key protects (only running plans; users, policies and audit do not depend on it), backup, planned rotation, leaked key, lost key. README and DEPLOYMENT links updated
+
+**Problems hit and how they were solved**
+- The old doc said to remove the previous key after 60 minutes. Refresh accepts a token up to 60 minutes after it expires (`verifyForAgent(..., MAX_TTL_SECONDS)`), so a plan signed just before the switch can still need the old key ~2 hours later → the doc says 2 hours
+- Found while reading the SDK, documented rather than changed: `HybridGate`'s JWKS cache (jose, 30 s cooldown, 10 min max age) can block one call with `invalid_token` right after a switch, and keeps trusting a removed key for up to 10 minutes (so a leak means restarting agent apps); late hybrid uploads after the old key is gone are flagged `decision_mismatch`
+
+**Numbers**
+- Server unit tests 55, lint, typecheck green; site tests 9; disabling `SIGNING_KEY_PREVIOUS` in the service fails 2 of the 4 new tests (restored)
+
+**Next**
+- Phase 6.7 launch: find 2–3 early users; open Phase 6 items (README pitch and GIF, demo video)
+
+**Notes for Abdullah**
+- Server e2e tests were not run (no server source changed)
+
+### 2026-10-19 · Session 21 (cont.) · Guard — planner sees argument names
+
+**Done**
+- Abdullah asked how the planner can plan without the tool list or the policies. It had the tool names and descriptions but not their arguments, so a pin could name an argument the tool does not have (`repository` vs `repo`) and the call would be blocked as `not_in_plan`
+- `planner.ts`: each tool line now has `arguments: name (type[, optional]), …` from its JSON schema, and the system prompt says to pin only listed argument names. ADR (planner item) updated, guard docs ("What `run()` does") and CHANGELOG
+- Kept as is, on purpose: the planner never sees tool output (the plan must be written before untrusted data is read, ADR-002) and never sees the policy (enforced afterwards anyway; would send the company's rules to the provider on every run). Context the app already trusts goes in the task or an explicit plan; needs found mid-run are the deferred plan-extension item
+
+**Numbers**
+- `test/unit/guard/planner.test.ts`: passes, fails without the change; guard 44 tests (1 live skipped), lint, typecheck green; evals tests green
+
+### 2026-10-19 · Session 21 (cont.) · Phase 7.1 — MCP proxy
+
+**Done**
+- ADR-070 (with Abdullah: plan file, return-and-retry holds); Phase 7.1 in PLAN.md
+- `packages/mcp-proxy` (`@intentlock/mcp-proxy`, ELv2, private, bin `intentlock-mcp`): `args.ts`, `plan-file.ts`, `upstream-env.ts`, `proxy.ts` (`createProxy`, `listUpstreamTools`), `bin.ts`; enums for block reasons, env vars, HTTP status; eslint boundaries for `mcp-proxy` in `packages/config`
+- `@modelcontextprotocol/sdk` ^1.32.1 installed with `pnpm install --offline` (was already in the store; resolved against zod 4.6.5), no download
+- Proxy: `tools/list` shows only planned upstream tools; every `tools/call` (planned or not) goes through `HybridGate` so off-plan attempts are audited; allowed calls forwarded and reported (`error` when the upstream result has `isError`); blocked calls return an MCP error result with the rule id or reason; expired token → refresh → on failure sign the plan file again; gate errors block. Holds keyed by `jcs({ tool, args })`: approved runs once with the original call id, rejected blocks, pending repeats the message, expired re-checks
+- Docs page `sdk/mcp-proxy.md` (build from a clone, plan file, `--list-tools`, Claude Desktop / Cursor / Claude Code config, holds, limits); README package table and roadmap, STRUCTURE layout, CHANGELOG
+
+**Problems hit and how they were solved**
+- `bin.ts` first passed the whole environment to the upstream server, including `INTENTLOCK_API_KEY` → `upstreamEnv()` drops every `INTENTLOCK_*` variable, with a test
+- Importing a helper from `bin.ts` in a test would have started the proxy → helpers live in their own modules; `bin.ts` only wires things together
+
+**Numbers**
+- mcp-proxy 19 tests (args 3, plan file 2, upstream env 1, proxy 13: listing, allow + report, not in plan, off-scope args, policy block, upstream error, gate down, hold pending → approved runs once, approval never runs different args, rejected, expired, refresh, re-sign). Keying holds by tool name only fails the different-args test (restored)
+- Smoke run of the built bin over real stdio: `--list-tools` against `test/fixtures/upstream-server.mjs` lists both tools; missing `--plan` exits 1 with usage
+- Workspace lint + typecheck (27 tasks) green; tests for core, sdk, guard, cli, evals, site, mcp-proxy green; Prettier clean
+
+**Next**
+- Phase 7.1 acceptance: a live run against a local Intentlock server (agent + key) and, with Abdullah's OK for the download, the real GitHub MCP server in Claude Desktop
+
+**Notes for Abdullah**
+- Not run live: the proxy against a running server, and the hold flow with a real approval in the inbox
+- The package is `private` (not on npm), as STRUCTURE says for ELv2 packages in v0.1; users build it from a clone. Publishing it would make the Claude Desktop setup one `npx` line: your call
+
+### 2026-10-19 · Session 21 (cont.) · Phase 7.1 — Publish the MCP proxy (ADR-071)
+
+**Done**
+- Abdullah decided to publish `@intentlock/mcp-proxy` like the other packages. ADR-071 amends ADR-021 (only MIT on npm) and ADR-062 (four packages)
+- `package.json`: public, `0.1.0` (lockstep), keywords, repository/homepage/bugs, `engines.node >=22`, `publishConfig.access: public`, `prepack`; own `LICENSE` (ELv2 text from the root file); package README with the `npx` command and Claude Desktop config
+- `bin.ts` reads its version from `package.json`; `--help` / `-h` (before `--`) prints usage, with a test
+- `scripts/release.ts` and CONTRIBUTING: five packages in the lockstep release; STRUCTURE §5a; docs page and README now use `npx -y @intentlock/mcp-proxy`
+
+**Numbers**
+- `pnpm pack`: tarball holds only `LICENSE`, `README.md`, `package.json`, `dist/` (bin, index, chunk, types); `workspace:*` became `0.1.0`, `catalog:` zod became `^4.6.5`
+- `pnpm release --dry-run` lists the five packages and passes the version and release-file checks (stops at the dirty tree, as expected); mcp-proxy 20 tests; workspace lint + typecheck green; site tests 9; Prettier clean
+
+**Next**
+- Release 0.2.0 (proxy + planner change), then the live Phase 7.1 acceptance run
+
+**Notes for Abdullah**
+- Nothing is on npm yet: `0.1.0` is already tagged, so the proxy ships with the next release. The docs say `npx -y @intentlock/mcp-proxy`, which works only after that release, so release soon after merging
+
+### 2026-10-19 · Session 21 (cont.) · Release prep 0.2.0
+
+**Done**
+- Versions 0.2.0 in the five published packages (core, sdk, guard, anthropic, mcp-proxy); self-host compose and `selfhost.env.example` default to `0.2.0`; environment-variable docs; CHANGELOG `## 0.2.0 · 2026-10-19` (proxy, guide and templates, planner arguments, inbox caching, …) with an empty `## Unreleased` above it; SDK installation page no longer says the packages are not on npm
+
+**Numbers**
+- `pnpm release --dry-run`: the five versions match and the release files are at 0.2.0 (stops at the dirty tree, as expected); site and mcp-proxy tests green
+
+**Next**
+- Abdullah: commit, merge to `main`, `npm login`, `pnpm release` (publishes the five packages, pushes `v0.2.0`; CI builds the 0.2.0 images)

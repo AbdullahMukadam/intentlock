@@ -21,7 +21,7 @@ intentlock/
 │   ├── anthropic/                  # AnthropicProvider
 │   ├── cli/                        # `intentlock` CLI: audit verify, keygen, policy validate
 │   ├── evals/                      # prompt-injection scenario suite + runner
-│   ├── mcp-proxy/                  # (stretch) MCP stdio proxy
+│   ├── mcp-proxy/                  # MCP stdio proxy (intentlock-mcp)
 │   ├── ui/                         # shared shadcn/ui components + design tokens (styles/tokens.css, light + dark for `.dark` and `[data-theme="dark"]`; styles/theme.css = Tailwind theme on top of the tokens; styles/globals.css = Tailwind + theme + sources for the inbox) and Panel, Badge (ADR-059)
 │   └── config/                     # shared tsconfig presets + eslint config incl. import-boundary rules (§4)
 ├── deploy/
@@ -216,13 +216,20 @@ policies/                           # github.yaml, email.yaml, files.yaml
 results/                            # committed outputs: <date>.json, <date>.md
 ```
 
-### `packages/mcp-proxy` (stretch)
+### `packages/mcp-proxy` (ADR-070)
 
 ```
 src/
 ├── index.ts
-├── proxy.ts                        # forward stdio, intercept tools/call
-└── bin.ts
+├── bin.ts                          # intentlock-mcp: spawn upstream over stdio, HybridGate, serve the client over stdio
+├── args.ts                         # --plan, --user, --list-tools, -- <upstream command>
+├── plan-file.ts                    # plan file (goal + steps) → signed plan input
+├── upstream-env.ts                 # environment for the upstream server, without INTENTLOCK_* variables
+├── proxy.ts                        # createProxy: planned tools only, tools/call through the gate, return-and-retry holds
+└── enums/
+test/
+├── unit/                           # args, plan file, upstream env, proxy (in-memory MCP transports)
+└── fixtures/                       # harness (fake upstream + scripted gate), upstream-server.mjs for stdio smoke runs
 ```
 
 ### `apps/server` — NestJS, one module per feature
@@ -581,8 +588,9 @@ flowchart BT
 | Path | License | Published as |
 | --- | --- | --- |
 | `packages/core`, `sdk`, `guard`, `anthropic` | MIT (own `LICENSE` file) | npm |
+| `packages/mcp-proxy` | Elastic License 2.0 (own copy of the ELv2 `LICENSE` for the tarball) | npm (ADR-071) |
 | `apps/server`, `apps/inbox` | Elastic License 2.0 (root `LICENSE`) | Docker images (GHCR) |
-| `packages/cli`, `packages/evals`, `apps/demo`, `packages/mcp-proxy` | Elastic License 2.0 | not published to npm in v0.1 |
+| `packages/cli`, `packages/evals`, `apps/demo` | Elastic License 2.0 | not published to npm in v0.1 |
 | `scripts/issue-license.ts`, `scripts/release.ts` | Elastic License 2.0 | not published |
 
 MIT packages must not import from ELv2 packages (already guaranteed by the dependency graph in §4).

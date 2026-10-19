@@ -13,7 +13,7 @@ const PLANNER_SYSTEM = `You are the planner for an AI agent. You do not perform 
 Call ${DECLARE_PLAN} exactly once with:
 - goal: one sentence restating the task.
 - steps: one entry per tool the task needs, using only the listed tool names. Leave out every tool the task does not need.
-- Pin scope: when the task names a specific repository, recipient, path, branch, issue number or similar target, add an args constraint for that argument on every step that takes it, e.g. {"repo": {"eq": "acme/app"}}. Use {"glob": "..."} only when the task itself names a pattern.
+- Pin scope: when the task names a specific repository, recipient, path, branch, issue number or similar target, add an args constraint for that argument on every step that takes it, using only the argument names listed for that tool, e.g. {"repo": {"eq": "acme/app"}}. Use {"glob": "..."} only when the task itself names a pattern.
 - Set maxCalls to a small number that fits the task, and required: true for steps the task cannot finish without.`;
 
 const CONSTRAINT = {
@@ -57,8 +57,24 @@ export function declarePlanTool(tools: ToolDef[]): ToolDef {
   };
 }
 
+function argList(schema: ToolDef["inputSchema"]): string {
+  const props = schema.properties;
+  if (typeof props !== "object" || props === null) return "none";
+  const required = Array.isArray(schema.required) ? schema.required : [];
+  const args = Object.entries(props).map(([name, spec]) => {
+    const type =
+      typeof spec === "object" && spec !== null && typeof spec.type === "string"
+        ? spec.type
+        : "any";
+    return `${name} (${type}${required.includes(name) ? "" : ", optional"})`;
+  });
+  return args.length > 0 ? args.join(", ") : "none";
+}
+
 function plannerPrompt(task: string, tools: ToolDef[]): string {
-  const list = tools.map((t) => `- ${t.name}: ${t.description}`).join("\n");
+  const list = tools
+    .map((t) => `- ${t.name}: ${t.description}\n  arguments: ${argList(t.inputSchema)}`)
+    .join("\n");
   return `Available tools:\n${list}\n\nTask:\n${task}`;
 }
 

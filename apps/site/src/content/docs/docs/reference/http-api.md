@@ -2,7 +2,7 @@
 title: HTTP API
 description: Every server route, who may call it, and what it does.
 sidebar:
-  order: 3
+  order: 4
 ---
 
 The SDK and the inbox use this API; you only need it to build your own client or tooling. Paths are relative to the server. Behind the self-host bundle the server is under `/api`, so `/v1/plans` is `https://intentlock.acme.dev/api/v1/plans`. Every path is defined once in `API_ENDPOINTS` in `@intentlock/core`.
