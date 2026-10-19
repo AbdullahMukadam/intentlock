@@ -1,8 +1,6 @@
 ---
 title: Self-hosting
 description: Run the server, inbox and Postgres for your team with the one-file Docker Compose bundle.
-sidebar:
-  order: 1
 ---
 
 Intentlock runs as one deployment per team. The self-host bundle is a single Compose file with Postgres, the server, the inbox and nginx in front of them. The [quick start](/docs/quick-start/) uses the same bundle; this page covers a real install.

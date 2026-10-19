@@ -1,8 +1,6 @@
 ---
 title: MCP proxy
 description: Put Intentlock in front of any stdio MCP server, so Claude Desktop, Cursor or Claude Code only use the tools you planned.
-sidebar:
-  order: 7
 ---
 
 `intentlock-mcp` sits between an MCP client (Claude Desktop, Cursor, Claude Code) and an MCP server that runs over stdio. The client starts the proxy instead of the server; the proxy starts the server and checks every tool call against a plan and the agent's policy:

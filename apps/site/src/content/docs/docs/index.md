@@ -28,6 +28,7 @@ If anything goes wrong (the server is down, the token is invalid, the audit writ
 - **The server** (NestJS and Postgres): signs plans, stores policies and their versions, creates holds, keeps the audit chain.
 - **The inbox** (Next.js): approve holds, edit and test policies, browse runs and audit entries, manage the team and agents.
 - **The SDK packages** (MIT): a provider-agnostic agent guard and gates you embed in your own app.
+- **The MCP proxy** (`intentlock-mcp`): put Intentlock in front of any stdio MCP server used by Claude Desktop, Cursor or Claude Code, with no code.
 - **The `intentlock` CLI**: manage users, agents, keys and policies, and verify an exported audit chain.
 
 ## Where to go next
@@ -35,4 +36,5 @@ If anything goes wrong (the server is down, the token is invalid, the audit writ
 - [Quick start](/docs/quick-start/): run the server, create the first admin and connect an agent.
 - [Plans and tokens](/docs/concepts/plans-and-tokens/): the model behind every decision.
 - [Agent guard](/docs/sdk/guard/): wire Intentlock into your agent's tool loop.
+- [MCP proxy](/docs/sdk/mcp-proxy/): protect Claude Desktop, Cursor or Claude Code with a plan file, no code.
 - [Policy reference](/docs/reference/policy/): every rule and match field.

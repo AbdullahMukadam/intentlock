@@ -1,8 +1,6 @@
 ---
 title: CLI
 description: The intentlock command for users, agents, API keys, policies, signing keys and audit verification.
-sidebar:
-  order: 3
 ---
 
 The CLI is not on npm in v0.1. Build and link it from a clone of the repository (Node 22 or newer):

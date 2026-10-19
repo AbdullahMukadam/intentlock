@@ -1,8 +1,6 @@
 ---
 title: Free hosting
 description: Run a small private instance on Vercel, Render and Neon free tiers, step by step.
-sidebar:
-  order: 2
 ---
 
 For a demo or a small team you can run Intentlock on free tiers that need no credit card: Vercel for the inbox, Render for the server and Neon for Postgres. The instance is still private: every page needs sign-in.

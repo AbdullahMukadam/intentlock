@@ -1,8 +1,6 @@
 ---
 title: Hybrid and remote gates
 description: Where decisions are made, and the trade-offs between hybrid and remote mode.
-sidebar:
-  order: 6
 ---
 
 A gate is the part of the SDK that signs plans and checks calls. Where it makes the decision is the main choice you make when you deploy.

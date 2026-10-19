@@ -1,8 +1,6 @@
 ---
 title: Holds
 description: Calls that wait for a person to approve or reject them in the inbox.
-sidebar:
-  order: 4
 ---
 
 A hold rule pauses a tool call until a person approves or rejects it. Use holds for risky writes: posting in public, sending messages, deleting, paying.

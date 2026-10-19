@@ -1,8 +1,6 @@
 ---
 title: Policy templates
 description: Ready-made policies for GitHub, email, payments, files and outbound HTTP. Copy one, rename the tools and adjust the limits.
-sidebar:
-  order: 2
 ---
 
 Each template is a complete policy. Copy it, rename the tools to match yours, change the domains, repositories and amounts, then check and publish it:

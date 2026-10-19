@@ -1,8 +1,6 @@
 ---
 title: Core
 description: Schemas, policy parsing, the check function and audit verification from @intentlock/core.
-sidebar:
-  order: 5
 ---
 
 `@intentlock/core` holds the pieces every other package shares. It has no I/O: no network, no database, and no clock except one you pass in. You rarely need it directly, but it is there for tooling, tests and custom gates.

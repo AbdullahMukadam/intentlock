@@ -1,8 +1,6 @@
 ---
 title: Verdicts
 description: How a tool call becomes allow, block or hold, and every block reason.
-sidebar:
-  order: 3
 ---
 
 Every tool call gets exactly one verdict: `allow`, `block` or `hold`.

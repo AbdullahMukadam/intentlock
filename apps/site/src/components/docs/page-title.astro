@@ -1,9 +1,12 @@
 ---
+import PageActions from "./page-actions.astro";
+
 const { title, description } = Astro.locals.starlightRoute.entry.data;
 ---
 
 <h1 id="_top">{title}</h1>
 {description && <p class="lead">{description}</p>}
+<PageActions />
 
 <script>
   document.addEventListener("click", async (event) => {

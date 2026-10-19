@@ -1,8 +1,6 @@
 ---
 title: Environment variables
 description: Every environment variable the server, the inbox, the self-host bundle and your agent app read.
-sidebar:
-  order: 3
 ---
 
 All configuration comes from environment variables. The server validates them at boot and refuses to start on invalid values.

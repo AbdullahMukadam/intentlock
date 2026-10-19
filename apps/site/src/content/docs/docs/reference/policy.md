@@ -1,8 +1,6 @@
 ---
 title: Policy reference
 description: Every field of the policy format, every rule type and every match operator.
-sidebar:
-  order: 1
 ---
 
 ```yaml title="policy.yaml"

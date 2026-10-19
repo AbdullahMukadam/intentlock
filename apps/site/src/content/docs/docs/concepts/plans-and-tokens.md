@@ -1,8 +1,6 @@
 ---
 title: Plans and tokens
 description: How an agent declares a plan, and what the signed intent token carries.
-sidebar:
-  order: 1
 ---
 
 ## The plan

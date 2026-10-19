@@ -5,12 +5,6 @@ import { defineConfig, envField, passthroughImageService } from "astro/config";
 import { codeFrame } from "./src/lib/code-frame";
 import { FAVICON_LINKS } from "./src/lib/favicons";
 
-const group = (label: string, directory: string) => ({
-  label,
-  collapsed: true,
-  items: [{ autogenerate: { directory: `docs/${directory}` } }],
-});
-
 export default defineConfig({
   site: process.env.SITE_URL,
   output: "static",
@@ -44,15 +38,54 @@ export default defineConfig({
       },
       sidebar: [
         {
-          label: "Start here",
-          collapsed: true,
-          items: ["docs", "docs/quick-start", "docs/protect-your-agent"],
+          label: "Get started",
+          items: [
+            { slug: "docs", label: "Introduction" },
+            "docs/quick-start",
+            "docs/protect-your-agent",
+            { slug: "docs/sdk/mcp-proxy", label: "Protect an MCP server" },
+          ],
         },
-        group("Concepts", "concepts"),
-        group("SDK guide", "sdk"),
-        group("Reference", "reference"),
-        group("Deployment", "deployment"),
-        { label: "Project", collapsed: true, items: ["docs/security", "docs/licensing"] },
+        {
+          label: "How it works",
+          items: [
+            "docs/concepts/plans-and-tokens",
+            "docs/concepts/policies-and-versions",
+            "docs/concepts/verdicts",
+            "docs/concepts/holds",
+            "docs/concepts/audit-chain",
+            { slug: "docs/concepts/gates", label: "Hybrid vs remote" },
+          ],
+        },
+        {
+          label: "SDK",
+          items: [
+            { slug: "docs/sdk/installation", label: "Install" },
+            "docs/sdk/guard",
+            "docs/sdk/providers",
+            { slug: "docs/sdk/gates", label: "Configure a gate" },
+            { slug: "docs/sdk/core", label: "Core utilities" },
+            "docs/sdk/testing",
+          ],
+        },
+        {
+          label: "Reference",
+          items: [
+            { slug: "docs/reference/policy", label: "Policy rules" },
+            "docs/reference/policy-templates",
+            "docs/reference/cli",
+            "docs/reference/http-api",
+          ],
+        },
+        {
+          label: "Self-hosting",
+          items: [
+            { slug: "docs/deployment/self-host", label: "Run on your server" },
+            "docs/deployment/free-hosting",
+            "docs/deployment/environment-variables",
+          ],
+        },
+        { label: "Project", items: ["docs/security", "docs/licensing"] },
       ],
     }),
   ],

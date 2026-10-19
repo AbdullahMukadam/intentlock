@@ -1,8 +1,6 @@
 ---
 title: Policies and versions
 description: One YAML policy per agent, versioned on the server and snapshotted into every plan.
-sidebar:
-  order: 2
 ---
 
 Each agent has one policy: a YAML document with an ordered list of rules. The plan says what this request may do; the policy says what this agent may ever do, for whom, and what needs a person to approve it. A call has to pass both.

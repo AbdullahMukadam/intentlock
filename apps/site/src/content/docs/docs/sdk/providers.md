@@ -1,8 +1,6 @@
 ---
 title: LLM providers
 description: Use any OpenAI-compatible API or Claude, or write your own adapter.
-sidebar:
-  order: 3
 ---
 
 The guard only talks to the `LLMProvider` interface, so it works with any model. Provider formats (OpenAI `tool_calls`, Anthropic `tool_use` blocks) stay inside the adapters.

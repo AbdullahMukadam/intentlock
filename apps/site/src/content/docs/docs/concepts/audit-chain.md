@@ -1,8 +1,6 @@
 ---
 title: Audit chain
 description: A tamper-evident log of every decision, verifiable in the inbox and offline.
-sidebar:
-  order: 5
 ---
 
 Every decision, approval, policy change and team change is appended to one hash chain in Postgres. Each entry's hash covers every column of the entry plus the previous entry's hash:

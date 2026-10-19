@@ -1,8 +1,6 @@
 ---
 title: Packages
 description: The SDK packages, what each one is for, and how to install them.
-sidebar:
-  order: 1
 ---
 
 | Package | License | What you use it for |

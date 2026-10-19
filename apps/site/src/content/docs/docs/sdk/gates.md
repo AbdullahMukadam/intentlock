@@ -1,8 +1,6 @@
 ---
 title: Gates
 description: Pick a gate, configure it, and call it directly if you do not use the guard.
-sidebar:
-  order: 4
 ---
 
 | Gate | Decisions | Holds | Audit | Use when |

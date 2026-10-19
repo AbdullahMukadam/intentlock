@@ -1,8 +1,6 @@
 ---
 title: Testing
 description: Test your agent with LocalGate and FakeProvider, without a server or a model key.
-sidebar:
-  order: 6
 ---
 
 `LocalGate` decides in-process with a signing key and a policy you give it, and `FakeProvider` replays scripted model turns. Together they run the whole guard with no server, no database and no LLM key.

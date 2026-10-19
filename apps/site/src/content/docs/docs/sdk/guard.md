@@ -1,8 +1,6 @@
 ---
 title: Agent guard
 description: Let the guard own your agent's tool loop. It plans, checks, runs tools and returns results.
-sidebar:
-  order: 2
 ---
 
 `@intentlock/guard` owns the tool loop. You give it a provider, a gate and your tools; it asks the model for a plan, signs it, checks every call, waits on holds and returns one result per call.

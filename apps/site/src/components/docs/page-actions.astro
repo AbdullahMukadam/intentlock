@@ -1,0 +1,201 @@
+---
+import { GITHUB_URL } from "../../lib/links";
+import { markdownPath, pageMarkdown } from "../../lib/markdown";
+import Icon, { type IconName } from "../icon.astro";
+
+const { entry } = Astro.locals.starlightRoute;
+const markdown = pageMarkdown(entry);
+const mdPath = markdownPath(entry);
+
+interface Item {
+  label: string;
+  icon: IconName;
+  href: string;
+  prompt?: boolean;
+  external?: boolean;
+}
+
+const ITEMS: Item[] = [
+  {
+    label: "Open in GitHub",
+    icon: "github-mark",
+    href: `${GITHUB_URL}/blob/main/apps/site/${entry.filePath ?? ""}`,
+    external: true,
+  },
+  { label: "View as Markdown", icon: "file-text", href: mdPath, external: true },
+  { label: "Open in ChatGPT", icon: "openai", href: "https://chatgpt.com/?q=", prompt: true, external: true },
+  { label: "Open in Claude", icon: "claude", href: "https://claude.ai/new?q=", prompt: true, external: true },
+  { label: "Open in Cursor", icon: "cursor", href: "cursor://anysphere.cursor-deeplink/prompt?text=", prompt: true },
+];
+---
+
+<div class="page-actions" data-md-path={mdPath}>
+  <button type="button" class="action" data-copy-page={markdown}>
+    <Icon name="copy" class="icon idle" />
+    <Icon name="check" class="icon done" />
+    <span>Copy Markdown</span>
+  </button>
+  <details class="menu">
+    <summary class="action">
+      Open
+      <Icon name="chevron-down" class="icon chevron" />
+    </summary>
+    <div class="items">
+      {
+        ITEMS.map(({ label, icon, href, prompt, external }) => (
+          <a
+            href={href}
+            data-prompt={prompt ? href : undefined}
+            target={external ? "_blank" : undefined}
+            rel={external ? "noopener" : undefined}
+          >
+            <Icon name={icon} class="icon" />
+            <span>{label}</span>
+            <Icon name="arrow-up-right" class="icon trailing" />
+          </a>
+        ))
+      }
+    </div>
+  </details>
+</div>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>(".page-actions")) {
+    const url = new URL(root.dataset.mdPath ?? "", location.origin).href;
+    const prompt = encodeURIComponent(`Read ${url} so I can ask questions about it.`);
+    for (const link of root.querySelectorAll<HTMLAnchorElement>("[data-prompt]")) {
+      link.href = `${link.dataset.prompt}${prompt}`;
+    }
+  }
+
+  const closeMenus = (except?: Element | null) => {
+    for (const menu of document.querySelectorAll<HTMLDetailsElement>(".page-actions .menu[open]")) {
+      if (menu !== except) menu.open = false;
+    }
+  };
+
+  document.addEventListener("click", async (event) => {
+    const target = event.target as Element | null;
+    const menu = target?.closest(".page-actions .menu");
+    closeMenus(target?.closest(".items a") ? null : menu);
+
+    const copy = target?.closest<HTMLButtonElement>("[data-copy-page]");
+    if (!copy) return;
+    try {
+      await navigator.clipboard.writeText(copy.dataset.copyPage ?? "");
+      copy.dataset.copied = "";
+      setTimeout(() => delete copy.dataset.copied, 1500);
+    } catch {
+      return;
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeMenus();
+  });
+</script>
+
+<style>
+  .page-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2rem;
+    padding-inline: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in oklch, var(--foreground) 4%, var(--background));
+    color: var(--foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .action::-webkit-details-marker {
+    display: none;
+  }
+
+  .action:hover,
+  .menu[open] > .action {
+    background: color-mix(in oklch, var(--foreground) 9%, var(--background));
+  }
+
+  .action:focus-visible,
+  .items a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+  }
+
+  .done,
+  [data-copied] .idle {
+    display: none;
+  }
+
+  [data-copied] .done {
+    display: block;
+  }
+
+  .chevron {
+    opacity: 0.7;
+    transition: transform 150ms;
+  }
+
+  .menu[open] .chevron {
+    transform: rotate(180deg);
+  }
+
+  .menu {
+    position: relative;
+  }
+
+  .items {
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    left: 0;
+    z-index: 20;
+    display: grid;
+    min-width: 14rem;
+    padding: 0.375rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--background);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
+  }
+
+  .items a {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: 6px;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  .items a:hover {
+    background: color-mix(in oklch, var(--foreground) 7%, transparent);
+  }
+
+  .items span {
+    flex: 1;
+  }
+
+  .trailing {
+    opacity: 0.5;
+  }
+</style>
