@@ -11,7 +11,12 @@ import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { NOTIFY_RETRY_MS, WEBHOOK_TIMEOUT_MS } from "./constants/hold.constants.js";
 import { NotifyChannel } from "./enums/notify-channel.enum.js";
-import { holdMessage, type HoldMessageInput, holdSubject } from "./utils/hold-message.util.js";
+import {
+  holdHtml,
+  holdMessage,
+  type HoldMessageInput,
+  holdSubject,
+} from "./utils/hold-message.util.js";
 
 type Failure = { channel: NotifyChannel; to: string | null };
 
@@ -44,9 +49,10 @@ export class HoldNotifier {
     const failures: Failure[] = [];
     const subject = holdSubject(message);
     const text = holdMessage(message, true);
+    const html = holdHtml(message);
     await Promise.all([
       ...recipients.map(async (to) => {
-        if (!(await retryOnce(() => this.mail.send(to, subject, text)))) {
+        if (!(await retryOnce(() => this.mail.send(to, subject, text, html)))) {
           failures.push({ channel: NotifyChannel.EMAIL, to });
         }
       }),

@@ -1,4 +1,8 @@
-import { holdMessage, holdSubject } from "../../../../src/holds/utils/hold-message.util.js";
+import {
+  holdHtml,
+  holdMessage,
+  holdSubject,
+} from "../../../../src/holds/utils/hold-message.util.js";
 
 const base = {
   tool: "github_post_comment",
@@ -34,5 +38,17 @@ describe("hold message", () => {
     const text = holdMessage({ ...base, args: { repo: "a/b", body: "secret" } }, false);
     expect(text).toContain("Argument names: repo, body");
     expect(text).not.toContain("secret");
+  });
+
+  it("escapes agent-controlled values in the HTML email", () => {
+    const html = holdHtml({
+      ...base,
+      agent: '<img src=x onerror="alert(1)">',
+      args: { body: "</pre><script>steal()</script>" },
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;/pre&gt;&lt;script&gt;");
+    expect(html).toContain('href="https://il.acme.dev/holds"');
   });
 });

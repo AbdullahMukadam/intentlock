@@ -17,10 +17,10 @@ export class MailService {
     return this.transport !== null;
   }
 
-  async send(to: string, subject: string, text: string): Promise<boolean> {
+  async send(to: string, subject: string, text: string, html?: string): Promise<boolean> {
     if (!this.transport) return false;
     try {
-      await this.transport.sendMail({ from: this.env.SMTP_FROM, to, subject, text });
+      await this.transport.sendMail({ from: this.env.SMTP_FROM, to, subject, text, html });
       return true;
     } catch (e) {
       this.log.warn(`Could not email ${to}: ${e instanceof Error ? e.message : String(e)}`);
