@@ -1,4 +1,4 @@
-import { PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
+import { HoldResolveOutcome, PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
 import { z } from "zod";
 
 export const Me = z.object({ email: z.string(), role: Role, groups: z.array(z.string()) });
@@ -29,7 +29,11 @@ export const ApiErrorBody = z.object({ error: z.string() });
 
 const VerdictCounts = z.object({ allow: z.number(), block: z.number(), hold: z.number() });
 
-export const AgentSummary = z.object({ id: z.string(), name: z.string() });
+export const AgentSummary = z.object({
+  id: z.string(),
+  name: z.string(),
+  deletedAt: z.string().nullable().optional(),
+});
 export type AgentSummary = z.infer<typeof AgentSummary>;
 export const AgentSummaries = z.array(AgentSummary);
 
@@ -40,6 +44,7 @@ export const Overview = z.object({
   series: z.array(VerdictCounts.extend({ bucket: z.string() })),
   totals: VerdictCounts,
   pendingHolds: z.number(),
+  holdOutcomes: z.object({ approved: z.number(), rejected: z.number(), expired: z.number() }),
   medianApprovalSeconds: z.number().nullable(),
   topBlockedTools: z.array(z.object({ tool: z.string(), count: z.number() })),
   topBlockedRules: z.array(z.object({ ruleId: z.string(), count: z.number() })),
@@ -129,6 +134,13 @@ export const RunDetail = z.object({
 });
 export type RunDetail = z.infer<typeof RunDetail>;
 
+export const BulkResolveResult = z.object({
+  results: z.array(z.object({ id: z.string(), outcome: z.enum(HoldResolveOutcome) })),
+  resolved: z.number(),
+  skipped: z.number(),
+});
+export type BulkResolveResult = z.infer<typeof BulkResolveResult>;
+
 export const PendingHold = HoldView.extend({
   approvers: z.object({
     roles: z.array(z.string()),
@@ -143,6 +155,7 @@ export const PendingHolds = z.array(PendingHold);
 export const AgentView = AgentSummary.extend({
   description: z.string().nullable(),
   disabledAt: z.string().nullable(),
+  deletedAt: z.string().nullable(),
   createdAt: z.string(),
   activeKeys: z.number(),
   policyVersion: z.number().nullable(),
@@ -208,9 +221,29 @@ export const AuditVerifyResult = z.object({
   ok: z.boolean(),
   count: z.number(),
   firstBrokenSeq: z.number().optional(),
-  flagged: z.array(z.object({ seq: z.number(), flagged: z.string() })),
+  flagged: z.array(
+    z.object({ seq: z.number(), flagged: z.string(), planId: z.string().nullable() }),
+  ),
 });
 export type AuditVerifyResult = z.infer<typeof AuditVerifyResult>;
+
+export const AuditSummary = z.object({
+  count: z.number(),
+  head: z.object({ seq: z.number(), hash: z.string(), at: z.string() }).nullable(),
+  oldest: z.object({ seq: z.number(), at: z.string() }).nullable(),
+  retentionDays: z.number(),
+  lastVerified: z
+    .object({
+      seq: z.number(),
+      at: z.string(),
+      email: z.string(),
+      ok: z.boolean(),
+      count: z.number(),
+      firstBrokenSeq: z.number().optional(),
+    })
+    .nullable(),
+});
+export type AuditSummary = z.infer<typeof AuditSummary>;
 
 export const TeamMember = z.object({
   email: z.string(),

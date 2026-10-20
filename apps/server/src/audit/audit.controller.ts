@@ -49,7 +49,12 @@ export class AuditController {
   }
 
   @Get(API_ENDPOINTS.AUDIT_VERIFY)
-  verify() {
-    return this.verifier.verify();
+  verify(@CurrentUser() user: SessionUser) {
+    return this.verifier.verify(user);
+  }
+
+  @Get(API_ENDPOINTS.AUDIT_SUMMARY)
+  summary() {
+    return this.verifier.summary();
   }
 }

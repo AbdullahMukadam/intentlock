@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { useMe } from "@/components/app-shell";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SecretReveal } from "@/components/secret-reveal";
@@ -136,6 +137,7 @@ function MemberActions({
   onReveal: (r: Revealed) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState(false);
 
   async function patch(body: Record<string, unknown>, done: string) {
     setBusy(true);
@@ -168,62 +170,69 @@ function MemberActions({
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Actions for ${member.email}`}
-            loading={busy}
-          />
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Actions for ${member.email}`}
+              loading={busy}
+            />
+          }
+        >
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Role</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={member.role}
+              onValueChange={(role) =>
+                role !== member.role && patch({ role }, `${member.email} is now ${String(role)}`)
+              }
+            >
+              {Role.options.map((r) => (
+                <DropdownMenuRadioItem key={r} value={r} className="capitalize">
+                  {r}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onEditGroups}>
+            <Tags /> Edit groups
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onEditLabel}>
+            <Tag /> Edit label
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={resetLink}>
+            <KeyRound /> Create reset link
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {member.disabledAt ? (
+            <DropdownMenuItem onClick={() => patch({ disabled: false }, `Enabled ${member.email}`)}>
+              <UserCheck /> Enable
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem variant="destructive" onClick={() => setConfirmDisable(true)}>
+              <Ban /> Disable
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmDialog
+        open={confirmDisable}
+        onOpenChange={setConfirmDisable}
+        title={`Disable ${member.email}?`}
+        description="Their sessions end at once and they can't sign in or approve holds. Plans for them are refused. You can enable them again later."
+        confirmLabel="Disable"
+        onConfirm={() =>
+          patch({ disabled: true }, `Disabled ${member.email}; their sessions ended`)
         }
-      >
-        <MoreHorizontal />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Role</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={member.role}
-            onValueChange={(role) =>
-              role !== member.role && patch({ role }, `${member.email} is now ${String(role)}`)
-            }
-          >
-            {Role.options.map((r) => (
-              <DropdownMenuRadioItem key={r} value={r} className="capitalize">
-                {r}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onEditGroups}>
-          <Tags /> Edit groups
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onEditLabel}>
-          <Tag /> Edit label
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={resetLink}>
-          <KeyRound /> Create reset link
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {member.disabledAt ? (
-          <DropdownMenuItem onClick={() => patch({ disabled: false }, `Enabled ${member.email}`)}>
-            <UserCheck /> Enable
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() =>
-              patch({ disabled: true }, `Disabled ${member.email}; their sessions ended`)
-            }
-          >
-            <Ban /> Disable
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      />
+    </>
   );
 }
 
@@ -329,7 +338,7 @@ function InvitesPanel({
   onReveal: (r: Revealed) => void;
 }) {
   const [resending, setResending] = useState<string | null>(null);
-  const [revoking, setRevoking] = useState<string | null>(null);
+  const [toRevoke, setToRevoke] = useState<InviteView | null>(null);
 
   async function resend(invite: InviteView) {
     setResending(invite.id);
@@ -347,7 +356,6 @@ function InvitesPanel({
   }
 
   async function revoke(invite: InviteView) {
-    setRevoking(invite.id);
     try {
       await api(API_ENDPOINTS.INVITE, z.undefined(), {
         method: HttpMethod.DELETE,
@@ -357,7 +365,6 @@ function InvitesPanel({
     } catch (e) {
       toast.error(errorMessage(e, "Could not revoke the invite."));
     }
-    setRevoking(null);
     onChanged();
   }
 
@@ -427,7 +434,6 @@ function InvitesPanel({
                       size="sm"
                       onClick={() => resend(invite)}
                       loading={resending === invite.id}
-                      disabled={revoking === invite.id}
                     >
                       {resending !== invite.id && <RotateCcw />} Resend
                     </Button>
@@ -435,8 +441,7 @@ function InvitesPanel({
                       variant="ghost"
                       size="sm"
                       className="text-destructive hover:text-destructive"
-                      onClick={() => revoke(invite)}
-                      loading={revoking === invite.id}
+                      onClick={() => setToRevoke(invite)}
                       disabled={resending === invite.id}
                     >
                       Revoke
@@ -448,6 +453,14 @@ function InvitesPanel({
           </Table>
         )}
       </PanelBody>
+      <ConfirmDialog
+        open={toRevoke !== null}
+        onOpenChange={(open) => !open && setToRevoke(null)}
+        title={`Revoke the invite for ${toRevoke?.email ?? ""}?`}
+        description="The invite link stops working. You can send a new invite later."
+        confirmLabel="Revoke invite"
+        onConfirm={() => (toRevoke ? revoke(toRevoke) : Promise.resolve())}
+      />
     </Panel>
   );
 }

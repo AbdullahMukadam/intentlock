@@ -3,14 +3,17 @@
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Badge } from "@intentlock/ui/components/badge";
 import { Button } from "@intentlock/ui/components/button";
+import { Checkbox } from "@intentlock/ui/components/checkbox";
 import { Input } from "@intentlock/ui/components/input";
 import { ArrowUpRight, Bot, Check, Clock, ScrollText, UserRound, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { MemberLabel } from "@/components/member-label";
 import { api } from "@/lib/api";
+import { HoldState } from "@/lib/enums/hold-state.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { errorMessage } from "@/lib/error-message";
 import { formatRelative } from "@/lib/format";
@@ -35,17 +38,23 @@ function Meta({
   );
 }
 
-export function HoldCard({
+export const HoldCard = memo(function HoldCard({
   hold,
   agentName,
   onResolved,
+  selected,
+  onSelect,
 }: {
   hold: PendingHold;
   agentName: string | undefined;
   onResolved: () => void;
+  selected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
 }) {
+  const pending = hold.status === HoldState.PENDING;
   const [note, setNote] = useState("");
   const [resolving, setResolving] = useState<boolean | null>(null);
+  const [confirmReject, setConfirmReject] = useState(false);
 
   async function resolve(approve: boolean) {
     setResolving(approve);
@@ -66,24 +75,38 @@ export function HoldCard({
 
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <header className="flex items-start gap-3">
+        {onSelect && (
+          <Checkbox
+            checked={selected ?? false}
+            onCheckedChange={(checked) => onSelect(hold.id, checked)}
+            aria-label={`Select ${hold.tool} from ${hold.user}`}
+            className="mt-0.5"
+          />
+        )}
+        <div className="min-w-0 flex-1">
           <h3 className="truncate font-mono text-[13px] font-medium">{hold.tool}</h3>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Meta icon={Bot}>{agentName ?? hold.agentId}</Meta>
             <Meta icon={UserRound}>
-              {hold.user}
-              <MemberLabel email={hold.user} />
+              <div className="w-fit flex gap-1">
+                {hold.user}
+                <MemberLabel email={hold.user} />
+              </div>
             </Meta>
             <Meta icon={ScrollText}>
               <span className="font-mono">{hold.ruleId}</span>
             </Meta>
           </div>
         </div>
-        <Badge tone="warning" className="shrink-0">
-          <Clock />
-          expires {formatRelative(hold.expiresAt)}
-        </Badge>
+        {pending ? (
+          <Badge tone="warning" className="shrink-0">
+            <Clock />
+            expires {formatRelative(hold.expiresAt)}
+          </Badge>
+        ) : (
+          <Badge className="shrink-0 capitalize">{hold.status}</Badge>
+        )}
       </header>
       <pre className="max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
         {JSON.stringify(hold.args, null, 2)}
@@ -97,7 +120,13 @@ export function HoldCard({
           View run <ArrowUpRight className="size-3.5" />
         </Link>
       </div>
-      {hold.canApprove ? (
+      {!pending ? (
+        <p className="border-t pt-3 text-xs text-muted-foreground">
+          {hold.resolvedBy ? `${hold.status} by ${hold.resolvedBy}` : hold.status}
+          {hold.resolvedAt ? ` ${formatRelative(hold.resolvedAt)}` : ""}
+          {hold.note ? `: "${hold.note}"` : ""}
+        </p>
+      ) : hold.canApprove ? (
         <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row">
           <Input
             aria-label="Note"
@@ -118,7 +147,7 @@ export function HoldCard({
             </Button>
             <Button
               variant="outline"
-              onClick={() => resolve(false)}
+              onClick={() => setConfirmReject(true)}
               loading={resolving === false}
               disabled={resolving === true}
               className="flex-1 text-destructive hover:text-destructive"
@@ -133,6 +162,20 @@ export function HoldCard({
           {hold.approvers.self ? " (the requester may approve)" : ""}
         </p>
       )}
+      {confirmReject && (
+        <ConfirmDialog
+          open={confirmReject}
+          onOpenChange={setConfirmReject}
+          title={`Reject ${hold.tool}?`}
+          description={
+            note.trim()
+              ? `The agent's call is blocked with your note: "${note.trim()}".`
+              : "The agent's call is blocked. Add a note on the card first if the agent should know why."
+          }
+          confirmLabel="Reject"
+          onConfirm={() => resolve(false)}
+        />
+      )}
     </article>
   );
-}
+});

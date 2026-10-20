@@ -8,6 +8,7 @@ import type { AgentCaller, SessionUser } from "../common/types/auth.types.js";
 import { CreateHoldDto } from "./dto/create-hold.dto.js";
 import { HoldIdParamsDto } from "./dto/hold-id-params.dto.js";
 import { ListHoldsQueryDto } from "./dto/list-holds-query.dto.js";
+import { ResolveHoldsDto } from "./dto/resolve-holds.dto.js";
 import { ResolveHoldDto } from "./dto/resolve-hold.dto.js";
 import { WaitHoldQueryDto } from "./dto/wait-hold-query.dto.js";
 import { HoldsService } from "./holds.service.js";
@@ -56,5 +57,11 @@ export class HoldsController {
     @Body() body: ResolveHoldDto,
   ) {
     return this.holds.resolve(user, id, false, body.note);
+  }
+
+  @Post(API_ENDPOINTS.HOLDS_RESOLVE)
+  @HttpCode(HttpStatus.OK)
+  resolveMany(@CurrentUser() user: SessionUser, @Body() body: ResolveHoldsDto) {
+    return this.holds.resolveMany(user, body.ids, body.approve, body.note);
   }
 }

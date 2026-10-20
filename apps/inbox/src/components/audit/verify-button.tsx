@@ -10,10 +10,13 @@ import {
 } from "@intentlock/ui/components/panel";
 import { cn } from "@intentlock/ui/lib/utils";
 import { Flag, Link2, RefreshCw, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
-import { auditVerifyQuery } from "@/lib/audit-verify";
+import { auditSummaryUrl, auditVerifyQuery } from "@/lib/audit-verify";
+import { queryKeyFor } from "@/lib/query-client";
+import { humanize } from "@/lib/format";
 import type { AuditVerifyResult } from "@/lib/schemas";
 
 function Result({ result: r, at }: { result: AuditVerifyResult; at: Date }) {
@@ -54,8 +57,17 @@ function Result({ result: r, at }: { result: AuditVerifyResult; at: Date }) {
           <ul className="grid divide-y rounded-lg border text-xs">
             {r.flagged.map((f) => (
               <li key={f.seq} className="flex justify-between gap-3 px-3 py-2">
-                <span className="font-mono">#{f.seq}</span>
-                <span className="text-muted-foreground">{f.flagged}</span>
+                {f.planId ? (
+                  <Link
+                    href={`/runs/${f.planId}`}
+                    className="font-mono underline-offset-2 hover:underline"
+                  >
+                    #{f.seq}
+                  </Link>
+                ) : (
+                  <span className="font-mono">#{f.seq}</span>
+                )}
+                <span className="text-muted-foreground">{humanize(f.flagged)}</span>
               </li>
             ))}
           </ul>
@@ -67,12 +79,16 @@ function Result({ result: r, at }: { result: AuditVerifyResult; at: Date }) {
 
 export function VerifyButton() {
   const query = useQuery(auditVerifyQuery);
+  const client = useQueryClient();
   const busy = query.isFetching;
   const error = query.isError && !busy;
   const state = query.data ? { result: query.data, at: new Date(query.dataUpdatedAt) } : null;
 
   function verify() {
-    query.refetch().catch(() => undefined);
+    query
+      .refetch()
+      .then(() => client.invalidateQueries({ queryKey: queryKeyFor(auditSummaryUrl) }))
+      .catch(() => undefined);
   }
 
   return (

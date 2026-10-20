@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { agentNames } from "@/components/agent-filter";
 import { EmptyState } from "@/components/empty-state";
 import { apiUrl } from "@/lib/api";
 import { AuditVerdict } from "@/lib/enums/audit-verdict.enum";
@@ -86,7 +87,7 @@ export function LatestActivity({ agentId, agents }: { agentId: string; agents: A
     AuditPage,
     { refetchInterval: POLL_MS },
   );
-  const names = new Map(agents.map((a) => [a.id, a.name]));
+  const names = agentNames(agents);
 
   return (
     <Panel className="h-full">

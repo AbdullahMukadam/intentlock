@@ -69,7 +69,7 @@ export class StatsService {
       " AND ",
     );
 
-    const [series, tools, rules, flagged, lag, median, pendingHolds] = await Promise.all([
+    const [series, tools, rules, flagged, lag, median, pendingHolds, outcomes] = await Promise.all([
       this.prisma.$queryRaw<BucketRow[]>`
         SELECT date_trunc(${bucket}, at) AS bucket, verdict, count(*)::int AS count
         FROM "AuditEntry" WHERE ${checks} GROUP BY 1, 2 ORDER BY 1`,
@@ -95,7 +95,19 @@ export class StatsService {
           ...(member && { user: member }),
         },
       }),
+      orgDb(this.prisma, viewer.orgId).hold.groupBy({
+        by: ["status"],
+        where: {
+          status: { not: HoldStatus.PENDING },
+          resolvedAt: { gte: from, lt: to },
+          ...(q.agentId && { agentId: q.agentId }),
+          ...(member && { user: member }),
+        },
+        _count: { _all: true },
+      }),
     ]);
+    const outcome = (status: HoldStatus) =>
+      outcomes.find((o) => o.status === status)?._count._all ?? 0;
 
     const buckets = new Map<string, ReturnType<typeof emptyVerdictCounts>>();
     const totals = emptyVerdictCounts();
@@ -117,6 +129,11 @@ export class StatsService {
       series: [...buckets].map(([at, c]) => ({ bucket: at, ...c })),
       totals,
       pendingHolds,
+      holdOutcomes: {
+        approved: outcome(HoldStatus.APPROVED),
+        rejected: outcome(HoldStatus.REJECTED),
+        expired: outcome(HoldStatus.EXPIRED),
+      },
       medianApprovalSeconds: median[0]?.median ?? null,
       topBlockedTools: tools.map((r) => ({ tool: r.key, count: r.count })),
       topBlockedRules: rules.map((r) => ({ ruleId: r.key, count: r.count })),

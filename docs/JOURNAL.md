@@ -2055,3 +2055,81 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Two migrations to apply on the deployed database before the new server starts
 - `turbo` concurrency: `pnpm dev` needs `--concurrency 11` or a `concurrency` setting in turbo.json
 - Not checked: which version the deployed inbox runs (button loaders item)
+
+### 2026-10-20 · Session 26 · Phase 6.7 — Early user 1 feedback, round 2: delete an agent (server)
+
+**Done**
+- ADR-075 (accepted by Abdullah): deleting an agent archives it. `Agent.deletedAt` plus a partial unique index on `(orgId, name)` over live rows (Prisma `partialIndexes` preview), one migration. `DELETE /v1/agents/:id` now returns 204 and, in one transaction, revokes the agent's keys, rejects its pending holds ("agent deleted", one `hold_resolved` entry each), and appends `agent_deleted`. Deleted agents don't count against `maxAgents`, can't sign plans, are hidden from `GET /v1/agents` unless `includeDeleted=true`, and their name can be reused. The inbox keeps history names as "name (deleted)" and drops them from filters; a deleted agent's page shows only Overview and Activity. Test `agent-delete.e2e.test.ts`
+
+**Problems hit and how they were solved**
+- Docker Desktop was off → started it and only the `postgres` service (`--pull never`, image already local)
+
+**Next**
+- The Delete button with the type-the-name dialog lands with the Dialog/AlertDialog item; tick item 1 then
+- Run the full `pnpm test` before merging (only the affected e2e files were run: agent-delete, agents, license, holds, routes)
+
+### 2026-10-20 · Session 26 (cont.) · Phase 6.7 — Dialogs instead of browser pop-ups
+
+**Done**
+- `@intentlock/ui`: `alert-dialog` and `sheet` on `@base-ui/react` 1.9 (already installed). Inbox `ConfirmDialog` (title, description, optional extra fields, optional "type the name to confirm", busy state)
+- Replaced `window.confirm` (revoke API key) and `window.prompt` (policy rollback message, now a field in the confirm) and the hand-made mobile drawer (now `Sheet`: focus trap, Escape and outside click come from Base UI, so the custom Escape listener is gone)
+- Confirms on destructive actions: disable member, revoke invite, revoke key, reject hold (shows the note that will be sent), delete agent (type the agent's name; admin only, new `UiAction.DELETE_AGENT`). Item 1 ticked with this
+- Test `browser-dialogs.test.ts`: no `prompt(`, `confirm(` or `alert(` anywhere in the inbox source
+
+**Reviewed, not changed**
+- `NativeSelect` stays: the native picker is better on phones and needs no portal; Base UI `Select` would add code for no user-visible gain
+- Agent tabs stay as links: the tab lives in the URL (`?tab=`) so it can be shared and survives a reload; `Tabs` would need the same URL wiring
+- No `Popover` candidates found; plain `Dialog` not added since nothing needs it yet
+
+**Numbers**
+- Inbox: 105 tests green (was 104); inbox and ui lint and typecheck green. Not checked in a browser yet
+
+### 2026-10-20 · Session 26 (cont.) · Phase 6.7 — Holds search, filters and bulk resolve
+
+**Done**
+- ADR-076 (accepted by Abdullah). `POST /v1/holds/resolve` (`API_ENDPOINTS.HOLDS_RESOLVE`): up to 100 unique ids, `approve`, optional note. Each id goes through the existing `resolve()` in order, so the approver check, the `PENDING`/not-expired guard, the audit entry and the live event are the same as one approve or reject. Per-id outcomes use the new core enum `HoldResolveOutcome`; a pending hold past its expiry counts as `expired`
+- Inbox Holds page: search (tool, agent, person, rule, arguments), agent and state filters in the URL (`q`, `agentId`, `state`); resolved states show who resolved each hold and the note. Checkboxes on holds you can approve, select all (the filtered list), a note, Approve N / Reject N; reject is confirmed. The toast says what was skipped and why
+- Tests: `holds-bulk.e2e.test.ts` (mixed batch: two approved, one expired, one already resolved, one unknown → two audit entries, chain valid; a requester can't approve their own; validation and session-only), `hold-filters.test.ts` (URL parsing, search fields, summary text)
+
+**Numbers**
+- Inbox 108 tests, core 147, server e2e for holds-bulk and routes green; lint and typecheck green for core, server and inbox. Full `pnpm test` still to run before merge. Not checked in a browser yet
+- Selecting a hold was slow (Abdullah): every click rebuilt `selected` and a new `onSelect` closure per card, so all ~176 cards re-rendered (pretty-printed args, a dialog each); the React Compiler does not memoize per item inside `.map`. Fix: `memo(HoldCard)`, one stable `toggle` with a functional `setSelected`, and the reject dialog mounted only while open. A click now re-renders the one card that changed plus the bulk bar
+
+### 2026-10-20 · Session 26 (cont.) · Phase 6.7 — Charts
+
+**Done**
+- ADR-077 (accepted by Abdullah): shadcn `chart` over Evil Charts. Evil Charts is MIT, but its project also depends on `echarts` and `motion` and mainly adds styling. `packages/ui/src/components/chart.tsx` written by hand: `ChartContainer` (CSS-variable colours per series), `ChartTooltipContent`, `ChartLegendContent`. `recharts` 3.10.1 declared in `@intentlock/ui`, installed with `pnpm install --offline` (lockfile +5 lines)
+- Overview: "Decision volume" is now stacked allowed/held/blocked bars with a legend and one tooltip per bucket. New "Hold outcomes" panel (approved/rejected/expired resolved in the range, one stacked bar with counts and shares). KPI sparklines draw through `ChartContainer`. Top blocked tools/rules stay lists; time to approve stays the median tile
+- Server: `GET /v1/stats/overview` returns `holdOutcomes` (one `groupBy` on `Hold` by `resolvedAt`, same agent and member scoping); `visibility.e2e.test.ts` checks the counts and that a member sees only their own
+
+**Numbers**
+- Inbox 108 tests, stats e2e green; lint and typecheck green for server, inbox, ui. Not checked in a browser yet
+
+### 2026-10-20 · Session 26 (cont.) · Demo traffic spread over a week
+
+- The local demo data had ~5,000 audit entries in one hour, so the Overview chart drew a single bar. Moving timestamps in place would mean rewriting the hash chain (`at` is hashed), so the local database was re-seeded instead (Abdullah's call; a `pg_dump` was taken first)
+- New dev script `pnpm --filter @intentlock/server seed:traffic` (`prisma/seed-traffic.ts`), run after `pnpm seed` on an empty database: adds `triage-bot` (label `bot`) and `oncall`, three agents with one demo policy (block destructive tools, hold comments and merges, allow in plan), 900 runs over the last 7 days weighted to working hours. Every verdict comes from core `check()`; holds are approved, rejected or expired with realistic delays, some recent ones stay pending; the audit chain is written with `hashEntry` under the chain lock. Passwords for users listed in `.env.demo-users` are set from that file
+- Tried on `intentlock_test` first, then on the local database: chain verifies (4,638 entries), entries on every day of the week
+
+### 2026-10-20 · Session 27 · Phase 6.7 — Audit page
+
+**Done**
+- Abdullah chose a real page over folding it into Activity, and approved the three API changes. ADR-078
+- Server: `GET /v1/audit/summary` (`API_ENDPOINTS.AUDIT_SUMMARY`): entry count, head (seq, hash, time), oldest entry, license `retentionDays`, last verification. `GET /v1/audit/verify` now appends `audit_verified` (actor id, payload email/ok/count/firstBrokenSeq), so "last verified by whom" lives in the chain itself. Flagged entries in the verify result carry `planId`
+- Inbox Audit page: Chain panel (entries, head, last entry, oldest kept, retention, last verified), the verify panel (summary refreshes after a verify; flagged entries link to `/runs/:planId`), and for admins and approvers Export chain plus the `intentlock audit verify --file intentlock-audit.jsonl` command (`UiAction.EXPORT_AUDIT_CHAIN`). Members don't get export here: their export is only their own runs and would not verify as a chain
+- Tests: summary on an empty chain and after a verify (who verified, head = the `audit_verified` entry, chain still valid), summary needs a session, flagged entries carry the plan id; permissions test for the new action
+
+**Numbers**
+- Server 248 tests, inbox 109; lint and typecheck green for server and inbox. Not checked in a browser yet
+
+**Notes for Abdullah**
+- Retention shows the license's 30 days with "Old entries are not purged yet": purging is still out of scope
+- Every Verify now adds one entry to the chain, so the entry count goes up by one after each verify
+
+### 2026-10-20 · Session 27 (cont.) · CLI on npm
+
+- Abdullah asked how anyone installs the CLI: it was `private` and only buildable from a clone, while the docs (self-host keygen, policy commands, audit verify) and the new Audit page used `intentlock` commands. Decided to publish it (ADR-079)
+- `@intentlock/cli` is public at 0.2.1 with its own ELv2 `LICENSE`, `prepack`, repository metadata and `engines`; added to `scripts/release.ts` (six lockstep packages). `pnpm pack` gives `dist`, `LICENSE`, `README.md`, and `@intentlock/core` pinned to `0.2.1`
+- Docs: the CLI reference installs with `npm install -g @intentlock/cli`; self-host keygen and the Audit page use `npx -y @intentlock/cli …`; the policies page and "Protect your agent" link to the install line. CHANGELOG `Unreleased`, CONTRIBUTING, README and STRUCTURE updated
+- Nothing published: the CLI ships in the next `pnpm release`
+- Abdullah published `@intentlock/cli` 0.2.1 with `npm publish`; its dependencies kept `workspace:*` and `catalog:`, and `npm install --dry-run @intentlock/cli` fails with `EUNSUPPORTEDPROTOCOL`. The CLI's source has not changed since v0.2.1 and it imports only core exports that exist in core 0.2.1 (`API_ENDPOINTS`, `apiPath`, `IntentlockError`, `Role`, `parsePolicy`, `verifyChain`), so the CLI is bumped alone to 0.2.2 for `pnpm publish` (packed deps: `@intentlock/core` `0.2.1`, `zod` `^4.6.5`). One-off lockstep break, noted in ADR-079

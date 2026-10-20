@@ -188,18 +188,18 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 
 ## Repository
 
-| Path                                                         | What                                                                     | License |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------ | ------- |
-| [`packages/core`](packages/core)                             | Plan schema, signing, policy engine, `check()`, audit hashing (pure)     | MIT     |
-| [`packages/sdk`](packages/sdk)                               | Gates: `HybridGate`, `HttpGate`, `LocalGate`, `PassThroughGate`          | MIT     |
-| [`packages/guard`](packages/guard)                           | Provider-agnostic agent guard, OpenAI-compatible adapter, `FakeProvider` | MIT     |
-| [`packages/anthropic`](packages/anthropic)                   | Claude adapter                                                           | MIT     |
-| [`packages/cli`](packages/cli)                               | `intentlock` CLI                                                         | ELv2    |
-| [`packages/mcp-proxy`](packages/mcp-proxy)                   | `intentlock-mcp` on npm: guards any stdio MCP server (ADR-070, ADR-071)  | ELv2    |
-| [`apps/server`](apps/server)                                 | NestJS policy, hold and audit service                                    | ELv2    |
-| [`apps/inbox`](apps/inbox)                                   | Next.js approval inbox, policy editor, dashboard                         | ELv2    |
-| [`apps/demo`](apps/demo), [`packages/evals`](packages/evals) | Demo agents, eval suite                                                  | ELv2    |
-| [`apps/site`](apps/site)                                     | Public website: landing page and docs (Astro + Starlight)                | ELv2    |
+| Path                                                         | What                                                                             | License |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------- | ------- |
+| [`packages/core`](packages/core)                             | Plan schema, signing, policy engine, `check()`, audit hashing (pure)             | MIT     |
+| [`packages/sdk`](packages/sdk)                               | Gates: `HybridGate`, `HttpGate`, `LocalGate`, `PassThroughGate`                  | MIT     |
+| [`packages/guard`](packages/guard)                           | Provider-agnostic agent guard, OpenAI-compatible adapter, `FakeProvider`         | MIT     |
+| [`packages/anthropic`](packages/anthropic)                   | Claude adapter                                                                   | MIT     |
+| [`packages/cli`](packages/cli)                               | `intentlock` CLI on npm: audit verify, keygen, users, agents, policies (ADR-079) | ELv2    |
+| [`packages/mcp-proxy`](packages/mcp-proxy)                   | `intentlock-mcp` on npm: guards any stdio MCP server (ADR-070, ADR-071)          | ELv2    |
+| [`apps/server`](apps/server)                                 | NestJS policy, hold and audit service                                            | ELv2    |
+| [`apps/inbox`](apps/inbox)                                   | Next.js approval inbox, policy editor, dashboard                                 | ELv2    |
+| [`apps/demo`](apps/demo), [`packages/evals`](packages/evals) | Demo agents, eval suite                                                          | ELv2    |
+| [`apps/site`](apps/site)                                     | Public website: landing page and docs (Astro + Starlight)                        | ELv2    |
 
 `apps/site` is optional: nothing depends on it and it is not part of the self-host bundle. Delete the folder and run `pnpm install` if you don't need it.
 

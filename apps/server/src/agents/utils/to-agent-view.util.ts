@@ -10,6 +10,7 @@ export function toAgentView(
     name: agent.name,
     description: agent.description,
     disabledAt: agent.disabledAt,
+    deletedAt: agent.deletedAt,
     createdBy: agent.createdBy,
     createdAt: agent.createdAt,
     activeKeys: agent._count.apiKeys,

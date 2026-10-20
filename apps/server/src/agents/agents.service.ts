@@ -2,6 +2,7 @@ import { ConflictException, HttpStatus, Injectable, NotFoundException } from "@n
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
+import { HoldsService } from "../holds/holds.service.js";
 import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
 import type { SessionUser } from "../common/types/auth.types.js";
 import { emptyVerdictCounts, tallyVerdicts } from "../common/utils/verdict-counts.util.js";
@@ -15,6 +16,7 @@ import { createAgent } from "./utils/create-agent.util.js";
 import { toAgentView } from "./utils/to-agent-view.util.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DELETED_HOLD_NOTE = "agent deleted";
 const VIEW_INCLUDE = {
   policy: { select: { activeVersion: true } },
   _count: { select: { apiKeys: { where: { revokedAt: null } } } },
@@ -26,6 +28,7 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly license: LicenseService,
+    private readonly holds: HoldsService,
   ) {}
 
   async create(admin: SessionUser, input: { name: string; description?: string | undefined }) {
@@ -52,8 +55,9 @@ export class AgentsService {
     return this.get(admin.orgId, agent.id);
   }
 
-  async list(orgId: string) {
+  async list(orgId: string, includeDeleted = false) {
     const agents = await orgDb(this.prisma, orgId).agent.findMany({
+      where: includeDeleted ? {} : { deletedAt: null },
       include: VIEW_INCLUDE,
       orderBy: { createdAt: "asc" },
     });
@@ -75,9 +79,46 @@ export class AgentsService {
   }
 
   async findOrThrow(orgId: string, id: string) {
-    const agent = await orgDb(this.prisma, orgId).agent.findFirst({ where: { id } });
+    const agent = await orgDb(this.prisma, orgId).agent.findFirst({
+      where: { id, deletedAt: null },
+    });
     if (!agent) throw notFound();
     return agent;
+  }
+
+  async delete(admin: SessionUser, id: string) {
+    const target = await this.findOrThrow(admin.orgId, id);
+    const announce = await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+      const { count } = await tx.agent.updateMany({
+        where: { id, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      if (count === 0) throw notFound();
+      await tx.apiKey.updateMany({
+        where: { agentId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      const announceHolds = await this.holds.rejectPendingForAgent(
+        tx,
+        admin,
+        id,
+        DELETED_HOLD_NOTE,
+      );
+      await this.audit.append(
+        admin.orgId,
+        [
+          {
+            kind: AuditKind.AGENT_DELETED,
+            actor: admin.id,
+            agentId: id,
+            payload: { name: target.name },
+          },
+        ],
+        tx,
+      );
+      return announceHolds;
+    });
+    announce();
   }
 
   async update(

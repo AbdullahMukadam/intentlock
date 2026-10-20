@@ -18,6 +18,7 @@ import { ChevronLeft, ChevronRight, Flag, ListFilter, TriangleAlert } from "luci
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { agentNames } from "@/components/agent-filter";
 import { MemberLabel } from "@/components/member-label";
 import { EmptyState } from "@/components/empty-state";
 import { VerdictBadge } from "@/components/verdict-badge";
@@ -155,7 +156,7 @@ export function DecisionTable({
     );
   }
 
-  const names = new Map(agents.map((a) => [a.id, a.name]));
+  const names = agentNames(agents);
   const rows = first.data.entries;
   const total = first.data.total ?? rows.length;
 

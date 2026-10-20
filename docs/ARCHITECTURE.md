@@ -238,9 +238,10 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | DELETE | `/v1/invites/:id` | → 204 | Auth: session (admin). Revoke |
 | POST | `/v1/invites/lookup` | `{ token }` → `{ email, role, orgName, expiresAt }` | Auth: none. 400 `link_invalid` when unknown, used, revoked or expired (same for accept and reset) |
 | POST | `/v1/invites/accept` | `{ token, password }` → sets session cookie, `{ user }` | Auth: none. Creates the user; fails if license `maxUsers` reached |
-| GET | `/v1/agents` | → `Agent[]` with key counts, active policy version, 24 h decision counts | Auth: session |
+| GET | `/v1/agents?includeDeleted=` | → `Agent[]` with key counts, active policy version, 24 h decision counts; deleted agents only with `includeDeleted=true` | Auth: session |
 | POST | `/v1/agents` | `{ name, description? }` → `Agent` (created with the starter policy as v1) | Auth: session (admin). Fails if license `maxAgents` reached |
-| GET · PATCH · DELETE | `/v1/agents/:id` | `{ name?, description?, disabled? }` → `Agent` | Auth: session (PATCH/DELETE admin). Disabling blocks new plans for the agent |
+| GET · PATCH | `/v1/agents/:id` | `{ name?, description?, disabled? }` → `Agent` | Auth: session (PATCH admin). Disabling blocks new plans for the agent. GET still returns a deleted agent; PATCH, policy and API-key routes 404 for it |
+| DELETE | `/v1/agents/:id` | → 204 | Auth: session (admin). Archives the agent (ADR-075): revokes its keys, rejects its pending holds, frees its license slot and name; audited `agent_deleted` |
 | POST | `/v1/agents/:id/api-keys` | `{ name }` → `{ id, prefix, key }` | Auth: session (admin). Key shown once |
 | GET | `/v1/agents/:id/api-keys` | → `{ id, name, prefix, createdBy (email), createdAt, lastUsedAt, revokedAt }[]` | Auth: session (admin) |
 | DELETE | `/v1/agents/:id/api-keys/:keyId` | → 204 | Auth: session (admin). Revoke: immediate for new plans |
@@ -251,7 +252,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/agents/:id/policy/test` | `{ source, calls?: SampleCall[], replayLast?: number }` → `{ results, changed: { from, to, count }[] }` | Auth: session. Pure dry run; nothing is saved |
 | POST | `/v1/agents/:id/policy/publish` | `{ source, baseVersion, message }` → `PolicyVersion` | Auth: session (admin). 409 if `baseVersion` is not the active version |
 | POST | `/v1/agents/:id/policy/rollback` | `{ toVersion, message }` → `PolicyVersion` (a new version copying the old one) | Auth: session (admin) |
-| GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
+| GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, hold outcomes (`holdOutcomes`: approved/rejected/expired resolved in the range), median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
 | GET | `/v1/runs?agentId=&user=&status=&cursor=` | → runs (plans) with decision counts | Auth: session (scoped by role) |
 | GET | `/v1/runs/:planId` | → plan, policy version, ordered decisions, holds, timing | Auth: session (scoped by role) |
 | GET | `/v1/license` | → `{ edition, licensee, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, features, expiresAt }` | Auth: session |
@@ -262,10 +263,12 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET | `/v1/holds/:id/wait?timeout=25` | → `{ status: pending\|approved\|rejected\|expired }` | Long-poll, max 25 s per request; client loops |
 | GET | `/v1/holds?status=pending` | → `Hold[]` | Auth: session. Approvers see holds they may approve; members see their own. `resolvedBy` is the approver's email (also in run detail) |
 | POST | `/v1/holds/:id/approve` · `/reject` | `{ note? }` → `Hold` | Auth: **session only**. Approver = signed-in user, must satisfy the hold's `ApproverSpec`; audited |
+| POST | `/v1/holds/resolve` | `{ ids (1–100), approve, note? }` → `{ results: { id, outcome }[], resolved, skipped }` | Auth: **session only**. Resolves each id on its own, exactly like approve/reject; `outcome` is `HoldResolveOutcome` (ADR-076) |
 | POST | `/v1/report` | `{ token, callId, outcome: ok\|error }` → `{ planStatus }` | Advances usage + completion |
 | GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=&page=&limit=` | → `{ entries, nextCursor }`; with `page` (1-based) → `{ entries, total, page, nextCursor: null }` (ADR-074); `?format=jsonl` exports | Auth: session (scoped by role) |
 | POST | `/v1/audit/batch` | `{ planId, tokens: string[], entries: (ClientEntry without token, with tokenRef)[] }` → `{ ackedThrough: clientSeq, rejected: { clientSeq, reason }[] }` | `hybrid` mode. ≤ 100 entries; each entry points at a de-duplicated token. Idempotent on `(planId, clientSeq)`; checks the client chain for gaps and edits; re-runs `check()` per entry and flags looser-than-policy decisions |
-| GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged }` | Recomputes chain; lists flagged client entries |
+| GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged: { seq, flagged, planId }[] }` | Recomputes chain; lists flagged client entries; appends `audit_verified` (ADR-078) |
+| GET | `/v1/audit/summary` | → `{ count, head, oldest, retentionDays, lastVerified }` | Auth: session. Chain size, head, oldest entry, license retention, last `audit_verified` entry (ADR-078) |
 | GET | `/v1/keys/jwks` | → JWKS | Auth: none (public keys by design) |
 | GET | `/health`, `/health/ready` | → `{ ok }` | Auth: none |
 
@@ -298,11 +301,12 @@ model Agent {
   name        String                         // kebab-case, e.g. github-assistant
   description String?
   disabledAt  DateTime?
+  deletedAt   DateTime?                      // archived, never removed (ADR-075)
   createdBy   String
   createdAt   DateTime  @default(now())
   apiKeys     ApiKey[]
   policy      PolicySet?
-  @@unique([orgId, name])
+  @@unique([orgId, name], where: { deletedAt: null })
 }
 
 model ApiKey {
@@ -656,7 +660,7 @@ All views read the audit log and plan/hold tables through indexed queries (see t
 | **Run detail** | One plan: goal, user, agent, policy version, then every tool call in order with verdict, deciding rule, approval (who, when, note) and timing | `GET /v1/runs/:planId` |
 | **Holds** | Pending and recent holds, approve / reject (live) | `/v1/holds` + WebSocket |
 | **Agents** | Agents with 24 h counts, keys, policy version; agent page tabs: Overview · Policy · API keys · Activity | `/v1/agents*` |
-| **Audit** | "Verify chain" result, first broken entry if any | `GET /v1/audit/verify` |
+| **Audit** | Chain size, head, oldest entry, retention, last verified and by whom; "Verify chain" result with first broken entry and flagged entries linked to their runs; export and the CLI verify command (admins, approvers) | `GET /v1/audit/summary`, `GET /v1/audit/verify`, `GET /v1/audit?format=jsonl` |
 
 Aggregations are plain SQL (`date_trunc` buckets, `GROUP BY verdict`) for v0.1; summary tables can come later if data grows.
 

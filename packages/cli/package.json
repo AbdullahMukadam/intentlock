@@ -1,9 +1,30 @@
 {
   "name": "@intentlock/cli",
-  "version": "0.0.0",
-  "description": "The intentlock CLI: audit verify, keygen, policy validate, admin commands.",
-  "private": true,
+  "version": "0.2.2",
+  "description": "The intentlock CLI: verify audit exports offline, create signing keys, manage users, agents, keys and policies.",
+  "private": false,
   "license": "Elastic-2.0",
+  "keywords": [
+    "intentlock",
+    "cli",
+    "llm",
+    "agents",
+    "authorization",
+    "audit"
+  ],
+  "homepage": "https://github.com/AbdullahMukadam/intentlock/tree/main/packages/cli#readme",
+  "bugs": "https://github.com/AbdullahMukadam/intentlock/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbdullahMukadam/intentlock.git",
+    "directory": "packages/cli"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -19,7 +40,8 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsup"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",

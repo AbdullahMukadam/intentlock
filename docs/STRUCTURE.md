@@ -589,8 +589,9 @@ flowchart BT
 | --- | --- | --- |
 | `packages/core`, `sdk`, `guard`, `anthropic` | MIT (own `LICENSE` file) | npm |
 | `packages/mcp-proxy` | Elastic License 2.0 (own copy of the ELv2 `LICENSE` for the tarball) | npm (ADR-071) |
+| `packages/cli` | Elastic License 2.0 (own copy of the ELv2 `LICENSE` for the tarball) | npm (ADR-079) |
 | `apps/server`, `apps/inbox` | Elastic License 2.0 (root `LICENSE`) | Docker images (GHCR) |
-| `packages/cli`, `packages/evals`, `apps/demo` | Elastic License 2.0 | not published to npm in v0.1 |
+| `packages/evals`, `apps/demo` | Elastic License 2.0 | not published to npm |
 | `scripts/issue-license.ts`, `scripts/release.ts` | Elastic License 2.0 | not published |
 
 MIT packages must not import from ELv2 packages (already guaranteed by the dependency graph in §4).

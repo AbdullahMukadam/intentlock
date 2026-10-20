@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 
-const PACKAGES = ["core", "sdk", "guard", "anthropic", "mcp-proxy"];
-const FILTER = "./packages/{core,sdk,guard,anthropic,mcp-proxy}";
+const PACKAGES = ["core", "sdk", "guard", "anthropic", "mcp-proxy", "cli"];
+const FILTER = "./packages/{core,sdk,guard,anthropic,mcp-proxy,cli}";
 const BRANCH = "main";
 const ROOT = join(import.meta.dirname, "..");
 
@@ -47,7 +47,7 @@ const versions = PACKAGES.map((p) => {
 });
 const version = versions[0]!;
 if (versions.some((v) => v !== version))
-  fail("the published packages must have the same version (ADR-062, ADR-071)");
+  fail("the published packages must have the same version (ADR-062, ADR-071, ADR-079)");
 const tag = `v${version}`;
 
 step("Release files");

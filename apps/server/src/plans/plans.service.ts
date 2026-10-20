@@ -180,7 +180,7 @@ export class PlansService {
 
   private async enabledAgent(db: OrgDb, agentId: string) {
     const agent = await db.agent.findFirst({ where: { id: agentId } });
-    if (!agent || agent.disabledAt) {
+    if (!agent || agent.disabledAt || agent.deletedAt) {
       throw new ForbiddenException({
         statusCode: HttpStatus.FORBIDDEN,
         error: PlanError.AGENT_DISABLED,

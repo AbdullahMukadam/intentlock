@@ -35,6 +35,7 @@ API key.
 | GET | `/v1/holds?status=pending` | Approvers see the holds they may approve; members see their own. |
 | POST | `/v1/holds/:id/approve` | `{ note? }`. Session only. The approver is the signed-in user and must satisfy the hold's approvers. |
 | POST | `/v1/holds/:id/reject` | `{ note? }`. Same rules as approve. |
+| POST | `/v1/holds/resolve` | `{ ids, approve, note? }` with up to 100 hold ids. Session only. Each hold is approved or rejected on its own, with the same rules and its own audit entry; returns an outcome per id (approved, rejected, expired, already resolved, not allowed, not found). |
 
 ## Setup and sign-in
 
@@ -109,7 +110,8 @@ Session, for the signed-in user.
 | GET | `/v1/runs/:planId` | Plan, policy version, decisions, holds and timing. |
 | GET | `/v1/stats/overview` | Dashboard counts. Filters: `from`, `to`, `agentId`. |
 | GET | `/v1/audit` | Entries with filters, newest first. `?page=N&limit=M` returns numbered pages with a `total`; without `page`, follow `nextCursor` with `?cursor=`. `?format=jsonl` exports. |
-| GET | `/v1/audit/verify` | `{ ok, count, firstBrokenSeq?, flagged }`. |
+| GET | `/v1/audit/verify` | `{ ok, count, firstBrokenSeq?, flagged: { seq, flagged, planId }[] }`. Each verify is recorded in the chain as `audit_verified`. |
+| GET | `/v1/audit/summary` | `{ count, head, oldest, retentionDays, lastVerified }`: chain size, latest entry (seq, hash, time), oldest entry kept, the license's retention days, and the last verification (when, by whom, result). |
 
 ## Server
 

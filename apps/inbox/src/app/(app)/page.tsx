@@ -8,11 +8,12 @@ import { ArrowRight, Hand, Rocket, ShieldCheck, ShieldX, TriangleAlert } from "l
 import Link from "next/link";
 import { useState } from "react";
 
-import { AgentFilter, useAgentList } from "@/components/agent-filter";
+import { activeAgents, AgentFilter, useAgentList } from "@/components/agent-filter";
 import { useMe } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { NativeSelect } from "@/components/native-select";
 import { KpiPanel } from "@/components/overview/kpi-panel";
+import { HoldOutcomes } from "@/components/overview/hold-outcomes";
 import { LatestActivity } from "@/components/overview/latest-activity";
 import { StatTiles } from "@/components/overview/stat-tiles";
 import { TopBlocked } from "@/components/overview/top-blocked";
@@ -115,7 +116,7 @@ export default function OverviewPage() {
           </>
         }
       />
-      {agentList?.length === 0 && can(me.role, UiAction.CREATE_AGENT) && (
+      {agentList && activeAgents(agentList).length === 0 && can(me.role, UiAction.CREATE_AGENT) && (
         <div className="flex flex-col gap-4 rounded-xl border bg-panel bg-hatch p-1 sm:flex-row sm:items-center">
           <div className="flex flex-1 items-center gap-4 rounded-lg border bg-card p-4 shadow-xs">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -191,6 +192,7 @@ export default function OverviewPage() {
             </div>
           </div>
           {data && <StatTiles overview={data} />}
+          {data && <HoldOutcomes overview={data} />}
           {data && <TopBlocked overview={data} />}
         </>
       )}

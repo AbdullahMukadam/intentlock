@@ -11,7 +11,13 @@ import {
   NotFoundException,
   type OnModuleInit,
 } from "@nestjs/common";
-import { ApproverSpec, canApprove, check, type ToolCall } from "@intentlock/core";
+import {
+  ApproverSpec,
+  canApprove,
+  check,
+  HoldResolveOutcome,
+  type ToolCall,
+} from "@intentlock/core";
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
@@ -36,7 +42,7 @@ import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
 import { emailsById } from "../users/utils/emails-by-id.util.js";
 import { toHoldView } from "./utils/to-hold-view.util.js";
 
-type ExpiredRow = Pick<
+type ClosedHoldRow = Pick<
   Hold,
   "id" | "planId" | "agentId" | "user" | "tool" | "ruleId" | "approvers"
 >;
@@ -217,6 +223,57 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
     return toHoldView(resolved, new Map([[user.id, user.email]]));
   }
 
+  async resolveMany(user: SessionUser, ids: string[], approve: boolean, note: string | undefined) {
+    const now = new Date();
+    const status = approve ? HoldStatus.APPROVED : HoldStatus.REJECTED;
+    const found = new Map(
+      (await orgDb(this.prisma, user.orgId).hold.findMany({ where: { id: { in: ids } } })).map(
+        (h) => [h.id, h],
+      ),
+    );
+    const allowed = ids.filter((id) => {
+      const hold = found.get(id);
+      return hold !== undefined && this.mayApprove(user, hold);
+    });
+    const updated = allowed.length
+      ? await orgDb(this.prisma, user.orgId).$transaction(async (tx) => {
+          const rows = await tx.$queryRaw<ClosedHoldRow[]>`
+            UPDATE "Hold" SET status = ${status}::"HoldStatus", "resolvedBy" = ${user.id},
+              note = ${note ?? null}, "resolvedAt" = ${now}
+            WHERE "orgId" = ${user.orgId} AND id = ANY(${allowed})
+              AND status = ${HoldStatus.PENDING}::"HoldStatus" AND "expiresAt" > ${now}
+            RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
+          if (rows.length > 0) {
+            await this.audit.append(
+              user.orgId,
+              rows.map((h) => ({
+                kind: AuditKind.HOLD_RESOLVED,
+                actor: user.id,
+                user: h.user,
+                planId: h.planId,
+                agentId: h.agentId,
+                tool: h.tool,
+                verdict: approve ? AuditVerdict.APPROVED : AuditVerdict.REJECTED,
+                ruleId: h.ruleId,
+                payload: { holdId: h.id, note: note ?? null, approver: user.email },
+              })),
+              tx,
+            );
+          }
+          return rows;
+        })
+      : [];
+    for (const row of updated) this.announceResolved({ ...row, orgId: user.orgId, status });
+
+    const done = new Set(updated.map((h) => h.id));
+    const mayResolve = new Set(allowed);
+    const results = ids.map((id) => ({
+      id,
+      outcome: bulkOutcome(found.get(id), done.has(id), mayResolve.has(id), approve),
+    }));
+    return { results, resolved: done.size, skipped: ids.length - done.size };
+  }
+
   async expireAll(): Promise<number> {
     const orgs = await this.prisma.organization.findMany({ select: { id: true } });
     let total = 0;
@@ -228,7 +285,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
   async expireDue(orgId: string): Promise<number> {
     return orgDb(this.prisma, orgId)
       .$transaction(async (tx) => {
-        const rows = await tx.$queryRaw<ExpiredRow[]>`
+        const rows = await tx.$queryRaw<ClosedHoldRow[]>`
         UPDATE "Hold" SET status = ${HoldStatus.EXPIRED}::"HoldStatus", "resolvedAt" = now()
         WHERE "orgId" = ${orgId} AND status = ${HoldStatus.PENDING}::"HoldStatus" AND "expiresAt" <= now()
         RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
@@ -255,6 +312,35 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
           this.announceResolved({ ...row, orgId, status: HoldStatus.EXPIRED });
         return rows.length;
       });
+  }
+
+  async rejectPendingForAgent(tx: OrgTx, admin: SessionUser, agentId: string, note: string) {
+    const rows = await tx.$queryRaw<ClosedHoldRow[]>`
+      UPDATE "Hold" SET status = ${HoldStatus.REJECTED}::"HoldStatus", "resolvedBy" = ${admin.id},
+        note = ${note}, "resolvedAt" = now()
+      WHERE "orgId" = ${admin.orgId} AND "agentId" = ${agentId} AND status = ${HoldStatus.PENDING}::"HoldStatus"
+      RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
+    if (rows.length > 0) {
+      await this.audit.append(
+        admin.orgId,
+        rows.map((h) => ({
+          kind: AuditKind.HOLD_RESOLVED,
+          actor: admin.id,
+          user: h.user,
+          planId: h.planId,
+          agentId: h.agentId,
+          tool: h.tool,
+          verdict: AuditVerdict.REJECTED,
+          ruleId: h.ruleId,
+          payload: { holdId: h.id, note, approver: admin.email },
+        })),
+        tx,
+      );
+    }
+    return () => {
+      for (const row of rows)
+        this.announceResolved({ ...row, orgId: admin.orgId, status: HoldStatus.REJECTED });
+    };
   }
 
   announceCreated(hold: Hold) {
@@ -297,4 +383,18 @@ function holdNotFound() {
     statusCode: HttpStatus.NOT_FOUND,
     error: HoldError.HOLD_NOT_FOUND,
   });
+}
+
+function bulkOutcome(
+  hold: Hold | undefined,
+  resolved: boolean,
+  allowed: boolean,
+  approve: boolean,
+): HoldResolveOutcome {
+  if (resolved) return approve ? HoldResolveOutcome.APPROVED : HoldResolveOutcome.REJECTED;
+  if (!hold) return HoldResolveOutcome.NOT_FOUND;
+  if (!allowed) return HoldResolveOutcome.NOT_AN_APPROVER;
+  return hold.status === HoldStatus.PENDING || hold.status === HoldStatus.EXPIRED
+    ? HoldResolveOutcome.EXPIRED
+    : HoldResolveOutcome.NOT_PENDING;
 }

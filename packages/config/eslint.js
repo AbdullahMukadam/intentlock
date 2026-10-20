@@ -87,7 +87,16 @@ export function intentlock(pkg, ...extra) {
   const banned = BANNED[pkg];
   if (!banned) throw new Error(`Unknown package "${pkg}" in @intentlock/config/eslint`);
   return defineConfig(
-    { ignores: ["dist/**", "coverage/**", ".next/**", ".astro/**", "next-env.d.ts"] },
+    {
+      ignores: [
+        "dist/**",
+        "coverage/**",
+        ".next/**",
+        ".astro/**",
+        "next-env.d.ts",
+        "**/tsup.config.bundled_*",
+      ],
+    },
     js.configs.recommended,
     tseslint.configs.recommended,
     {

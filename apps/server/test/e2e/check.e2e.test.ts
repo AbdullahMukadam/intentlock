@@ -162,6 +162,37 @@ describe("audit endpoints", () => {
     expect(broken.body).toMatchObject({ ok: false, count: 2, firstBrokenSeq: 3 });
   });
 
+  it("summarizes the chain and records who verified it", async () => {
+    const empty = await http().get("/v1/audit/summary").set("Cookie", member.cookie).expect(200);
+    expect(empty.body).toEqual({
+      count: 0,
+      head: null,
+      oldest: null,
+      retentionDays: 30,
+      lastVerified: null,
+    });
+
+    const { token } = await signPlan();
+    await check(token, call("github_list_issues", { repo: "acme/app" }));
+    await http().get("/v1/audit/verify").set("Cookie", member.cookie).expect(200);
+
+    const res = await http().get("/v1/audit/summary").set("Cookie", admin.cookie).expect(200);
+    const rows = await prisma.auditEntry.findMany({ orderBy: { seq: "asc" } });
+    const last = rows.at(-1)!;
+    expect(last).toMatchObject({ kind: AuditKind.AUDIT_VERIFIED, actor: member.user.id });
+    expect(res.body).toMatchObject({
+      count: 3,
+      head: { seq: last.seq, hash: last.hash },
+      oldest: { seq: rows[0]!.seq },
+      lastVerified: { seq: last.seq, email: member.user.email, ok: true, count: 2 },
+    });
+    expect((await verifyAuditChain(prisma)).ok).toBe(true);
+  });
+
+  it("requires a session for the summary", async () => {
+    await http().get("/v1/audit/summary").expect(401);
+  });
+
   it("scopes members to their own runs and paginates", async () => {
     const other = await signedIn(prisma, orgId, UserRole.MEMBER);
     const mine = await signPlan(member.user.email);

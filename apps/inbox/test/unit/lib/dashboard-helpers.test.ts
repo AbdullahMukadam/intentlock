@@ -16,6 +16,7 @@ const overview = (series: Overview["series"]): Overview => ({
   series,
   totals: { allow: 0, block: 0, hold: 0 },
   pendingHolds: 0,
+  holdOutcomes: { approved: 0, rejected: 0, expired: 0 },
   medianApprovalSeconds: null,
   topBlockedTools: [],
   topBlockedRules: [],

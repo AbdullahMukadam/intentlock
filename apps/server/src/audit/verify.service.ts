@@ -1,20 +1,73 @@
 import { Injectable } from "@nestjs/common";
 import { GENESIS, hashEntry } from "@intentlock/core";
 
+import type { SessionUser } from "../common/types/auth.types.js";
+import { LicenseService } from "../license/license.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { AuditService } from "./audit.service.js";
 import { AUDIT_BATCH, MAX_FLAGGED_LISTED } from "./constants/audit.constants.js";
+import { AuditKind } from "./enums/audit-kind.enum.js";
 import { toAuditEntry } from "./utils/to-audit-entry.util.js";
 
-// Walks the single global chain in batches; deliberately unscoped because the chain spans every org.
+type Flagged = { seq: number; flagged: string; planId: string | null };
+type VerifyResult = { ok: boolean; count: number; firstBrokenSeq?: number; flagged: Flagged[] };
+
 @Injectable()
 export class VerifyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly license: LicenseService,
+  ) {}
 
-  async verify() {
+  async verify(user: SessionUser): Promise<VerifyResult> {
+    const result = await this.walk();
+    const { ok, count, firstBrokenSeq } = result;
+    await this.audit.append(user.orgId, [
+      {
+        kind: AuditKind.AUDIT_VERIFIED,
+        actor: user.id,
+        payload: { email: user.email, ok, count, ...(firstBrokenSeq && { firstBrokenSeq }) },
+      },
+    ]);
+    return result;
+  }
+
+  async summary() {
+    const [count, head, oldest, last] = await Promise.all([
+      this.prisma.auditEntry.count(),
+      this.prisma.auditEntry.findFirst({
+        orderBy: { seq: "desc" },
+        select: { seq: true, hash: true, at: true },
+      }),
+      this.prisma.auditEntry.findFirst({
+        orderBy: { seq: "asc" },
+        select: { seq: true, at: true },
+      }),
+      this.prisma.auditEntry.findFirst({
+        where: { kind: AuditKind.AUDIT_VERIFIED },
+        orderBy: { seq: "desc" },
+        select: { seq: true, at: true, payload: true },
+      }),
+    ]);
+    return {
+      count,
+      head: head && { ...head, at: head.at.toISOString() },
+      oldest: oldest && { ...oldest, at: oldest.at.toISOString() },
+      retentionDays: this.license.current().retentionDays,
+      lastVerified: last && {
+        seq: last.seq,
+        at: last.at.toISOString(),
+        ...(last.payload as { email: string; ok: boolean; count: number; firstBrokenSeq?: number }),
+      },
+    };
+  }
+
+  private async walk(): Promise<VerifyResult> {
     let prev = GENESIS;
     let count = 0;
     let after = 0;
-    const flagged: { seq: number; flagged: string }[] = [];
+    const flagged: Flagged[] = [];
     for (;;) {
       const rows = await this.prisma.auditEntry.findMany({
         where: { seq: { gt: after } },
@@ -28,7 +81,7 @@ export class VerifyService {
           return { ok: false, count, firstBrokenSeq: row.seq, flagged };
         }
         if (row.flagged && flagged.length < MAX_FLAGGED_LISTED) {
-          flagged.push({ seq: row.seq, flagged: row.flagged });
+          flagged.push({ seq: row.seq, flagged: row.flagged, planId: row.planId });
         }
         prev = hash;
         count++;

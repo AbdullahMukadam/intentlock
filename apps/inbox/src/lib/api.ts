@@ -14,7 +14,7 @@ export { ApiError } from "./api-error";
 type Options = {
   method?: HttpMethod;
   params?: Record<string, string | number>;
-  query?: Record<string, string | number | undefined>;
+  query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
 };
 

@@ -2,34 +2,47 @@
 
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Badge } from "@intentlock/ui/components/badge";
+import { Button } from "@intentlock/ui/components/button";
 import { Panel, PanelBody, PanelHeader, PanelTitle } from "@intentlock/ui/components/panel";
 import { Skeleton } from "@intentlock/ui/components/skeleton";
 import { cn } from "@intentlock/ui/lib/utils";
-import { ChartColumn, Info, ListChecks, SearchX, TriangleAlert } from "lucide-react";
+import { ChartColumn, Info, ListChecks, SearchX, Trash2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
 
 import { DecisionTable } from "@/components/activity/decision-table";
 import { ApiKeysTable } from "@/components/agents/api-keys-table";
 import { useMe } from "@/components/app-shell";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DetailGrid, DetailItem } from "@/components/detail-grid";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { PolicyPanel } from "@/components/policy/policy-panel";
 import { parseFilters } from "@/lib/activity-filters";
 import { parsePaging } from "@/lib/activity-paging";
-import { ApiError, apiUrl } from "@/lib/api";
+import { api, ApiError, apiUrl } from "@/lib/api";
 import { AgentTab } from "@/lib/enums/agent-tab.enum";
+import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { HttpStatus } from "@/lib/enums/http-status.enum";
 import { UiAction } from "@/lib/enums/ui-action.enum";
+import { errorMessage } from "@/lib/error-message";
 import { formatTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { type AgentView, AgentView as AgentViewSchema } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
-const TABS: { tab: AgentTab; label: string; action?: UiAction }[] = [
+const TABS: { tab: AgentTab; label: string; action?: UiAction; liveOnly?: boolean }[] = [
   { tab: AgentTab.OVERVIEW, label: "Overview" },
-  { tab: AgentTab.POLICY, label: "Policy" },
-  { tab: AgentTab.API_KEYS, label: "API keys", action: UiAction.MANAGE_API_KEYS },
+  { tab: AgentTab.POLICY, label: "Policy", liveOnly: true },
+  {
+    tab: AgentTab.API_KEYS,
+    label: "API keys",
+    action: UiAction.MANAGE_API_KEYS,
+    liveOnly: true,
+  },
   { tab: AgentTab.ACTIVITY, label: "Activity" },
 ];
 
@@ -52,7 +65,11 @@ function Overview({ agent }: { agent: AgentView }) {
         <PanelBody className="p-0">
           <DetailGrid className="-mb-px">
             <DetailItem label="Status">
-              {agent.disabledAt ? `Disabled ${formatTime(agent.disabledAt)}` : "Enabled"}
+              {agent.deletedAt
+                ? `Deleted ${formatTime(agent.deletedAt)}`
+                : agent.disabledAt
+                  ? `Disabled ${formatTime(agent.disabledAt)}`
+                  : "Enabled"}
             </DetailItem>
             <DetailItem label="Active policy">
               {agent.policyVersion ? `v${agent.policyVersion}` : "—"}
@@ -84,6 +101,46 @@ function Overview({ agent }: { agent: AgentView }) {
         </PanelBody>
       </Panel>
     </div>
+  );
+}
+
+function DeleteAgent({ agent }: { agent: AgentView }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  async function remove() {
+    try {
+      await api(API_ENDPOINTS.AGENT, z.undefined(), {
+        method: HttpMethod.DELETE,
+        params: { id: agent.id },
+      });
+      toast.success(`Deleted ${agent.name}`);
+      router.push("/agents");
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not delete the agent."));
+    }
+  }
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        onClick={() => setOpen(true)}
+      >
+        <Trash2 /> Delete
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`Delete ${agent.name}?`}
+        description="Its API keys are revoked, its pending holds are rejected, and it stops counting against your license. Its history stays in Activity, marked deleted. This can't be undone."
+        confirmLabel="Delete agent"
+        confirmText={agent.name}
+        onConfirm={remove}
+      />
+    </>
   );
 }
 
@@ -125,7 +182,9 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
     );
   }
 
-  const tabs = TABS.filter((t) => !t.action || can(me.role, t.action));
+  const tabs = TABS.filter(
+    (t) => (!t.action || can(me.role, t.action)) && (!agent.deletedAt || !t.liveOnly),
+  );
   const current = tabs.some((t) => t.tab === tab) ? tab : AgentTab.OVERVIEW;
 
   return (
@@ -139,13 +198,20 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
         title={agent.name}
         description={agent.description ?? undefined}
         actions={
-          agent.disabledAt ? (
-            <Badge>Disabled</Badge>
+          agent.deletedAt ? (
+            <Badge>Deleted</Badge>
           ) : (
-            <Badge tone="success">
-              <span aria-hidden className="size-1.5 rounded-full bg-current" />
-              Enabled
-            </Badge>
+            <div className="flex items-center gap-2">
+              {agent.disabledAt ? (
+                <Badge>Disabled</Badge>
+              ) : (
+                <Badge tone="success">
+                  <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                  Enabled
+                </Badge>
+              )}
+              {can(me.role, UiAction.DELETE_AGENT) && <DeleteAgent agent={agent} />}
+            </div>
           )
         }
       />

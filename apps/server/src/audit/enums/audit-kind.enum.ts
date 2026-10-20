@@ -19,6 +19,7 @@ export enum AuditKind {
   CLI_TOKEN_REVOKED = "cli_token_revoked",
   AGENT_CREATED = "agent_created",
   AGENT_UPDATED = "agent_updated",
+  AGENT_DELETED = "agent_deleted",
   API_KEY_CREATED = "api_key_created",
   API_KEY_REVOKED = "api_key_revoked",
   POLICY_PUBLISHED = "policy_published",
@@ -30,4 +31,5 @@ export enum AuditKind {
   HOLD_NOTIFY_FAILED = "hold_notify_failed",
   REPORT = "report",
   CLIENT_GAP = "client_gap",
+  AUDIT_VERIFIED = "audit_verified",
 }

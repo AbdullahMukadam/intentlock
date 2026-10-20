@@ -103,7 +103,7 @@ describe("agents", () => {
     }
   });
 
-  it("updates and disables (DELETE is a soft disable)", async () => {
+  it("updates and disables", async () => {
     const agent = await newAgent();
     const patched = await http()
       .patch(`/v1/agents/${agent.id}`)
@@ -113,9 +113,10 @@ describe("agents", () => {
       .expect(200);
     expect(patched.body).toMatchObject({ name: "triage-bot", description: null });
     const disabled = await http()
-      .delete(`/v1/agents/${agent.id}`)
+      .patch(`/v1/agents/${agent.id}`)
       .set("Cookie", admin.cookie)
       .set(CSRF)
+      .send({ disabled: true })
       .expect(200);
     expect(disabled.body.disabledAt).not.toBeNull();
     expect(await prisma.agent.count()).toBe(1);
