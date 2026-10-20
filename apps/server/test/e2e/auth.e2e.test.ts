@@ -142,6 +142,7 @@ describe("users (admin only)", () => {
         email: target.email,
         role: UserRole.MEMBER,
         groups: [],
+        label: null,
         disabledAt: null,
       });
       await http()

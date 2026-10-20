@@ -71,7 +71,7 @@ Session, for the signed-in user.
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/v1/users` | The team. |
-| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled? }`. Admin. |
+| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled?, label? }`. Admin. `label` (up to 24 characters, `null` clears it) is shown next to the person in the inbox and never changes a decision. |
 | POST | `/v1/users/:email/reset-link` | Admin. 24 hours, single use. |
 | GET, POST | `/v1/invites` | Pending invites; `{ email, role, groups? }` creates one. Admin. |
 | DELETE | `/v1/invites/:id` | Revokes an invite. Admin. |

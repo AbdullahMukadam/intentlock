@@ -230,8 +230,8 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET · DELETE | `/v1/account/sessions` | → own sessions (`current`, `ip`, `userAgent`, times) / 204 = sign out all others | Auth: session |
 | DELETE | `/v1/account/identities/:provider` | → 204 | Auth: session. 409 if it is the last sign-in method |
 | POST · DELETE | `/v1/account/cli-token` | → `{ token }` (shown once, replaces the old one) / 204 | Auth: session |
-| GET | `/v1/users` | → `User[]` | Auth: session. Admins get sign-in methods too; others get email, role, groups and status (read-only team list) |
-| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled? }` → `User` | Auth: session (admin); disabling ends their sessions |
+| GET | `/v1/users` | → `User[]` | Auth: session. Admins get sign-in methods too; others get email, role, groups, label and status (read-only team list) |
+| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled?, label? }` → `User` | Auth: session (admin); disabling ends their sessions; `label` is display only and never a policy input (ADR-073) |
 | POST | `/v1/users/:email/reset-link` | → `{ link, expiresAt, emailed }` | Auth: session (admin). 24 h, single use |
 | POST · GET | `/v1/invites` | `{ email, role, groups? }` → `{ invite, link, emailed }` / pending invites | Auth: session (admin). Link shown once; 7 days |
 | POST | `/v1/invites/:id/resend` | → `{ invite, link, emailed }` | Auth: session (admin). New token and expiry; the old link stops working |
@@ -326,6 +326,7 @@ model User {
   role           Role      @default(member)
   groups         String[]  @default([])     // policy labels, e.g. intern, oncall
   holdEmails     Boolean   @default(true)   // hold notification opt-out (ADR-072)
+  label          String?                    // display only, e.g. bot; never matched by policies (ADR-073)
   passwordHash   String?                    // scrypt$N$r$p$salt$hash; null = OAuth-only
   cliTokenHash   String?                    // sha256 of the CLI token
   cliTokenCreatedAt DateTime?

@@ -38,6 +38,7 @@ import {
   Mail,
   MoreHorizontal,
   RotateCcw,
+  Tag,
   Tags,
   TriangleAlert,
   UserCheck,
@@ -71,6 +72,8 @@ import {
   TeamMembers,
 } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
+import { MemberField } from "@/lib/enums/member-field.enum";
+import { LabelBadge } from "@/components/member-label";
 
 const ROLE_TONE: Record<Role, BadgeTone> = {
   [Role.enum.admin]: "violet",
@@ -123,11 +126,13 @@ function MemberActions({
   member,
   onChanged,
   onEditGroups,
+  onEditLabel,
   onReveal,
 }: {
   member: TeamMember;
   onChanged: () => void;
   onEditGroups: () => void;
+  onEditLabel: () => void;
   onReveal: (r: Revealed) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -196,6 +201,9 @@ function MemberActions({
         <DropdownMenuItem onClick={onEditGroups}>
           <Tags /> Edit groups
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={onEditLabel}>
+          <Tag /> Edit label
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={resetLink}>
           <KeyRound /> Create reset link
         </DropdownMenuItem>
@@ -216,6 +224,51 @@ function MemberActions({
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function LabelEditor({ member, onDone }: { member: TeamMember; onDone: (saved: boolean) => void }) {
+  const [value, setValue] = useState(member.label ?? "");
+  async function save() {
+    try {
+      await api(API_ENDPOINTS.USER, z.unknown(), {
+        method: HttpMethod.PATCH,
+        params: { email: member.email },
+        body: { label: value.trim() || null },
+      });
+      toast.success(
+        value.trim() ? `Labelled ${member.email} "${value.trim()}"` : `Removed the label`,
+      );
+      onDone(true);
+    } catch (e) {
+      toast.error(
+        errorMessage(e, "Could not save the label.", {
+          [ApiErrorCode.VALIDATION_FAILED]:
+            "Up to 24 letters, digits, spaces, dots, dashes or underscores.",
+        }),
+      );
+    }
+  }
+  return (
+    <form
+      action={save}
+      className="flex items-center gap-2"
+      onKeyDown={(e) => e.key === "Escape" && onDone(false)}
+    >
+      <Input
+        aria-label={`Label for ${member.email}`}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="bot"
+        maxLength={24}
+        className="h-8 w-36"
+        autoFocus
+      />
+      <SubmitButton size="sm">Save</SubmitButton>
+      <Button type="button" size="sm" variant="ghost" onClick={() => onDone(false)}>
+        Cancel
+      </Button>
+    </form>
   );
 }
 
@@ -405,7 +458,13 @@ export function TeamView() {
   const members = useApi(apiUrl(API_ENDPOINTS.USERS), TeamMembers);
   const invites = useApi(isAdmin ? apiUrl(API_ENDPOINTS.INVITES) : null, InviteViews);
   const [inviting, setInviting] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ email: string; field: MemberField } | null>(null);
+  const isEditing = (email: string, field: MemberField) =>
+    editing?.email === email && editing.field === field;
+  const doneEditing = (saved: boolean) => {
+    setEditing(null);
+    if (saved) members.reload();
+  };
   const [revealed, setRevealed] = useState<Revealed | null>(null);
 
   const reload = () => {
@@ -491,7 +550,17 @@ export function TeamView() {
                       <TableCell>
                         <span className="flex items-center gap-3">
                           <Avatar email={m.email} />
-                          <span className="font-medium">{m.email}</span>
+                          {isEditing(m.email, MemberField.LABEL) ? (
+                            <span className="grid gap-1.5">
+                              <span className="font-medium">{m.email}</span>
+                              <LabelEditor member={m} onDone={doneEditing} />
+                            </span>
+                          ) : (
+                            <>
+                              <span className="font-medium">{m.email}</span>
+                              <LabelBadge label={m.label} />
+                            </>
+                          )}
                           {self && <Badge>You</Badge>}
                         </span>
                       </TableCell>
@@ -501,14 +570,8 @@ export function TeamView() {
                         </Badge>
                       </TableCell>
                       <TableCell label="Groups">
-                        {editing === m.email ? (
-                          <GroupsEditor
-                            member={m}
-                            onDone={(saved) => {
-                              setEditing(null);
-                              if (saved) members.reload();
-                            }}
-                          />
+                        {isEditing(m.email, MemberField.GROUPS) ? (
+                          <GroupsEditor member={m} onDone={doneEditing} />
                         ) : m.groups.length ? (
                           <span className="flex flex-wrap gap-1">
                             {m.groups.map((g) => (
@@ -542,7 +605,12 @@ export function TeamView() {
                             <MemberActions
                               member={m}
                               onChanged={members.reload}
-                              onEditGroups={() => setEditing(m.email)}
+                              onEditGroups={() =>
+                                setEditing({ email: m.email, field: MemberField.GROUPS })
+                              }
+                              onEditLabel={() =>
+                                setEditing({ email: m.email, field: MemberField.LABEL })
+                              }
                               onReveal={setRevealed}
                             />
                           )}

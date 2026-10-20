@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MemberLabel } from "@/components/member-label";
 import { EmptyState } from "@/components/empty-state";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { type ActivityFilters, toAuditQuery } from "@/lib/activity-filters";
@@ -141,7 +142,16 @@ export function DecisionTable({
               <TableCell label="Agent">
                 {r.agentId ? (names.get(r.agentId) ?? r.agentId) : <Dash />}
               </TableCell>
-              <TableCell label="User">{r.user ?? <Dash />}</TableCell>
+              <TableCell label="User">
+                {r.user ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    {r.user}
+                    <MemberLabel email={r.user} />
+                  </span>
+                ) : (
+                  <Dash />
+                )}
+              </TableCell>
               <TableCell label="Tool" className="font-mono text-xs">
                 {r.tool ?? <Dash />}
               </TableCell>

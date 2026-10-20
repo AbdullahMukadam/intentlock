@@ -214,6 +214,7 @@ export const TeamMember = z.object({
   email: z.string(),
   role: Role,
   groups: z.array(z.string()),
+  label: z.string().nullable().optional(),
   disabledAt: z.string().nullable(),
   hasPassword: z.boolean().optional(),
   providers: z.array(z.string()).optional(),

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MemberLabel } from "@/components/member-label";
 import { api } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { errorMessage } from "@/lib/error-message";
@@ -70,7 +71,10 @@ export function HoldCard({
           <h3 className="truncate font-mono text-[13px] font-medium">{hold.tool}</h3>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Meta icon={Bot}>{agentName ?? hold.agentId}</Meta>
-            <Meta icon={UserRound}>{hold.user}</Meta>
+            <Meta icon={UserRound}>
+              {hold.user}
+              <MemberLabel email={hold.user} />
+            </Meta>
             <Meta icon={ScrollText}>
               <span className="font-mono">{hold.ruleId}</span>
             </Meta>
