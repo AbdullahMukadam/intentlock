@@ -31,6 +31,13 @@ export const Env = z
     CORS_ORIGINS: optional,
     SMTP_URL: optional.pipe(z.string().url().optional()),
     SMTP_FROM: optional,
+    HOLD_WEBHOOK_URL: optional.pipe(
+      z
+        .string()
+        .url()
+        .refine((u) => u.startsWith("https://"), "must be https")
+        .optional(),
+    ),
     GOOGLE_CLIENT_ID: optional,
     GOOGLE_CLIENT_SECRET: optional,
     GITHUB_CLIENT_ID: optional,

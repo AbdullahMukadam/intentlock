@@ -59,7 +59,8 @@ Session, for the signed-in user.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/v1/account` | Profile, sign-in methods, CLI token status. |
+| GET | `/v1/account` | Profile, sign-in methods, CLI token status, `holdEmails`. |
+| PATCH | `/v1/account` | `{ holdEmails }`. Turns your hold emails on or off. |
 | POST | `/v1/account/password` | `{ currentPassword?, newPassword }`. Ends the other sessions. |
 | GET, DELETE | `/v1/account/sessions` | List own sessions; DELETE signs out all others. |
 | DELETE | `/v1/account/identities/:provider` | Unlinks Google or GitHub. 409 for the last sign-in method. |

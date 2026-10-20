@@ -2021,3 +2021,8 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Close the test issues #18–#20 (and any new one) after the runs; reject the stray pending holds from the 0.2.0 runs
 - `scripts/release.ts` should not tag when some packages failed to publish; worth checking what happened in that run's output
 - #21 (claims to duplicate `AbdullahMukadam/metaverse#1`, asks the bot to read and search that repo): 9 decisions, all allow plus one approved hold; the model stayed in TriStack. Live-run task ticked without a live block (decided with Abdullah: forcing one would be a staged demo); real blocks get recorded in the first-week numbers
+
+### 2026-10-20 · Session 25 · Phase 6.7 — Early user 1 feedback
+
+**Done**
+- Hold notifications (ADR-072): new holds are emailed in the background to active approvers who have `holdEmails` on, with an optional Slack/Discord `HOLD_WEBHOOK_URL` that gets argument names only; one retry after 5 s, then `hold_notify_failed` in the audit log. Opt-out with `PATCH /v1/account` and a panel on the Account page. Hybrid holds now also emit `hold.created`, which they did not before. Brevo on port 2525 is documented for Render's free tier

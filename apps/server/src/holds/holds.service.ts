@@ -24,6 +24,7 @@ import { isHold } from "../common/utils/decision.util.js";
 import { toJson } from "../common/utils/to-json.util.js";
 import { type Hold, HoldStatus } from "../generated/prisma/client.js";
 import { KeysService } from "../keys/keys.service.js";
+import { HoldNotifier } from "./hold-notifier.service.js";
 import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
@@ -51,6 +52,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
     private readonly audit: AuditService,
     private readonly keys: KeysService,
     private readonly events: EventsService,
+    private readonly notifier: HoldNotifier,
   ) {}
 
   onModuleInit() {
@@ -119,6 +121,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
         now,
       }),
     );
+    this.announceCreated(hold);
     return {
       holdId: hold.id,
       approvers: decision.approvers,
@@ -267,6 +270,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
       },
       { orgId: hold.orgId, user: hold.user, approvers: this.spec(hold.approvers) },
     );
+    this.notifier.notify(hold);
   }
 
   private announceResolved(hold: Pick<Hold, "id" | "orgId" | "user" | "status" | "approvers">) {

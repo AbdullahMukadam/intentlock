@@ -27,6 +27,7 @@ export enum AuditKind {
   PLAN_REFRESHED = "plan_refreshed",
   CHECK = "check",
   HOLD_RESOLVED = "hold_resolved",
+  HOLD_NOTIFY_FAILED = "hold_notify_failed",
   REPORT = "report",
   CLIENT_GAP = "client_gap",
 }

@@ -22,6 +22,18 @@ All configuration comes from environment variables. The server validates them at
 | `LICENSE_FILE` | | Path to a license file. Unset means Community edition. |
 | `SMTP_URL` | | For example `smtps://user:pass@smtp.example.com:465`. Set: invite and reset links are emailed and "forgot password" appears. Unset: links are only shown to copy. |
 | `SMTP_FROM` | | Sender, for example `Intentlock <intentlock@acme.dev>`. Required with `SMTP_URL`. |
+| `HOLD_WEBHOOK_URL` | | Optional `https://` Slack or Discord incoming webhook. Each new hold is posted with the agent, person, tool and argument names, but never argument values. |
+
+With SMTP set, every new hold is also emailed to the team members who may approve it, including the arguments cut to 500 characters. Each person can turn these emails off on their Account page. A failed send is retried once, and if it still fails it is audited as `hold_notify_failed`. Holds and tool calls never wait for a notification.
+
+**Brevo example.** Brevo's free plan works with Render's free tier, which blocks outbound SMTP ports 25, 465 and 587. Use port 2525, the login shown under *SMTP & API → SMTP*, and an SMTP key (not an API key). Write the `@` in the login as `%40`:
+
+```bash
+SMTP_URL=smtp://9a1b2c001%40smtp-brevo.com:<smtp-key>@smtp-relay.brevo.com:2525
+SMTP_FROM="Intentlock <intentlock@your-domain.dev>"
+```
+
+The `SMTP_FROM` address must be a sender or domain you verified in Brevo.
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | | Both set: "Continue with Google". OAuth client type "Web application". |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | | Both set: "Continue with GitHub". |
 | `DATABASE_POOL_MAX` | `10` | Connections per instance. Instances times this must stay under the database's connection limit. |

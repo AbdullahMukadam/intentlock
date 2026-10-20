@@ -243,6 +243,7 @@ export const Account = z.object({
   role: Role,
   groups: z.array(z.string()),
   hasPassword: z.boolean(),
+  holdEmails: z.boolean(),
   identities: z.array(z.object({ provider: z.string(), email: z.string(), createdAt: z.string() })),
   cliToken: z.object({ createdAt: z.string() }).nullable(),
 });

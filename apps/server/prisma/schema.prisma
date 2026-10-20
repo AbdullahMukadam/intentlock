@@ -55,6 +55,7 @@ model User {
   passwordHash      String?
   cliTokenHash      String?
   cliTokenCreatedAt DateTime?
+  holdEmails        Boolean    @default(true)
   disabledAt        DateTime?
   createdAt         DateTime   @default(now())
   identities        Identity[]
