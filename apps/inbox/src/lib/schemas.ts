@@ -221,9 +221,29 @@ export const AuditVerifyResult = z.object({
   ok: z.boolean(),
   count: z.number(),
   firstBrokenSeq: z.number().optional(),
-  flagged: z.array(z.object({ seq: z.number(), flagged: z.string() })),
+  flagged: z.array(
+    z.object({ seq: z.number(), flagged: z.string(), planId: z.string().nullable() }),
+  ),
 });
 export type AuditVerifyResult = z.infer<typeof AuditVerifyResult>;
+
+export const AuditSummary = z.object({
+  count: z.number(),
+  head: z.object({ seq: z.number(), hash: z.string(), at: z.string() }).nullable(),
+  oldest: z.object({ seq: z.number(), at: z.string() }).nullable(),
+  retentionDays: z.number(),
+  lastVerified: z
+    .object({
+      seq: z.number(),
+      at: z.string(),
+      email: z.string(),
+      ok: z.boolean(),
+      count: z.number(),
+      firstBrokenSeq: z.number().optional(),
+    })
+    .nullable(),
+});
+export type AuditSummary = z.infer<typeof AuditSummary>;
 
 export const TeamMember = z.object({
   email: z.string(),

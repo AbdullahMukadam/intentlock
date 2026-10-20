@@ -267,7 +267,8 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/report` | `{ token, callId, outcome: ok\|error }` → `{ planStatus }` | Advances usage + completion |
 | GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=&page=&limit=` | → `{ entries, nextCursor }`; with `page` (1-based) → `{ entries, total, page, nextCursor: null }` (ADR-074); `?format=jsonl` exports | Auth: session (scoped by role) |
 | POST | `/v1/audit/batch` | `{ planId, tokens: string[], entries: (ClientEntry without token, with tokenRef)[] }` → `{ ackedThrough: clientSeq, rejected: { clientSeq, reason }[] }` | `hybrid` mode. ≤ 100 entries; each entry points at a de-duplicated token. Idempotent on `(planId, clientSeq)`; checks the client chain for gaps and edits; re-runs `check()` per entry and flags looser-than-policy decisions |
-| GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged }` | Recomputes chain; lists flagged client entries |
+| GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged: { seq, flagged, planId }[] }` | Recomputes chain; lists flagged client entries; appends `audit_verified` (ADR-078) |
+| GET | `/v1/audit/summary` | → `{ count, head, oldest, retentionDays, lastVerified }` | Auth: session. Chain size, head, oldest entry, license retention, last `audit_verified` entry (ADR-078) |
 | GET | `/v1/keys/jwks` | → JWKS | Auth: none (public keys by design) |
 | GET | `/health`, `/health/ready` | → `{ ok }` | Auth: none |
 
@@ -659,7 +660,7 @@ All views read the audit log and plan/hold tables through indexed queries (see t
 | **Run detail** | One plan: goal, user, agent, policy version, then every tool call in order with verdict, deciding rule, approval (who, when, note) and timing | `GET /v1/runs/:planId` |
 | **Holds** | Pending and recent holds, approve / reject (live) | `/v1/holds` + WebSocket |
 | **Agents** | Agents with 24 h counts, keys, policy version; agent page tabs: Overview · Policy · API keys · Activity | `/v1/agents*` |
-| **Audit** | "Verify chain" result, first broken entry if any | `GET /v1/audit/verify` |
+| **Audit** | Chain size, head, oldest entry, retention, last verified and by whom; "Verify chain" result with first broken entry and flagged entries linked to their runs; export and the CLI verify command (admins, approvers) | `GET /v1/audit/summary`, `GET /v1/audit/verify`, `GET /v1/audit?format=jsonl` |
 
 Aggregations are plain SQL (`date_trunc` buckets, `GROUP BY verdict`) for v0.1; summary tables can come later if data grows.
 

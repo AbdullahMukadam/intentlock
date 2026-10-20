@@ -61,6 +61,7 @@ export const API_ENDPOINTS = {
   AUDIT: "/v1/audit",
   AUDIT_BATCH: "/v1/audit/batch",
   AUDIT_VERIFY: "/v1/audit/verify",
+  AUDIT_SUMMARY: "/v1/audit/summary",
 
   RUNS: "/v1/runs",
   RUN: "/v1/runs/:planId",

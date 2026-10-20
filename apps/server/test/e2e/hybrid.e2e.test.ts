@@ -301,6 +301,9 @@ describe("HybridGate", () => {
     expect(verified.body.flagged.map((f: { flagged: string }) => f.flagged).sort()).toEqual(
       [AuditFlag.CHAIN_BREAK, AuditFlag.DECISION_MISMATCH, AuditFlag.GAP].sort(),
     );
+    expect(
+      verified.body.flagged.every((f: { planId: string | null }) => f.planId === signed.planId),
+    ).toBe(true);
   });
 
   it("a report for the last required step completes the plan and flushes", async () => {

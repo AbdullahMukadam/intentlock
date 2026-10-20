@@ -758,3 +758,14 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   3. The KPI sparklines move onto `ChartContainer` for theme colours; they stay sparklines.
 - **Alternatives:** Evil Charts (more style than we need, possible `echarts`/`motion` dependencies, a second registry to track); keeping raw Recharts (each chart keeps its own tooltip and colour code); a time-to-approve histogram (no question asks for it yet).
 - **Consequences:** No new package. `recharts` is declared in `@intentlock/ui` too. One additive field on the stats endpoint for hold outcomes; no migration. The shadcn code is MIT inside an ELv2 package, the same as the existing shadcn components.
+
+### ADR-078: Audit page with a chain summary and a recorded verify
+- **Date:** 2026-10-20 · **Status:** Accepted (Abdullah)
+- **Context:** The Audit page was one "Verify now" button. It is where the tamper-evidence promise is shown, so it should say how big the chain is, where its head is, when it was last checked and by whom, and how to check it without trusting the server. The alternative was a "Verify chain" panel inside Activity with the Audit nav item removed.
+- **Decision:**
+  1. Keep Audit as its own page: a chain summary, the verify panel, and (admins and approvers) Export chain plus the exact `intentlock audit verify --file intentlock-audit.jsonl` command. Members don't get the export panel because their export holds only their own runs and is not a whole chain.
+  2. New route `GET /v1/audit/summary` (`API_ENDPOINTS.AUDIT_SUMMARY`, any signed-in user) → `{ count, head: { seq, hash, at } | null, oldest: { seq, at } | null, retentionDays, lastVerified: { seq, at, email, ok, count, firstBrokenSeq? } | null }`. Like verify, it reads the single global chain unscoped. `retentionDays` comes from the license; nothing is purged yet, and the page says so.
+  3. Every `GET /v1/audit/verify` appends an `audit_verified` entry (`actor` = user id, payload `{ email, ok, count, firstBrokenSeq? }`). "Last verified" is the newest such entry, so the record of who checked the chain is itself in the chain. No migration.
+  4. Each flagged entry in the verify result also carries `planId`; the inbox links it to `/runs/:planId`.
+- **Alternatives:** Fold into Activity (smaller, but hides the promise); storing the last verify in a new table (needs a migration and is not tamper-evident); building the page from `GET /v1/audit?page=1&limit=1` (no oldest entry and no clean way to find the last verify).
+- **Consequences:** Verify now writes, although it is a GET. The last-verify lookup filters on `kind`, which has no index; it walks back from the head and is cheap while verifies are frequent, but scans the table when there has never been one. Add an index on `kind` if that shows up.

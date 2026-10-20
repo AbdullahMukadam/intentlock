@@ -8,6 +8,7 @@ test.each([
   [UiAction.MANAGE_API_KEYS, { admin: true, approver: false, member: false }],
   [UiAction.EDIT_POLICY, { admin: true, approver: false, member: false }],
   [UiAction.TEST_POLICY, { admin: true, approver: true, member: false }],
+  [UiAction.EXPORT_AUDIT_CHAIN, { admin: true, approver: true, member: false }],
 ])("%s matches the server's @Roles", (action, expected) => {
   expect({
     admin: can("admin", action),

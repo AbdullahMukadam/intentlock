@@ -31,4 +31,5 @@ export enum AuditKind {
   HOLD_NOTIFY_FAILED = "hold_notify_failed",
   REPORT = "report",
   CLIENT_GAP = "client_gap",
+  AUDIT_VERIFIED = "audit_verified",
 }

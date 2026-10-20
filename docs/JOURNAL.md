@@ -2110,3 +2110,18 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - The local demo data had ~5,000 audit entries in one hour, so the Overview chart drew a single bar. Moving timestamps in place would mean rewriting the hash chain (`at` is hashed), so the local database was re-seeded instead (Abdullah's call; a `pg_dump` was taken first)
 - New dev script `pnpm --filter @intentlock/server seed:traffic` (`prisma/seed-traffic.ts`), run after `pnpm seed` on an empty database: adds `triage-bot` (label `bot`) and `oncall`, three agents with one demo policy (block destructive tools, hold comments and merges, allow in plan), 900 runs over the last 7 days weighted to working hours. Every verdict comes from core `check()`; holds are approved, rejected or expired with realistic delays, some recent ones stay pending; the audit chain is written with `hashEntry` under the chain lock. Passwords for users listed in `.env.demo-users` are set from that file
 - Tried on `intentlock_test` first, then on the local database: chain verifies (4,638 entries), entries on every day of the week
+
+### 2026-10-20 · Session 27 · Phase 6.7 — Audit page
+
+**Done**
+- Abdullah chose a real page over folding it into Activity, and approved the three API changes. ADR-078
+- Server: `GET /v1/audit/summary` (`API_ENDPOINTS.AUDIT_SUMMARY`): entry count, head (seq, hash, time), oldest entry, license `retentionDays`, last verification. `GET /v1/audit/verify` now appends `audit_verified` (actor id, payload email/ok/count/firstBrokenSeq), so "last verified by whom" lives in the chain itself. Flagged entries in the verify result carry `planId`
+- Inbox Audit page: Chain panel (entries, head, last entry, oldest kept, retention, last verified), the verify panel (summary refreshes after a verify; flagged entries link to `/runs/:planId`), and for admins and approvers Export chain plus the `intentlock audit verify --file intentlock-audit.jsonl` command (`UiAction.EXPORT_AUDIT_CHAIN`). Members don't get export here: their export is only their own runs and would not verify as a chain
+- Tests: summary on an empty chain and after a verify (who verified, head = the `audit_verified` entry, chain still valid), summary needs a session, flagged entries carry the plan id; permissions test for the new action
+
+**Numbers**
+- Server 248 tests, inbox 109; lint and typecheck green for server and inbox. Not checked in a browser yet
+
+**Notes for Abdullah**
+- Retention shows the license's 30 days with "Old entries are not purged yet": purging is still out of scope
+- Every Verify now adds one entry to the chain, so the entry count goes up by one after each verify
