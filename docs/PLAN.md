@@ -381,10 +381,18 @@ TriStack (`github.com/AbdullahMukadam/tristack`, local `C:\Users\Abdullah\Deskto
 - **Tests:** `FakeProvider` runs in the bot package: a normal bug report gets labels and a held comment; an issue body telling the bot to read another repo or close issues gets blocked calls and no side effects; the server unreachable means no GitHub writes.
 
 - [x] Bot package, tools, workflow and tests on the `triage-bot` branch in TriStack (TriStack commit `8461b43d`; plain `fetch` instead of Octokit, workflow is `workflow_dispatch` only until merge)
-- [ ] Agent, member user, API key and policy in the deployed Intentlock; policy validated and dry-run
-- [ ] Live run via `workflow_dispatch` on a test issue: labels applied, comment held and approved in the inbox, an injected issue blocked, all visible in the audit log
+- [x] Agent, member user, API key and policy in the deployed Intentlock; policy validated and dry-run (validated offline with the CLI; published and tested in the inbox policy editor)
+- [x] Live run via `workflow_dispatch` on a test issue: labels applied, comment held and approved in the inbox, an injected issue blocked, all visible in the audit log (#19–#21 on 0.2.1: labels and approved comments live; two injected issues caused no side effects but no live block, the model ignored the injection both times; blocked injected calls are covered by the bot's FakeProvider tests)
 - [ ] Merge to TriStack `main` and turn on `issues: opened`; journal what it blocked and held in the first week (real numbers only)
 - [ ] Copy the bot (tools, policy, workflow) into a public example for other maintainers once it has run for a week
+
+**Early user 1 feedback** (added 2026-10-20 with Abdullah, from the first triage-bot runs and using the deployed inbox)
+
+- [ ] **Hold notifications.** Today a hold only appears live in an open inbox; nobody is told, so a held comment can expire unseen. On hold creation, email every user who may approve it (the rule's `approvers`: roles, emails, `self`) with agent, person, tool, arguments (truncated) and a link to the hold; uses the existing SMTP mail service, skipped when SMTP is not set. Optional outgoing webhook per organization (`HOLD_WEBHOOK_URL`, Slack/Discord-compatible JSON) for teams without SMTP. Sent after the hold is committed; a failed send is logged and audited, never fails or delays the hold (fail closed stays about the tool, not the notification). No in-memory queue (stateless server). ADR first (email vs webhook, per-user opt-out, what arguments are safe to include). Tests: approvers resolved per rule, no mail without SMTP, send failure does not change the hold
+- [ ] **Button loaders, second pass.** Loading states were added on 2026-10-18 but never checked in a browser; Abdullah still sees buttons without one in the deployed inbox. Confirm the deployed inbox is at 0.2.1, list every button that runs an action and has no busy state, fix them with the `@intentlock/ui` `Button` `loading` prop
+- [ ] **Member labels.** Admins can set a short display label on a team member (for example `bot`), shown next to the person in Team, Activity, holds and run details. Separate from groups, which policies match on, so a label never changes a decision. Needs a `User` column (migration), an admin-only audited route in `API_ENDPOINTS`, zod validation (length, charset) and an ADR
+- [ ] **Activity pagination.** Page by page (page numbers, previous/next, page size) instead of "Load more", filters kept in the URL so a page can be shared and survives a reload; server returns a total count or keyset pages, decided in the ADR (offset paging on a growing audit table is slow)
+- [ ] **Audit page empty after navigating back.** Leaving the Audit page and coming back shows the empty state instead of the data. Reproduce, find the cause (likely the client cache added in 0.2.0), fix, and add a test that returning to the page shows the cached or refetched data
 
 **After launch (v0.2, decide with early-user feedback)**
 - The MCP proxy (Phase 7) is the next headline feature; a Python SDK is not planned
