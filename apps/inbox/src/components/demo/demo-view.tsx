@@ -16,6 +16,7 @@ const RUNNER_COMMAND = "pnpm --filter @intentlock/demo run runner";
 
 export function DemoView() {
   const [events, setEvents] = useState<RunnerEvent[]>([]);
+  const [starting, setStarting] = useState(false);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function DemoView() {
   }, []);
 
   async function start() {
+    setStarting(true);
     try {
       const res = await fetch(`${DEMO_RUNNER_PREFIX}/runs`, {
         method: HttpMethod.POST,
@@ -44,6 +46,7 @@ export function DemoView() {
     } catch {
       toast.error(`Runner not reachable. Start it with: ${RUNNER_COMMAND}`);
     }
+    setStarting(false);
   }
 
   const forced = events.some((e) => e.kind === RunnerEventKind.STARTED && e.forced);
@@ -63,7 +66,7 @@ export function DemoView() {
           <span className="text-xs text-muted-foreground">
             {connected ? "Runner connected" : `Runner offline: ${RUNNER_COMMAND}`}
           </span>
-          <Button onClick={start} disabled={!connected}>
+          <Button onClick={start} disabled={!connected} loading={starting}>
             Run both
           </Button>
         </div>

@@ -83,8 +83,8 @@ export function VerifyButton() {
           Hash chain
         </PanelTitle>
         <PanelActions>
-          <Button size="sm" onClick={verify} disabled={busy}>
-            <RefreshCw className={cn(busy && "animate-spin")} />
+          <Button size="sm" onClick={verify} loading={busy}>
+            {!busy && <RefreshCw />}
             {busy ? "Verifying…" : state ? "Verify again" : "Verify now"}
           </Button>
         </PanelActions>

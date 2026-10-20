@@ -130,7 +130,10 @@ function MemberActions({
   onEditGroups: () => void;
   onReveal: (r: Revealed) => void;
 }) {
+  const [busy, setBusy] = useState(false);
+
   async function patch(body: Record<string, unknown>, done: string) {
+    setBusy(true);
     try {
       await api(API_ENDPOINTS.USER, z.unknown(), {
         method: HttpMethod.PATCH,
@@ -141,10 +144,12 @@ function MemberActions({
     } catch (e) {
       toast.error(errorMessage(e, "Could not update this member."));
     }
+    setBusy(false);
     onChanged();
   }
 
   async function resetLink() {
+    setBusy(true);
     try {
       const res = await api(API_ENDPOINTS.USER_RESET_LINK, IssuedLink, {
         method: HttpMethod.POST,
@@ -154,13 +159,19 @@ function MemberActions({
     } catch (e) {
       toast.error(errorMessage(e, "Could not create a reset link."));
     }
+    setBusy(false);
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${member.email}`} />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Actions for ${member.email}`}
+            loading={busy}
+          />
         }
       >
         <MoreHorizontal />
