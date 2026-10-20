@@ -1,6 +1,7 @@
 export { BlockReason } from "./enums/block-reason.enum.js";
 export { ClientBlockReason } from "./enums/client-block-reason.enum.js";
 export { ClientEntryKind } from "./enums/client-entry-kind.enum.js";
+export { HoldResolveOutcome } from "./enums/hold-resolve-outcome.enum.js";
 export { ReportOutcome } from "./enums/report-outcome.enum.js";
 export { Verdict } from "./enums/verdict.enum.js";
 export { API_ENDPOINTS, apiPath, type ApiEndpoint } from "./api/endpoints.js";

@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
   HOLD_WAIT: "/v1/holds/:id/wait",
   HOLD_APPROVE: "/v1/holds/:id/approve",
   HOLD_REJECT: "/v1/holds/:id/reject",
+  HOLDS_RESOLVE: "/v1/holds/resolve",
 
   AUDIT: "/v1/audit",
   AUDIT_BATCH: "/v1/audit/batch",

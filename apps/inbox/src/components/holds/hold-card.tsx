@@ -3,6 +3,7 @@
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Badge } from "@intentlock/ui/components/badge";
 import { Button } from "@intentlock/ui/components/button";
+import { Checkbox } from "@intentlock/ui/components/checkbox";
 import { Input } from "@intentlock/ui/components/input";
 import { ArrowUpRight, Bot, Check, Clock, ScrollText, UserRound, X } from "lucide-react";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { MemberLabel } from "@/components/member-label";
 import { api } from "@/lib/api";
+import { HoldState } from "@/lib/enums/hold-state.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
 import { errorMessage } from "@/lib/error-message";
 import { formatRelative } from "@/lib/format";
@@ -40,11 +42,16 @@ export function HoldCard({
   hold,
   agentName,
   onResolved,
+  selected,
+  onSelect,
 }: {
   hold: PendingHold;
   agentName: string | undefined;
   onResolved: () => void;
+  selected?: boolean;
+  onSelect?: (selected: boolean) => void;
 }) {
+  const pending = hold.status === HoldState.PENDING;
   const [note, setNote] = useState("");
   const [resolving, setResolving] = useState<boolean | null>(null);
   const [confirmReject, setConfirmReject] = useState(false);
@@ -68,8 +75,16 @@ export function HoldCard({
 
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <header className="flex items-start gap-3">
+        {onSelect && (
+          <Checkbox
+            checked={selected ?? false}
+            onCheckedChange={(checked) => onSelect(checked)}
+            aria-label={`Select ${hold.tool} from ${hold.user}`}
+            className="mt-0.5"
+          />
+        )}
+        <div className="min-w-0 flex-1">
           <h3 className="truncate font-mono text-[13px] font-medium">{hold.tool}</h3>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Meta icon={Bot}>{agentName ?? hold.agentId}</Meta>
@@ -82,10 +97,14 @@ export function HoldCard({
             </Meta>
           </div>
         </div>
-        <Badge tone="warning" className="shrink-0">
-          <Clock />
-          expires {formatRelative(hold.expiresAt)}
-        </Badge>
+        {pending ? (
+          <Badge tone="warning" className="shrink-0">
+            <Clock />
+            expires {formatRelative(hold.expiresAt)}
+          </Badge>
+        ) : (
+          <Badge className="shrink-0 capitalize">{hold.status}</Badge>
+        )}
       </header>
       <pre className="max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
         {JSON.stringify(hold.args, null, 2)}
@@ -99,7 +118,13 @@ export function HoldCard({
           View run <ArrowUpRight className="size-3.5" />
         </Link>
       </div>
-      {hold.canApprove ? (
+      {!pending ? (
+        <p className="border-t pt-3 text-xs text-muted-foreground">
+          {hold.resolvedBy ? `${hold.status} by ${hold.resolvedBy}` : hold.status}
+          {hold.resolvedAt ? ` ${formatRelative(hold.resolvedAt)}` : ""}
+          {hold.note ? `: "${hold.note}"` : ""}
+        </p>
+      ) : hold.canApprove ? (
         <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row">
           <Input
             aria-label="Note"

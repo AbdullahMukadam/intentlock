@@ -1,4 +1,4 @@
-import { PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
+import { HoldResolveOutcome, PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
 import { z } from "zod";
 
 export const Me = z.object({ email: z.string(), role: Role, groups: z.array(z.string()) });
@@ -132,6 +132,13 @@ export const RunDetail = z.object({
   }),
 });
 export type RunDetail = z.infer<typeof RunDetail>;
+
+export const BulkResolveResult = z.object({
+  results: z.array(z.object({ id: z.string(), outcome: z.enum(HoldResolveOutcome) })),
+  resolved: z.number(),
+  skipped: z.number(),
+});
+export type BulkResolveResult = z.infer<typeof BulkResolveResult>;
 
 export const PendingHold = HoldView.extend({
   approvers: z.object({

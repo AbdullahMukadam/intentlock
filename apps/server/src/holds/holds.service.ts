@@ -11,7 +11,13 @@ import {
   NotFoundException,
   type OnModuleInit,
 } from "@nestjs/common";
-import { ApproverSpec, canApprove, check, type ToolCall } from "@intentlock/core";
+import {
+  ApproverSpec,
+  canApprove,
+  check,
+  HoldResolveOutcome,
+  type ToolCall,
+} from "@intentlock/core";
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
@@ -30,7 +36,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
 import { EXPIRY_INTERVAL_MS, MAX_LISTED_HOLDS, WAIT_POLL_MS } from "./constants/hold.constants.js";
 import { HoldError } from "./enums/hold-error.enum.js";
-import type { HoldState } from "./enums/hold-state.enum.js";
+import { HoldState } from "./enums/hold-state.enum.js";
 import type { NewHold } from "./types/new-hold.type.js";
 import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
 import { emailsById } from "../users/utils/emails-by-id.util.js";
@@ -215,6 +221,38 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
     });
     this.announceResolved(resolved);
     return toHoldView(resolved, new Map([[user.id, user.email]]));
+  }
+
+  async resolveMany(user: SessionUser, ids: string[], approve: boolean, note: string | undefined) {
+    const results: { id: string; outcome: HoldResolveOutcome }[] = [];
+    for (const id of ids) {
+      results.push({ id, outcome: await this.resolveOne(user, id, approve, note) });
+    }
+    const done = approve ? HoldResolveOutcome.APPROVED : HoldResolveOutcome.REJECTED;
+    const resolved = results.filter((r) => r.outcome === done).length;
+    return { results, resolved, skipped: results.length - resolved };
+  }
+
+  private async resolveOne(
+    user: SessionUser,
+    id: string,
+    approve: boolean,
+    note: string | undefined,
+  ): Promise<HoldResolveOutcome> {
+    try {
+      await this.resolve(user, id, approve, note);
+      return approve ? HoldResolveOutcome.APPROVED : HoldResolveOutcome.REJECTED;
+    } catch (e) {
+      if (e instanceof NotFoundException) return HoldResolveOutcome.NOT_FOUND;
+      if (e instanceof ForbiddenException) return HoldResolveOutcome.NOT_AN_APPROVER;
+      if (e instanceof ConflictException) {
+        const body = e.getResponse() as { status?: HoldState | null };
+        return body.status === HoldState.PENDING || body.status === HoldState.EXPIRED
+          ? HoldResolveOutcome.EXPIRED
+          : HoldResolveOutcome.NOT_PENDING;
+      }
+      throw e;
+    }
   }
 
   async expireAll(): Promise<number> {

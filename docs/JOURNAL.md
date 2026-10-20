@@ -2083,3 +2083,13 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Inbox: 105 tests green (was 104); inbox and ui lint and typecheck green. Not checked in a browser yet
+
+### 2026-10-20 · Session 26 (cont.) · Phase 6.7 — Holds search, filters and bulk resolve
+
+**Done**
+- ADR-076 (accepted by Abdullah). `POST /v1/holds/resolve` (`API_ENDPOINTS.HOLDS_RESOLVE`): up to 100 unique ids, `approve`, optional note. Each id goes through the existing `resolve()` in order, so the approver check, the `PENDING`/not-expired guard, the audit entry and the live event are the same as one approve or reject. Per-id outcomes use the new core enum `HoldResolveOutcome`; a pending hold past its expiry counts as `expired`
+- Inbox Holds page: search (tool, agent, person, rule, arguments), agent and state filters in the URL (`q`, `agentId`, `state`); resolved states show who resolved each hold and the note. Checkboxes on holds you can approve, select all (the filtered list), a note, Approve N / Reject N; reject is confirmed. The toast says what was skipped and why
+- Tests: `holds-bulk.e2e.test.ts` (mixed batch: two approved, one expired, one already resolved, one unknown → two audit entries, chain valid; a requester can't approve their own; validation and session-only), `hold-filters.test.ts` (URL parsing, search fields, summary text)
+
+**Numbers**
+- Inbox 108 tests, core 147, server e2e for holds-bulk and routes green; lint and typecheck green for core, server and inbox. Full `pnpm test` still to run before merge. Not checked in a browser yet
