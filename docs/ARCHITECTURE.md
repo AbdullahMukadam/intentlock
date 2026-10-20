@@ -263,7 +263,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET | `/v1/holds?status=pending` | → `Hold[]` | Auth: session. Approvers see holds they may approve; members see their own. `resolvedBy` is the approver's email (also in run detail) |
 | POST | `/v1/holds/:id/approve` · `/reject` | `{ note? }` → `Hold` | Auth: **session only**. Approver = signed-in user, must satisfy the hold's `ApproverSpec`; audited |
 | POST | `/v1/report` | `{ token, callId, outcome: ok\|error }` → `{ planStatus }` | Advances usage + completion |
-| GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=` | → paginated entries; `?format=jsonl` exports | Auth: session (scoped by role) |
+| GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=&page=&limit=` | → `{ entries, nextCursor }`; with `page` (1-based) → `{ entries, total, page, nextCursor: null }` (ADR-074); `?format=jsonl` exports | Auth: session (scoped by role) |
 | POST | `/v1/audit/batch` | `{ planId, tokens: string[], entries: (ClientEntry without token, with tokenRef)[] }` → `{ ackedThrough: clientSeq, rejected: { clientSeq, reason }[] }` | `hybrid` mode. ≤ 100 entries; each entry points at a de-duplicated token. Idempotent on `(planId, clientSeq)`; checks the client chain for gaps and edits; re-runs `check()` per entry and flags looser-than-policy decisions |
 | GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged }` | Recomputes chain; lists flagged client entries |
 | GET | `/v1/keys/jwks` | → JWKS | Auth: none (public keys by design) |
@@ -652,7 +652,7 @@ All views read the audit log and plan/hold tables through indexed queries (see t
 | Page | Shows | Backed by |
 | --- | --- | --- |
 | **Overview** | Allowed / blocked / held over time (Recharts, per agent or all), pending holds, median time-to-approve, top blocked tools and rules, flagged entries (decision mismatch, gaps), audit upload lag | `GET /v1/stats/overview` |
-| **Activity** | Every decision with filters (agent, user, tool, verdict, rule, policy version, time) and text search; export JSONL | `GET /v1/audit` |
+| **Activity** | Every decision with filters (agent, user, tool, verdict, rule, policy version, time) and text search, in numbered pages (25/50/100, `page` and `size` in the URL); export JSONL | `GET /v1/audit` |
 | **Run detail** | One plan: goal, user, agent, policy version, then every tool call in order with verdict, deciding rule, approval (who, when, note) and timing | `GET /v1/runs/:planId` |
 | **Holds** | Pending and recent holds, approve / reject (live) | `/v1/holds` + WebSocket |
 | **Agents** | Agents with 24 h counts, keys, policy version; agent page tabs: Overview · Policy · API keys · Activity | `/v1/agents*` |

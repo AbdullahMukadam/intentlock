@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { PolicyPanel } from "@/components/policy/policy-panel";
 import { parseFilters } from "@/lib/activity-filters";
+import { parsePaging } from "@/lib/activity-paging";
 import { ApiError, apiUrl } from "@/lib/api";
 import { AgentTab } from "@/lib/enums/agent-tab.enum";
 import { HttpStatus } from "@/lib/enums/http-status.enum";
@@ -174,7 +175,11 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
               Decisions for {agent.name}
             </PanelTitle>
           </PanelHeader>
-          <DecisionTable filters={{ ...parseFilters({}), agentId }} agents={[agent]} />
+          <DecisionTable
+            filters={{ ...parseFilters({}), agentId }}
+            paging={parsePaging({})}
+            agents={[agent]}
+          />
         </Panel>
       )}
     </div>

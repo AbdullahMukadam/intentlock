@@ -26,6 +26,21 @@ export class AuditQueryService {
     };
   }
 
+  async numbered(viewer: SessionUser, filter: AuditFilter, limit: number, page: number) {
+    const db = orgDb(this.prisma, viewer.orgId);
+    const where = this.where(viewer, filter);
+    const [total, rows] = await Promise.all([
+      db.auditEntry.count({ where }),
+      db.auditEntry.findMany({
+        where,
+        orderBy: { seq: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+    return { entries: rows.map(toAuditEntry), total, page, nextCursor: null };
+  }
+
   async *export(viewer: SessionUser, filter: AuditFilter) {
     const db = orgDb(this.prisma, viewer.orgId);
     let after = 0;

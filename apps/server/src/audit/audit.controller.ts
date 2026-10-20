@@ -24,9 +24,15 @@ export class AuditController {
 
   @Get(API_ENDPOINTS.AUDIT)
   async list(@CurrentUser() user: SessionUser, @Query() q: AuditQueryDto, @Res() res: Response) {
-    const { cursor, limit, format, ...filter } = q;
+    const { cursor, page, limit, format, ...filter } = q;
     if (format === AuditFormat.JSON) {
-      res.status(HttpStatus.OK).json(await this.query.page(user, filter, limit, cursor));
+      res
+        .status(HttpStatus.OK)
+        .json(
+          page
+            ? await this.query.numbered(user, filter, limit, page)
+            : await this.query.page(user, filter, limit, cursor),
+        );
       return;
     }
     res.status(HttpStatus.OK).type(JSONL_CONTENT_TYPE);

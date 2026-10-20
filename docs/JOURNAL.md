@@ -2030,3 +2030,28 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Audit page empty after navigating back: the verify result lived in `VerifyButton` state, so leaving the page dropped it and the 0.2.0 cache never held it. It is now a query in the cache (`enabled: false`, `staleTime`/`gcTime` infinite), so the last result comes back without another verify. Reproduced from Abdullah's description (the Chrome extension could not drive the local inbox); test `audit-verify.test.ts`
 - Button loaders, second pass: every inbox `Button` was checked. These got a busy state: Verify now (it used a spinning icon without `loading`), policy Roll back and Diff vs active, demo Run both, and the Team row actions (change role, reset link, enable/disable, with a spinner on the row's menu button). Buttons that only change local UI were left alone. `button-loading.test.ts` fails if a `Button` that runs an async handler has no `loading`. Not checked: whether the deployed inbox is on 0.2.1
 - Member labels (ADR-073): `User.label`, one migration, set from the existing admin `PATCH /v1/users/:email`, audited with the previous value. A violet badge appears next to the person in Team, Activity, holds and run details, looked up from the cached team list. An e2e test shows allow/hold/block are the same before and after labelling the plan's user. The read-only team list test now expects `label`
+- Activity pagination (ADR-074, numbered pages chosen by Abdullah): `GET /v1/audit?page=&limit=` returns `total` counted with the same filters and member scoping; the cursor path is unchanged. Activity has page numbers, previous/next, 25/50/100 per page, and "x–y of N", with `page` and `size` in the URL. Rows stay visible but dimmed while the next page loads, and a page past the end links back to the last page. The agent detail Activity tab shows page 1, and its page links open the main Activity page filtered to that agent
+
+**Problems hit and how they were solved**
+- `pnpm dev` (turbo) refuses to start: 10 persistent tasks with concurrency 10 → ran server and inbox with `pnpm --filter ... --parallel run dev`; turbo.json not changed
+- Brevo: `525 5.7.1 Unauthorized IP address` → turn off "Authorized IPs" blocking in Brevo (Render's free tier has no fixed IP)
+- The Chrome extension could not drive the localhost tab, so the Audit bug was reproduced from Abdullah's description and the code, and pinned with a test
+- Local demo users had unknown passwords from an earlier seed → set new ones in the git-ignored `.env.demo-users`
+
+**Decisions**
+- ADR-072: Hold notifications by email and an optional webhook
+- ADR-073: Member labels for display only
+- ADR-074: Numbered pages for Activity
+
+**Numbers**
+- Server: 240 tests (unit + e2e) green; inbox: 104; site docs checks: 9
+- One real hold email sent through Brevo on port 2525 and accepted (`250 OK`)
+
+**Next**
+- Merge `early-user-feedback` after Abdullah reviews; deploy and set `SMTP_URL`/`SMTP_FROM` (and optionally `HOLD_WEBHOOK_URL`) on Render; run `prisma migrate deploy` for the two new migrations (`hold_emails`, `user_label`)
+- Then: triage bot to TriStack `main` with `issues: opened`
+
+**Notes for Abdullah**
+- Two migrations to apply on the deployed database before the new server starts
+- `turbo` concurrency: `pnpm dev` needs `--concurrency 11` or a `concurrency` setting in turbo.json
+- Not checked: which version the deployed inbox runs (button loaders item)

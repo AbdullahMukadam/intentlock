@@ -10,10 +10,11 @@ import { Filters } from "@/components/activity/filters";
 import { useAgents } from "@/components/agent-filter";
 import { PageHeader } from "@/components/page-header";
 import { type ActivityFilters, toAuditQuery } from "@/lib/activity-filters";
+import type { Paging } from "@/lib/activity-paging";
 import { apiUrl } from "@/lib/api";
 import { AuditFormat } from "@/lib/enums/audit-format.enum";
 
-export function ActivityView({ filters }: { filters: ActivityFilters }) {
+export function ActivityView({ filters, paging }: { filters: ActivityFilters; paging: Paging }) {
   const { agents, failed: agentsFailed } = useAgents();
   const key = JSON.stringify(filters);
   const exportUrl = apiUrl(API_ENDPOINTS.AUDIT, {
@@ -42,8 +43,14 @@ export function ActivityView({ filters }: { filters: ActivityFilters }) {
             Decisions
           </PanelTitle>
         </PanelHeader>
-        <Filters key={`f${key}`} values={filters} agents={agents} agentsFailed={agentsFailed} />
-        <DecisionTable key={`t${key}`} filters={filters} agents={agents} />
+        <Filters
+          key={`f${key}`}
+          values={filters}
+          size={paging.size}
+          agents={agents}
+          agentsFailed={agentsFailed}
+        />
+        <DecisionTable key={`t${key}`} filters={filters} paging={paging} agents={agents} />
       </Panel>
     </div>
   );

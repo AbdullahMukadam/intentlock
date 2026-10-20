@@ -66,6 +66,8 @@ export type AuditRow = z.infer<typeof AuditRow>;
 export const AuditPage = z.object({
   entries: z.array(AuditRow),
   nextCursor: z.number().nullable(),
+  total: z.number().optional(),
+  page: z.number().optional(),
 });
 
 export const HoldView = z.object({

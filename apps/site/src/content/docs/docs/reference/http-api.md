@@ -108,7 +108,7 @@ Session, for the signed-in user.
 | GET | `/v1/runs` | Runs (plans) with decision counts. Filters: `agentId`, `user`, `status`, `cursor`. |
 | GET | `/v1/runs/:planId` | Plan, policy version, decisions, holds and timing. |
 | GET | `/v1/stats/overview` | Dashboard counts. Filters: `from`, `to`, `agentId`. |
-| GET | `/v1/audit` | Paginated entries with filters; `?format=jsonl` exports. |
+| GET | `/v1/audit` | Entries with filters, newest first. `?page=N&limit=M` returns numbered pages with a `total`; without `page`, follow `nextCursor` with `?cursor=`. `?format=jsonl` exports. |
 | GET | `/v1/audit/verify` | `{ ok, count, firstBrokenSeq?, flagged }`. |
 
 ## Server

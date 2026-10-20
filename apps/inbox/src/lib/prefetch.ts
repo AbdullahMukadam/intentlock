@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { parseFilters, toAuditQuery } from "./activity-filters";
 import { apiUrl, request } from "./api";
-import { LATEST_ACTIVITY_LIMIT } from "./constants";
+import { ACTIVITY_DEFAULT_PAGE_SIZE, LATEST_ACTIVITY_LIMIT } from "./constants";
 import { HoldState } from "./enums/hold-state.enum";
 import { UiAction } from "./enums/ui-action.enum";
 import { can } from "./permissions";
@@ -27,7 +27,9 @@ const PAGE_QUERIES: Partial<Record<Route, (role: Role) => string[]>> = {
   },
   "/activity": () => [
     apiUrl(API_ENDPOINTS.AGENTS),
-    apiUrl(API_ENDPOINTS.AUDIT, { query: toAuditQuery(parseFilters({})) }),
+    apiUrl(API_ENDPOINTS.AUDIT, {
+      query: { ...toAuditQuery(parseFilters({})), page: 1, limit: ACTIVITY_DEFAULT_PAGE_SIZE },
+    }),
   ],
   "/holds": () => [
     apiUrl(API_ENDPOINTS.AGENTS),

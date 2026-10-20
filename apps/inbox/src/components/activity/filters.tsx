@@ -9,7 +9,9 @@ import Link from "next/link";
 import { AgentFilter } from "@/components/agent-filter";
 import { NativeSelect } from "@/components/native-select";
 import type { ActivityFilters } from "@/lib/activity-filters";
+import { ACTIVITY_DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { ActivityParam } from "@/lib/enums/activity-param.enum";
+import { PageParam } from "@/lib/enums/page-param.enum";
 import { AuditVerdict } from "@/lib/enums/audit-verdict.enum";
 import type { AgentSummary } from "@/lib/schemas";
 
@@ -24,16 +26,21 @@ const MORE: ActivityParam[] = [
 
 export function Filters({
   values: v,
+  size,
   agents,
   agentsFailed = false,
 }: {
   values: ActivityFilters;
+  size: number;
   agents: AgentSummary[];
   agentsFailed?: boolean;
 }) {
   const moreActive = MORE.some((p) => Boolean(v[p as keyof ActivityFilters]));
   return (
     <Form action="/activity" className="grid gap-2 px-2 pb-2">
+      {size !== ACTIVITY_DEFAULT_PAGE_SIZE && (
+        <input type="hidden" name={PageParam.SIZE} value={size} />
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-48 flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
