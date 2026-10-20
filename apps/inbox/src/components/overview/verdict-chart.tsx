@@ -116,7 +116,7 @@ export function VerdictChart({
                   <ChartTooltipContent
                     active={active}
                     payload={payload}
-                    label={`${String(label)} · ${(payload?.[0]?.payload as Row | undefined)?.total.toLocaleString() ?? 0}`}
+                    label={`${String(label)} Â· ${(payload?.[0]?.payload as Row | undefined)?.total.toLocaleString() ?? 0}`}
                   />
                 )}
               />
