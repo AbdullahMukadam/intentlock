@@ -2104,3 +2104,9 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Inbox 108 tests, stats e2e green; lint and typecheck green for server, inbox, ui. Not checked in a browser yet
+
+### 2026-10-20 · Session 26 (cont.) · Demo traffic spread over a week
+
+- The local demo data had ~5,000 audit entries in one hour, so the Overview chart drew a single bar. Moving timestamps in place would mean rewriting the hash chain (`at` is hashed), so the local database was re-seeded instead (Abdullah's call; a `pg_dump` was taken first)
+- New dev script `pnpm --filter @intentlock/server seed:traffic` (`prisma/seed-traffic.ts`), run after `pnpm seed` on an empty database: adds `triage-bot` (label `bot`) and `oncall`, three agents with one demo policy (block destructive tools, hold comments and merges, allow in plan), 900 runs over the last 7 days weighted to working hours. Every verdict comes from core `check()`; holds are approved, rejected or expired with realistic delays, some recent ones stay pending; the audit chain is written with `hashEntry` under the chain lock. Passwords for users listed in `.env.demo-users` are set from that file
+- Tried on `intentlock_test` first, then on the local database: chain verifies (4,638 entries), entries on every day of the week

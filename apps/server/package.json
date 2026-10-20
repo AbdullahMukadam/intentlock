@@ -14,7 +14,8 @@
     "test": "vitest run",
     "prisma": "prisma",
     "postinstall": "prisma generate",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:traffic": "tsx prisma/seed-traffic.ts"
   },
   "dependencies": {
     "@intentlock/core": "workspace:*",
