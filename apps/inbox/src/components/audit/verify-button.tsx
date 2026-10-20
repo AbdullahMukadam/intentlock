@@ -1,6 +1,5 @@
 "use client";
 
-import { API_ENDPOINTS } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
 import {
   Panel,
@@ -11,14 +10,11 @@ import {
 } from "@intentlock/ui/components/panel";
 import { cn } from "@intentlock/ui/lib/utils";
 import { Flag, Link2, RefreshCw, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/empty-state";
-import { api } from "@/lib/api";
-import {
-  type AuditVerifyResult,
-  AuditVerifyResult as AuditVerifyResultSchema,
-} from "@/lib/schemas";
+import { auditVerifyQuery } from "@/lib/audit-verify";
+import type { AuditVerifyResult } from "@/lib/schemas";
 
 function Result({ result: r, at }: { result: AuditVerifyResult; at: Date }) {
   const Icon = r.ok ? ShieldCheck : ShieldX;
@@ -70,23 +66,13 @@ function Result({ result: r, at }: { result: AuditVerifyResult; at: Date }) {
 }
 
 export function VerifyButton() {
-  const [state, setState] = useState<{ result: AuditVerifyResult; at: Date } | null>(null);
-  const [error, setError] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const query = useQuery(auditVerifyQuery);
+  const busy = query.isFetching;
+  const error = query.isError && !busy;
+  const state = query.data ? { result: query.data, at: new Date(query.dataUpdatedAt) } : null;
 
-  async function verify() {
-    setBusy(true);
-    setError(false);
-    try {
-      setState({
-        result: await api(API_ENDPOINTS.AUDIT_VERIFY, AuditVerifyResultSchema),
-        at: new Date(),
-      });
-    } catch {
-      setError(true);
-    } finally {
-      setBusy(false);
-    }
+  function verify() {
+    query.refetch().catch(() => undefined);
   }
 
   return (
