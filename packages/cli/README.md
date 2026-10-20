@@ -3,9 +3,11 @@
 The `intentlock` command for [Intentlock](../../README.md).
 
 ```bash
-pnpm install && pnpm --filter @intentlock/cli build
-cd packages/cli && pnpm link --global
+npm install -g @intentlock/cli
+npx -y @intentlock/cli audit verify --file intentlock-audit.jsonl
 ```
+
+Node 22 or newer. From a clone: `pnpm install && pnpm --filter @intentlock/cli build`, then `pnpm link --global` in `packages/cli`.
 
 | Command                                               | Needs a server |
 | ----------------------------------------------------- | -------------- |

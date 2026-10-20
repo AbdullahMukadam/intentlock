@@ -70,14 +70,14 @@ Set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again. Migrations run fi
 Keep the PEM in your secret store (a password manager or your platform's secrets), not only in `.env` on the server. Every server instance must use the same key. To make one:
 
 ```bash
-intentlock keygen --out ./keys --env
+npx -y @intentlock/cli keygen --out ./keys --env
 ```
 
 ### Planned rotation
 
 Rotate once a year, or when someone with access to the key leaves.
 
-1. Create a new key with `intentlock keygen`.
+1. Create a new key with `npx -y @intentlock/cli keygen`.
 2. Deploy with the new key in `SIGNING_KEY` and the old key in `SIGNING_KEY_PREVIOUS`. The old value may be the private key or only its public half. The server signs with the new key and publishes both public keys at `/v1/keys/jwks`, so running plans keep working.
 3. Wait at least 2 hours: a token lives up to 60 minutes, and the guard can refresh it (re-signed with the new key) up to 60 minutes after it expires. If agent apps in hybrid mode may be offline longer, wait until they have reconnected: their queued decisions are re-checked with the token they were made under, and after the old key is gone those decisions are flagged as mismatches in the audit log.
 4. Remove `SIGNING_KEY_PREVIOUS` and deploy again.

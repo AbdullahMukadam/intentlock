@@ -28,7 +28,7 @@ Rules are evaluated in order and the first match wins. When no rule matches, the
 
 ## Where policies live
 
-Policies are stored on the server, never in files next to it. You edit them in the inbox (**Agents → your agent → Policy**) with live validation, a dry run against sample calls or recent decisions, and a diff against the active version. Or keep them in Git and use the CLI:
+Policies are stored on the server, never in files next to it. You edit them in the inbox (**Agents → your agent → Policy**) with live validation, a dry run against sample calls or recent decisions, and a diff against the active version. Or keep them in Git and use the [CLI](/docs/reference/cli/) (`npm install -g @intentlock/cli`):
 
 ```bash
 intentlock policy validate policy.yaml

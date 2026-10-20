@@ -1,8 +1,13 @@
 # Changelog
 
-Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthropic` and, from 0.2.0, `mcp-proxy`) and to the server and inbox Docker images, which are released together. To upgrade a self-hosted instance, set `INTENTLOCK_VERSION` to the new version and run `docker compose up -d` again; migrations run first, before the new server starts.
+Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`, from 0.2.0 `mcp-proxy`, and from the next release `cli`) and to the server and inbox Docker images, which are released together. To upgrade a self-hosted instance, set `INTENTLOCK_VERSION` to the new version and run `docker compose up -d` again; migrations run first, before the new server starts.
 
 ## Unreleased
+
+### Added
+
+- `@intentlock/cli` is published to npm: `npm install -g @intentlock/cli`, or `npx -y @intentlock/cli audit verify --file intentlock-audit.jsonl` without installing (ADR-079)
+- Inbox Audit page: chain size and head, oldest entry, retention, last verified and by whom, flagged entries linked to their runs, export and the offline verify command; new `GET /v1/audit/summary`, and each verify is recorded as `audit_verified` (ADR-078)
 
 ## 0.2.1 · 2026-10-19
 

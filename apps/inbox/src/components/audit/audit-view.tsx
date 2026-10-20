@@ -22,7 +22,7 @@ import { AuditSummary } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
 const EXPORT_FILE = "intentlock-audit.jsonl";
-const VERIFY_COMMAND = `intentlock audit verify --file ${EXPORT_FILE}`;
+const VERIFY_COMMAND = `npx -y @intentlock/cli audit verify --file ${EXPORT_FILE}`;
 const exportUrl = apiUrl(API_ENDPOINTS.AUDIT, { query: { format: AuditFormat.JSONL } });
 
 function Sub({ children, className }: { children: React.ReactNode; className?: string }) {

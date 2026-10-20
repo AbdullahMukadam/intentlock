@@ -47,13 +47,13 @@ pnpm test && pnpm lint && pnpm typecheck && pnpm format
 
 ## Releasing (maintainers)
 
-The npm packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`, MIT, and `@intentlock/mcp-proxy`, ELv2) are versioned together (ADR-062, ADR-071); the server and inbox ship as Docker images.
+The npm packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`, MIT, and `@intentlock/mcp-proxy`, `@intentlock/cli`, ELv2) are versioned together (ADR-062, ADR-071, ADR-079); the server and inbox ship as Docker images.
 
 **First release only:** sign in at npmjs.com, turn on two-factor authentication, then avatar → **Add Organization** → `intentlock` (free plan, matches the `@intentlock/` scope). Make the GHCR packages public once: GitHub → profile → **Packages** → `intentlock-server` / `intentlock-inbox` → **Package settings** → **Change visibility** → Public.
 
 **Every release:**
 
-1. On a branch, bump `version` in the five published `package.json` files to the same value, set the same version as the `INTENTLOCK_VERSION` default in `deploy/docker-compose.selfhost.yml` and `deploy/selfhost.env.example`, rename `## Unreleased` in `CHANGELOG.md` to `## X.Y.Z · YYYY-MM-DD` (and start a new empty `## Unreleased`), add a journal line, merge to `main`. The release script stops if any of these do not match.
+1. On a branch, bump `version` in the six published `package.json` files to the same value, set the same version as the `INTENTLOCK_VERSION` default in `deploy/docker-compose.selfhost.yml` and `deploy/selfhost.env.example`, rename `## Unreleased` in `CHANGELOG.md` to `## X.Y.Z · YYYY-MM-DD` (and start a new empty `## Unreleased`), add a journal line, merge to `main`. The release script stops if any of these do not match.
 2. On `main`, up to date and clean:
    ```bash
    npm login

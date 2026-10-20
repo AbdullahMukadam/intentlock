@@ -2125,3 +2125,10 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - Retention shows the license's 30 days with "Old entries are not purged yet": purging is still out of scope
 - Every Verify now adds one entry to the chain, so the entry count goes up by one after each verify
+
+### 2026-10-20 · Session 27 (cont.) · CLI on npm
+
+- Abdullah asked how anyone installs the CLI: it was `private` and only buildable from a clone, while the docs (self-host keygen, policy commands, audit verify) and the new Audit page used `intentlock` commands. Decided to publish it (ADR-079)
+- `@intentlock/cli` is public at 0.2.1 with its own ELv2 `LICENSE`, `prepack`, repository metadata and `engines`; added to `scripts/release.ts` (six lockstep packages). `pnpm pack` gives `dist`, `LICENSE`, `README.md`, and `@intentlock/core` pinned to `0.2.1`
+- Docs: the CLI reference installs with `npm install -g @intentlock/cli`; self-host keygen and the Audit page use `npx -y @intentlock/cli …`; the policies page and "Protect your agent" link to the install line. CHANGELOG `Unreleased`, CONTRIBUTING, README and STRUCTURE updated
+- Nothing published: the CLI ships in the next `pnpm release`

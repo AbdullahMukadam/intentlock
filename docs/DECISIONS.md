@@ -769,3 +769,13 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   4. Each flagged entry in the verify result also carries `planId`; the inbox links it to `/runs/:planId`.
 - **Alternatives:** Fold into Activity (smaller, but hides the promise); storing the last verify in a new table (needs a migration and is not tamper-evident); building the page from `GET /v1/audit?page=1&limit=1` (no oldest entry and no clean way to find the last verify).
 - **Consequences:** Verify now writes, although it is a GET. The last-verify lookup filters on `kind`, which has no index; it walks back from the head and is cheap while verifies are frequent, but scans the table when there has never been one. Add an index on `kind` if that shows up.
+
+### ADR-079: Publish the CLI to npm
+- **Date:** 2026-10-20 · **Status:** Accepted (Abdullah) · Amends ADR-021 and ADR-071
+- **Context:** The docs use `intentlock` commands (keygen in the self-host guide, policy validate/test/push, audit verify, and now the Audit page), but the CLI was `private` and could only be built and linked from a clone. A self-hoster running the Docker images had to clone the monorepo just to create a signing key, and an auditor had to do the same to check an export.
+- **Decision:**
+  1. `@intentlock/cli` is public on npm under the Elastic License 2.0, with its own copy of the ELv2 `LICENSE` in the tarball, the same as `mcp-proxy` (ADR-071). The binary stays `intentlock`.
+  2. It joins the lockstep release: six packages share one version and `scripts/release.ts` publishes all of them. It ships from the next release.
+  3. The docs and the Audit page use `npx -y @intentlock/cli …` for one-off commands (keygen, audit verify) and `npm install -g @intentlock/cli` where several commands follow.
+- **Alternatives:** the CLI inside the server Docker image (covers keygen for self-hosters, but not an auditor checking an export on their own machine); docs links to the clone build only (the barrier stays).
+- **Consequences:** ELv2 allows anyone to install and run the CLI; it forbids offering it as a managed service. It depends only on `@intentlock/core`, `commander` and `zod`, and no server or inbox code is copied into it. A breaking CLI change bumps all six packages.

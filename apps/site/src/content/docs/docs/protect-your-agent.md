@@ -18,6 +18,8 @@ You need a running Intentlock instance with an agent and an API key. The [quick 
 pnpm add @intentlock/guard @intentlock/sdk zod
 ```
 
+The `intentlock` commands later in this guide come from the [CLI](/docs/reference/cli/): `npm install -g @intentlock/cli`.
+
 ```bash title=".env"
 INTENTLOCK_URL=http://localhost:8080/api
 INTENTLOCK_API_KEY=il_live_...
