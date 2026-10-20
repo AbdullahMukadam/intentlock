@@ -147,6 +147,7 @@ describe("stats overview", () => {
       bucket: "hour",
       totals: { allow: 2, block: 4, hold: 2 },
       pendingHolds: 2,
+      holdOutcomes: { approved: 0, rejected: 0, expired: 0 },
       flagged: 0,
       auditLag: null,
       medianApprovalSeconds: null,
@@ -170,7 +171,22 @@ describe("stats overview", () => {
       .send({})
       .expect(200);
     const mine = await http().get("/v1/stats/overview").set("Cookie", alice.cookie).expect(200);
-    expect(mine.body).toMatchObject({ totals: { allow: 1, block: 2, hold: 1 }, pendingHolds: 0 });
+    expect(mine.body).toMatchObject({
+      totals: { allow: 1, block: 2, hold: 1 },
+      pendingHolds: 0,
+      holdOutcomes: { approved: 1, rejected: 0, expired: 0 },
+    });
+    const other = await prisma.hold.findFirstOrThrow({
+      where: { user: { not: alice.user.email } },
+    });
+    await prisma.hold.update({
+      where: { id: other.id },
+      data: { status: "EXPIRED", resolvedAt: new Date() },
+    });
+    const all = await http().get("/v1/stats/overview").set("Cookie", admin.cookie).expect(200);
+    expect(all.body.holdOutcomes).toEqual({ approved: 1, rejected: 0, expired: 1 });
+    const stillMine = await http().get("/v1/stats/overview").set("Cookie", alice.cookie);
+    expect(stillMine.body.holdOutcomes).toEqual({ approved: 1, rejected: 0, expired: 0 });
     expect(mine.body.medianApprovalSeconds).toEqual(expect.any(Number));
   });
 

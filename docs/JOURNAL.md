@@ -2094,3 +2094,13 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Numbers**
 - Inbox 108 tests, core 147, server e2e for holds-bulk and routes green; lint and typecheck green for core, server and inbox. Full `pnpm test` still to run before merge. Not checked in a browser yet
 - Selecting a hold was slow (Abdullah): every click rebuilt `selected` and a new `onSelect` closure per card, so all ~176 cards re-rendered (pretty-printed args, a dialog each); the React Compiler does not memoize per item inside `.map`. Fix: `memo(HoldCard)`, one stable `toggle` with a functional `setSelected`, and the reject dialog mounted only while open. A click now re-renders the one card that changed plus the bulk bar
+
+### 2026-10-20 · Session 26 (cont.) · Phase 6.7 — Charts
+
+**Done**
+- ADR-077 (accepted by Abdullah): shadcn `chart` over Evil Charts. Evil Charts is MIT, but its project also depends on `echarts` and `motion` and mainly adds styling. `packages/ui/src/components/chart.tsx` written by hand: `ChartContainer` (CSS-variable colours per series), `ChartTooltipContent`, `ChartLegendContent`. `recharts` 3.10.1 declared in `@intentlock/ui`, installed with `pnpm install --offline` (lockfile +5 lines)
+- Overview: "Decision volume" is now stacked allowed/held/blocked bars with a legend and one tooltip per bucket. New "Hold outcomes" panel (approved/rejected/expired resolved in the range, one stacked bar with counts and shares). KPI sparklines draw through `ChartContainer`. Top blocked tools/rules stay lists; time to approve stays the median tile
+- Server: `GET /v1/stats/overview` returns `holdOutcomes` (one `groupBy` on `Hold` by `resolvedAt`, same agent and member scoping); `visibility.e2e.test.ts` checks the counts and that a member sees only their own
+
+**Numbers**
+- Inbox 108 tests, stats e2e green; lint and typecheck green for server, inbox, ui. Not checked in a browser yet

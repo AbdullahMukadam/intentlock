@@ -44,6 +44,7 @@ export const Overview = z.object({
   series: z.array(VerdictCounts.extend({ bucket: z.string() })),
   totals: VerdictCounts,
   pendingHolds: z.number(),
+  holdOutcomes: z.object({ approved: z.number(), rejected: z.number(), expired: z.number() }),
   medianApprovalSeconds: z.number().nullable(),
   topBlockedTools: z.array(z.object({ tool: z.string(), count: z.number() })),
   topBlockedRules: z.array(z.object({ ruleId: z.string(), count: z.number() })),

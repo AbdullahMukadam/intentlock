@@ -741,3 +741,20 @@ Architecture Decision Records. Add a new one for any non-obvious choice. Never e
   4. **Inbox.** A checkbox per pending hold the user may approve, "select all on this page" (the filtered list), and a bar with Approve, Reject and an optional note. Reject is confirmed in the `ConfirmDialog`; approve is not, as single approve isn't. The result is a toast: "Approved 12, skipped 3 (2 expired, 1 already resolved)".
 - **Alternatives:** the inbox calling `approve`/`reject` once per hold (no API change, but up to 100 requests from the browser on Render's free tier, and a dropped connection mid-way leaves the user unsure what was resolved); calling the single-hold `resolve()` per id, in sequence or with `Promise.all` (see 3); server-side search now (not needed under 200 holds).
 - **Consequences:** One new route in `API_ENDPOINTS` and one new enum for outcomes: a public API addition. No migration. A batch of any size is one read and one short transaction.
+
+### ADR-077: shadcn chart component for the Overview charts
+- **Date:** 2026-10-20 · **Status:** Accepted (Abdullah)
+- **Context:** The Overview charts (`verdict-chart`, `kpi-panel` sparklines) use Recharts directly with hand-written tooltips and colours. "Decision volume" shows one total bar per bucket, so you can't see how many were blocked. Two options were compared: the shadcn `chart` component and Evil Charts (github.com/legions-developer/evilcharts, a shadcn-style registry).
+- **Findings:**
+  - shadcn `chart`: MIT (like the shadcn components already in `@intentlock/ui`). Built on Recharts only. Adds `ChartContainer` (colours from CSS variables, so light and dark work), `ChartTooltip`/`ChartTooltipContent` and `ChartLegend`/`ChartLegendContent`.
+  - Evil Charts: MIT (repo About). Charts are copied in from its registry. The project depends on `echarts` and `motion` besides Recharts, so some charts would bring a new dependency. It builds on the same shadcn `chart` component, adding visual styles (glows, gradients, animated patterns) we don't need for four small charts.
+- **Decision:**
+  1. Use the shadcn `chart` component, written by hand into `packages/ui/src/components/chart.tsx` (no registry download). `recharts` moves to `@intentlock/ui`'s dependencies at the version the inbox already uses (3.10.1, already in the pnpm store, so nothing new is installed). Evil Charts is not used. Its look (a gradient area, rounded stacked bars) is a few lines of Recharts if we want it later.
+  2. Charts only where they answer a question:
+     - **Decisions over time by verdict:** "Decision volume" becomes stacked bars (allowed, blocked, held) with a legend and one tooltip listing all three. The data is already in `GET /v1/stats/overview` (`series`).
+     - **Top blocked tools:** stays the ranked list with bars it is today (a table answers "which tool" better than a chart); no change.
+     - **Hold outcomes:** a one-row stacked bar of approved, rejected and expired holds resolved in the range, with counts and shares under it. This needs `holdOutcomes: { approved, rejected, expired }` added to `GET /v1/stats/overview`, one `groupBy` on `Hold` with the same range, agent and role scoping (an additive public API change).
+     - **Time to approve:** keep the median tile (it already exists); no distribution chart, since nobody has asked which hold took long.
+  3. The KPI sparklines move onto `ChartContainer` for theme colours; they stay sparklines.
+- **Alternatives:** Evil Charts (more style than we need, possible `echarts`/`motion` dependencies, a second registry to track); keeping raw Recharts (each chart keeps its own tooltip and colour code); a time-to-approve histogram (no question asks for it yet).
+- **Consequences:** No new package. `recharts` is declared in `@intentlock/ui` too. One additive field on the stats endpoint for hold outcomes; no migration. The shadcn code is MIT inside an ELv2 package, the same as the existing shadcn components.

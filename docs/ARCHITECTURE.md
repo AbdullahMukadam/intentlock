@@ -252,7 +252,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/agents/:id/policy/test` | `{ source, calls?: SampleCall[], replayLast?: number }` → `{ results, changed: { from, to, count }[] }` | Auth: session. Pure dry run; nothing is saved |
 | POST | `/v1/agents/:id/policy/publish` | `{ source, baseVersion, message }` → `PolicyVersion` | Auth: session (admin). 409 if `baseVersion` is not the active version |
 | POST | `/v1/agents/:id/policy/rollback` | `{ toVersion, message }` → `PolicyVersion` (a new version copying the old one) | Auth: session (admin) |
-| GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
+| GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, hold outcomes (`holdOutcomes`: approved/rejected/expired resolved in the range), median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
 | GET | `/v1/runs?agentId=&user=&status=&cursor=` | → runs (plans) with decision counts | Auth: session (scoped by role) |
 | GET | `/v1/runs/:planId` | → plan, policy version, ordered decisions, holds, timing | Auth: session (scoped by role) |
 | GET | `/v1/license` | → `{ edition, licensee, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, features, expiresAt }` | Auth: session |

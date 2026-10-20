@@ -13,6 +13,7 @@ import { useMe } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { NativeSelect } from "@/components/native-select";
 import { KpiPanel } from "@/components/overview/kpi-panel";
+import { HoldOutcomes } from "@/components/overview/hold-outcomes";
 import { LatestActivity } from "@/components/overview/latest-activity";
 import { StatTiles } from "@/components/overview/stat-tiles";
 import { TopBlocked } from "@/components/overview/top-blocked";
@@ -191,6 +192,7 @@ export default function OverviewPage() {
             </div>
           </div>
           {data && <StatTiles overview={data} />}
+          {data && <HoldOutcomes overview={data} />}
           {data && <TopBlocked overview={data} />}
         </>
       )}

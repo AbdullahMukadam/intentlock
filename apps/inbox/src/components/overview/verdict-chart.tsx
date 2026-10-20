@@ -1,10 +1,17 @@
 "use client";
 
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@intentlock/ui/components/chart";
 import { Panel, PanelBody, PanelHeader, PanelTitle } from "@intentlock/ui/components/panel";
 import { cn } from "@intentlock/ui/lib/utils";
 import { ChartColumn } from "lucide-react";
-import { useState } from "react";
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { EmptyState } from "@/components/empty-state";
 import { StatsBucket } from "@/lib/enums/stats-bucket.enum";
@@ -22,22 +29,13 @@ function bucketLabel(bucket: string, size: string) {
     : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
 }
 
-function ChartTooltip({ active, payload }: { active?: boolean; payload?: { payload: Row }[] }) {
-  const row = payload?.[0]?.payload;
-  if (!active || !row) return null;
-  return (
-    <div className="rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground shadow-lg">
-      <div className="font-medium">
-        {row.label} Â· {row.total.toLocaleString()}
-      </div>
-      <div className="mt-1 flex gap-3 opacity-80">
-        <span>{row.allow} allowed</span>
-        <span>{row.block} blocked</span>
-        <span>{row.hold} held</span>
-      </div>
-    </div>
-  );
-}
+const CONFIG = {
+  allow: { label: "Allowed", color: "var(--success)" },
+  block: { label: "Blocked", color: "var(--destructive)" },
+  hold: { label: "Held", color: "var(--warning)" },
+} satisfies ChartConfig;
+
+const STACK = ["allow", "hold", "block"] as const;
 
 export function VerdictChart({
   overview,
@@ -48,7 +46,6 @@ export function VerdictChart({
   previousTotal: number | undefined;
   periodLabel: string;
 }) {
-  const [active, setActive] = useState<number | null>(null);
   const t = overview.totals;
   const total = t.allow + t.block + t.hold;
   const change = changeLabel(total, previousTotal);
@@ -59,8 +56,6 @@ export function VerdictChart({
     block: s.block,
     hold: s.hold,
   }));
-  const peak = data.reduce((best, row, i) => (row.total > (data[best]?.total ?? -1) ? i : best), 0);
-  const highlighted = active ?? peak;
 
   return (
     <Panel className="h-full">
@@ -98,44 +93,47 @@ export function VerdictChart({
             className="min-h-60"
           />
         ) : (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data}
-                margin={{ top: 8, right: 0, bottom: 0, left: -12 }}
-                onMouseMove={(state) =>
-                  setActive(typeof state.activeIndex === "number" ? state.activeIndex : null)
-                }
-                onMouseLeave={() => setActive(null)}
-              >
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                  minTickGap={16}
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+          <ChartContainer config={CONFIG} className="h-72 w-full">
+            <BarChart data={data} margin={{ top: 8, right: 0, bottom: 0, left: -12 }}>
+              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                interval="preserveStartEnd"
+                minTickGap={16}
+              />
+              <YAxis
+                orientation="right"
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+              />
+              <ChartTooltip
+                cursor={{ fill: "var(--muted)", opacity: 0.5 }}
+                content={({ active, payload, label }) => (
+                  <ChartTooltipContent
+                    active={active}
+                    payload={payload}
+                    label={`${String(label)} · ${(payload?.[0]?.payload as Row | undefined)?.total.toLocaleString() ?? 0}`}
+                  />
+                )}
+              />
+              <ChartLegend content={({ payload }) => <ChartLegendContent payload={payload} />} />
+              {STACK.map((key, i) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  stackId="verdicts"
+                  fill={`var(--color-${key})`}
+                  maxBarSize={44}
+                  radius={i === STACK.length - 1 ? [4, 4, 0, 0] : 0}
+                  isAnimationActive={false}
                 />
-                <YAxis
-                  orientation="right"
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                />
-                <Tooltip cursor={false} content={<ChartTooltip />} />
-                <Bar dataKey="total" radius={[6, 6, 6, 6]} maxBarSize={44}>
-                  {data.map((row, i) => (
-                    <Cell
-                      key={row.label + i}
-                      fill={i === highlighted ? "var(--chart-1)" : "var(--chart-2)"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              ))}
+            </BarChart>
+          </ChartContainer>
         )}
       </PanelBody>
     </Panel>
