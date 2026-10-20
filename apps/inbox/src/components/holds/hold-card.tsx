@@ -7,7 +7,7 @@ import { Checkbox } from "@intentlock/ui/components/checkbox";
 import { Input } from "@intentlock/ui/components/input";
 import { ArrowUpRight, Bot, Check, Clock, ScrollText, UserRound, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -38,7 +38,7 @@ function Meta({
   );
 }
 
-export function HoldCard({
+export const HoldCard = memo(function HoldCard({
   hold,
   agentName,
   onResolved,
@@ -49,7 +49,7 @@ export function HoldCard({
   agentName: string | undefined;
   onResolved: () => void;
   selected?: boolean;
-  onSelect?: (selected: boolean) => void;
+  onSelect?: (id: string, selected: boolean) => void;
 }) {
   const pending = hold.status === HoldState.PENDING;
   const [note, setNote] = useState("");
@@ -79,7 +79,7 @@ export function HoldCard({
         {onSelect && (
           <Checkbox
             checked={selected ?? false}
-            onCheckedChange={(checked) => onSelect(checked)}
+            onCheckedChange={(checked) => onSelect(hold.id, checked)}
             aria-label={`Select ${hold.tool} from ${hold.user}`}
             className="mt-0.5"
           />
@@ -89,8 +89,10 @@ export function HoldCard({
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Meta icon={Bot}>{agentName ?? hold.agentId}</Meta>
             <Meta icon={UserRound}>
-              {hold.user}
-              <MemberLabel email={hold.user} />
+              <div className="w-fit flex gap-1">
+                {hold.user}
+                <MemberLabel email={hold.user} />
+              </div>
             </Meta>
             <Meta icon={ScrollText}>
               <span className="font-mono">{hold.ruleId}</span>
@@ -160,18 +162,20 @@ export function HoldCard({
           {hold.approvers.self ? " (the requester may approve)" : ""}
         </p>
       )}
-      <ConfirmDialog
-        open={confirmReject}
-        onOpenChange={setConfirmReject}
-        title={`Reject ${hold.tool}?`}
-        description={
-          note.trim()
-            ? `The agent's call is blocked with your note: "${note.trim()}".`
-            : "The agent's call is blocked. Add a note on the card first if the agent should know why."
-        }
-        confirmLabel="Reject"
-        onConfirm={() => resolve(false)}
-      />
+      {confirmReject && (
+        <ConfirmDialog
+          open={confirmReject}
+          onOpenChange={setConfirmReject}
+          title={`Reject ${hold.tool}?`}
+          description={
+            note.trim()
+              ? `The agent's call is blocked with your note: "${note.trim()}".`
+              : "The agent's call is blocked. Add a note on the card first if the agent should know why."
+          }
+          confirmLabel="Reject"
+          onConfirm={() => resolve(false)}
+        />
+      )}
     </article>
   );
-}
+});

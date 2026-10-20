@@ -79,7 +79,7 @@ function Section({
                 agentName={names.get(h.agentId)}
                 onResolved={reload}
                 selected={selected?.has(h.id)}
-                onSelect={onSelect && ((value) => onSelect(h.id, value))}
+                onSelect={onSelect}
               />
             ))}
           </div>
@@ -192,6 +192,13 @@ const RESOLVED_TITLE: Record<Exclude<HoldState, HoldState.PENDING>, string> = {
 export function HoldList({ filters }: { filters: Filters }) {
   const { agents } = useAgents();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string, value: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (value) next.add(id);
+      else next.delete(id);
+      return next;
+    });
   const { data, error, reload } = useApi(
     apiUrl(API_ENDPOINTS.HOLDS, { query: { status: filters.state } }),
     PendingHolds,
@@ -235,6 +242,7 @@ export function HoldList({ filters }: { filters: Filters }) {
           filtered={filtered}
           selected={selected}
           setSelected={setSelected}
+          onToggle={toggle}
         />
         <Section
           title="Waiting for someone else"
@@ -267,6 +275,7 @@ function PendingForYou({
   filtered,
   selected,
   setSelected,
+  onToggle,
 }: {
   holds: PendingHold[] | undefined;
   names: Map<string, string>;
@@ -274,6 +283,7 @@ function PendingForYou({
   filtered: boolean;
   selected: Set<string>;
   setSelected: (ids: Set<string>) => void;
+  onToggle: (id: string, selected: boolean) => void;
 }) {
   return (
     <Section
@@ -294,12 +304,7 @@ function PendingForYou({
         ) : undefined
       }
       selected={selected}
-      onSelect={(id, value) => {
-        const next = new Set(selected);
-        if (value) next.add(id);
-        else next.delete(id);
-        setSelected(next);
-      }}
+      onSelect={onToggle}
     />
   );
 }

@@ -2093,3 +2093,4 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Inbox 108 tests, core 147, server e2e for holds-bulk and routes green; lint and typecheck green for core, server and inbox. Full `pnpm test` still to run before merge. Not checked in a browser yet
+- Selecting a hold was slow (Abdullah): every click rebuilt `selected` and a new `onSelect` closure per card, so all ~176 cards re-rendered (pretty-printed args, a dialog each); the React Compiler does not memoize per item inside `.map`. Fix: `memo(HoldCard)`, one stable `toggle` with a functional `setSelected`, and the reject dialog mounted only while open. A click now re-renders the one card that changed plus the bulk bar
