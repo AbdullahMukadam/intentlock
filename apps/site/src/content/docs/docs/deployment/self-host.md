@@ -18,7 +18,8 @@ curl -fsSL $BASE/selfhost.env.example -o .env
 Edit `.env` before the first start:
 
 - `ORG_NAME`, and `PUBLIC_URL` set to the `https://` address your team opens. Session cookies are then marked secure; invite links and OAuth callbacks use it.
-- `SMTP_URL` and `SMTP_FROM` to email invites and enable "forgot password". Without them, links are only shown to copy.
+- `SMTP_URL` and `SMTP_FROM` to email invites and hold notifications, and to enable "forgot password". Without them, links are only shown to copy.
+- `HOLD_WEBHOOK_URL` to post new holds to a Slack or Discord channel.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` for "Continue with Google" and "Continue with GitHub". Only existing and invited users can sign in this way, matched by verified email. Register the callback `<PUBLIC_URL>/api/v1/auth/oauth/<google|github>/callback`.
 - `INTENTLOCK_VERSION`: the release to run (defaults to the one this bundle came with; see the [changelog](https://github.com/AbdullahMukadam/intentlock/blob/main/CHANGELOG.md)).
 

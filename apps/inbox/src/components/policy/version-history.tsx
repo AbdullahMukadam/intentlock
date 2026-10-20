@@ -34,6 +34,7 @@ export function VersionHistory({
   onChanged: () => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const [rollingBack, setRollingBack] = useState<number | null>(null);
   const shown = useApi(
     selected === null
       ? null
@@ -47,6 +48,7 @@ export function VersionHistory({
       `Roll back to v${version}`,
     );
     if (!message?.trim()) return;
+    setRollingBack(version);
     try {
       const created = await api(API_ENDPOINTS.AGENT_POLICY_ROLLBACK, PolicyVersionView, {
         method: HttpMethod.POST,
@@ -58,6 +60,7 @@ export function VersionHistory({
     } catch (e) {
       toast.error(errorMessage(e, "Rollback failed."));
     }
+    setRollingBack(null);
     onChanged();
   }
 
@@ -88,11 +91,18 @@ export function VersionHistory({
                       variant="outline"
                       size="sm"
                       onClick={() => setSelected(selected === v.version ? null : v.version)}
+                      loading={selected === v.version && shown.loading}
                     >
                       {selected === v.version ? "Hide diff" : "Diff vs active"}
                     </Button>
                     {isAdmin && (
-                      <Button variant="outline" size="sm" onClick={() => rollback(v.version)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => rollback(v.version)}
+                        loading={rollingBack === v.version}
+                        disabled={rollingBack !== null}
+                      >
                         Roll back
                       </Button>
                     )}

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from "@nestjs/common";
@@ -18,6 +19,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import type { SessionUser } from "../common/types/auth.types.js";
 import { AccountService } from "./account.service.js";
 import { ChangePasswordDto } from "./dto/change-password.dto.js";
+import { UpdateAccountDto } from "./dto/update-account.dto.js";
 
 @Controller()
 export class AccountController {
@@ -26,6 +28,11 @@ export class AccountController {
   @Get(API_ENDPOINTS.ACCOUNT)
   get(@CurrentUser() me: SessionUser) {
     return this.account.get(me);
+  }
+
+  @Patch(API_ENDPOINTS.ACCOUNT)
+  update(@CurrentUser() me: SessionUser, @Body() body: UpdateAccountDto) {
+    return this.account.update(me, body.holdEmails);
   }
 
   @UseGuards(ThrottlerGuard)

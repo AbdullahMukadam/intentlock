@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@intentlock/ui/components/table";
 import {
+  Bell,
   CircleCheck,
   KeyRound,
   Laptop,
@@ -412,6 +413,48 @@ function CliTokenPanel({ account, onChanged }: { account: Account; onChanged: ()
   );
 }
 
+function NotificationsPanel({ account, onChanged }: { account: Account; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      await api(API_ENDPOINTS.ACCOUNT, AccountSchema, {
+        method: HttpMethod.PATCH,
+        body: { holdEmails: !account.holdEmails },
+      });
+      toast.success(account.holdEmails ? "Hold emails turned off." : "Hold emails turned on.");
+      onChanged();
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not change hold emails."));
+    }
+    setBusy(false);
+  }
+
+  return (
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>
+          <Bell />
+          Hold emails
+        </PanelTitle>
+        <PanelActions>
+          <Button size="sm" variant="outline" onClick={toggle} loading={busy}>
+            {account.holdEmails ? "Turn off" : "Turn on"}
+          </Button>
+        </PanelActions>
+      </PanelHeader>
+      <PanelBody className="flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-xl text-[13px] text-muted-foreground">
+          Get an email when an agent's call is held and you may approve it. Turning this off does
+          not change what you can approve.
+        </p>
+        {account.holdEmails ? <Badge tone="success">On</Badge> : <Badge>Off</Badge>}
+      </PanelBody>
+    </Panel>
+  );
+}
+
 export function AccountView({ linked, error }: { linked: string | null; error: string | null }) {
   const {
     data: account,
@@ -480,6 +523,7 @@ export function AccountView({ linked, error }: { linked: string | null; error: s
             <PasswordPanel account={account} onChanged={reload} />
             <MethodsPanel account={account} onChanged={reload} />
           </div>
+          <NotificationsPanel account={account} onChanged={reload} />
           <SessionsPanel />
           <CliTokenPanel account={account} onChanged={reload} />
         </>

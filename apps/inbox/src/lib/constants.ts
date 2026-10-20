@@ -13,3 +13,6 @@ export const QUERY_KEY_ROOT = "api";
 export const QUERY_STALE_MS = 5_000;
 export const QUERY_MAX_RETRIES = 3;
 export const LATEST_ACTIVITY_LIMIT = 8;
+export const ACTIVITY_PAGE_SIZES = [25, 50, 100] as const;
+export const ACTIVITY_DEFAULT_PAGE_SIZE = 50;
+export const ACTIVITY_MAX_PAGE = 10_000;

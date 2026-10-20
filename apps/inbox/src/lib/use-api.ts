@@ -30,6 +30,7 @@ export function useApi<S extends z.ZodType>(
     data: query.data,
     error: query.error ?? undefined,
     loading: enabled && query.isPending,
+    stale: query.isPlaceholderData,
     reload: useCallback(() => {
       if (enabled) refetch({ cancelRefetch: false }).catch(() => undefined);
     }, [enabled, refetch]),

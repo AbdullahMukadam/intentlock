@@ -19,6 +19,17 @@ describe("loadEnv", () => {
     });
   });
 
+  it("accepts only an https hold webhook", () => {
+    const base = { DATABASE_URL: "postgresql://x@localhost/db" };
+    expect(
+      loadEnv({ ...base, HOLD_WEBHOOK_URL: "https://hooks.slack.com/x" }).HOLD_WEBHOOK_URL,
+    ).toBe("https://hooks.slack.com/x");
+    expect(loadEnv({ ...base, HOLD_WEBHOOK_URL: "" }).HOLD_WEBHOOK_URL).toBeUndefined();
+    expect(() => loadEnv({ ...base, HOLD_WEBHOOK_URL: "http://hooks.x/y" })).toThrow(
+      /HOLD_WEBHOOK_URL/,
+    );
+  });
+
   it("parses the database pool and transaction limits", () => {
     const base = { DATABASE_URL: "postgresql://x@localhost/db" };
     expect(loadEnv({ ...base, DATABASE_POOL_MAX: "25" }).DATABASE_POOL_MAX).toBe(25);

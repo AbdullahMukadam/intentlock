@@ -44,6 +44,7 @@ export class UsersService {
       email: u.email,
       role: u.role,
       groups: u.groups,
+      label: u.label,
       disabledAt: u.disabledAt,
     }));
   }
@@ -55,6 +56,7 @@ export class UsersService {
       role?: Role | undefined;
       groups?: string[] | undefined;
       disabled?: boolean | undefined;
+      label?: string | null | undefined;
     },
   ) {
     const target = await this.find(admin.orgId, email);
@@ -80,13 +82,23 @@ export class UsersService {
       }
       const updated = await tx.user.update({
         where: { id: target.id },
-        data: { role: patch.role, groups: patch.groups, disabledAt },
+        data: { role: patch.role, groups: patch.groups, disabledAt, label: patch.label },
         include: { identities: { select: { provider: true } } },
       });
       if (patch.disabled) await tx.session.deleteMany({ where: { userId: target.id } });
       await this.audit.append(
         admin.orgId,
-        [{ kind: AuditKind.USER_UPDATED, actor: admin.id, payload: { email, ...patch } }],
+        [
+          {
+            kind: AuditKind.USER_UPDATED,
+            actor: admin.id,
+            payload: {
+              email,
+              ...patch,
+              ...(patch.label !== undefined && { previousLabel: target.label }),
+            },
+          },
+        ],
         tx,
       );
       return updated;

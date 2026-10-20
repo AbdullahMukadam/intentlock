@@ -13,18 +13,21 @@ import {
   TableHeader,
   TableRow,
 } from "@intentlock/ui/components/table";
-import { Flag, ListFilter, TriangleAlert } from "lucide-react";
+import { cn } from "@intentlock/ui/lib/utils";
+import { ChevronLeft, ChevronRight, Flag, ListFilter, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
+import { MemberLabel } from "@/components/member-label";
 import { EmptyState } from "@/components/empty-state";
 import { VerdictBadge } from "@/components/verdict-badge";
+import { NativeSelect } from "@/components/native-select";
 import { type ActivityFilters, toAuditQuery } from "@/lib/activity-filters";
-import { apiUrl, request } from "@/lib/api";
-import { errorMessage } from "@/lib/error-message";
+import { activityHref, pageCount, pageNumbers, type Paging } from "@/lib/activity-paging";
+import { apiUrl } from "@/lib/api";
+import { ACTIVITY_PAGE_SIZES } from "@/lib/constants";
 import { formatShortTime, formatTime, humanize } from "@/lib/format";
-import { type AgentSummary, AuditPage, type AuditRow } from "@/lib/schemas";
+import { type AgentSummary, AuditPage } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
 const HEADERS = ["#", "Time", "Event", "Agent", "User", "Tool", "Verdict", "Rule", "Policy", "Run"];
@@ -37,18 +40,99 @@ function Dash() {
   );
 }
 
+function Pager({
+  filters,
+  paging,
+  total,
+}: {
+  filters: ActivityFilters;
+  paging: Paging;
+  total: number;
+}) {
+  const router = useRouter();
+  const last = pageCount(total, paging.size);
+  const from = total === 0 ? 0 : (paging.page - 1) * paging.size + 1;
+  const to = Math.min(paging.page * paging.size, total);
+  const href = (page: number) => activityHref(filters, { ...paging, page });
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-2.5 text-xs text-muted-foreground">
+      <span className="tabular-nums">
+        {from > to
+          ? `Page ${paging.page} of ${last}`
+          : `${from}–${to} of ${total.toLocaleString()}`}
+      </span>
+      <nav aria-label="Pages" className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Previous page"
+          disabled={paging.page <= 1}
+          nativeButton={false}
+          render={paging.page > 1 ? <Link href={href(paging.page - 1)} /> : <span />}
+        >
+          <ChevronLeft />
+        </Button>
+        {pageNumbers(Math.min(paging.page, last), last).map((n, i) =>
+          n === null ? (
+            <span key={`gap${i}`} className="px-1">
+              …
+            </span>
+          ) : (
+            <Button
+              key={n}
+              variant={n === paging.page ? "outline" : "ghost"}
+              size="sm"
+              className="min-w-8 tabular-nums"
+              aria-current={n === paging.page ? "page" : undefined}
+              nativeButton={false}
+              render={<Link href={href(n)} />}
+            >
+              {n}
+            </Button>
+          ),
+        )}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Next page"
+          disabled={paging.page >= last}
+          nativeButton={false}
+          render={paging.page < last ? <Link href={href(paging.page + 1)} /> : <span />}
+        >
+          <ChevronRight />
+        </Button>
+      </nav>
+      <label className="flex items-center gap-2">
+        Per page
+        <NativeSelect
+          aria-label="Entries per page"
+          value={paging.size}
+          onChange={(e) =>
+            router.push(activityHref(filters, { page: 1, size: Number(e.target.value) }))
+          }
+        >
+          {ACTIVITY_PAGE_SIZES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </NativeSelect>
+      </label>
+    </div>
+  );
+}
+
 export function DecisionTable({
   filters,
+  paging,
   agents,
 }: {
   filters: ActivityFilters;
+  paging: Paging;
   agents: AgentSummary[];
 }) {
-  const query = toAuditQuery(filters);
+  const query = { ...toAuditQuery(filters), page: paging.page, limit: paging.size };
   const first = useApi(apiUrl(API_ENDPOINTS.AUDIT, { query }), AuditPage);
-  const [more, setMore] = useState<AuditRow[]>([]);
-  const [cursor, setCursor] = useState<number | null | undefined>(undefined);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   if (first.error) {
     return (
@@ -72,24 +156,29 @@ export function DecisionTable({
   }
 
   const names = new Map(agents.map((a) => [a.id, a.name]));
-  const rows = [...first.data.entries, ...more];
-  const next = cursor === undefined ? first.data.nextCursor : cursor;
+  const rows = first.data.entries;
+  const total = first.data.total ?? rows.length;
 
-  async function loadMore() {
-    if (next == null) return;
-    setLoadingMore(true);
-    try {
-      const page = await request(
-        apiUrl(API_ENDPOINTS.AUDIT, { query: { ...query, cursor: next } }),
-        AuditPage,
-      );
-      setMore((m) => [...m, ...page.entries]);
-      setCursor(page.nextCursor);
-    } catch (e) {
-      toast.error(errorMessage(e, "Could not load more entries."));
-    } finally {
-      setLoadingMore(false);
-    }
+  if (rows.length === 0 && total > 0) {
+    const last = pageCount(total, paging.size);
+    return (
+      <PanelBody className="p-0">
+        <EmptyState
+          icon={ListFilter}
+          title={`There is no page ${paging.page}`}
+          description={`These filters have ${last} ${last === 1 ? "page" : "pages"}.`}
+        />
+        <div className="flex justify-center pb-6">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={activityHref(filters, { ...paging, page: last })} />}
+          >
+            Go to page {last}
+          </Button>
+        </div>
+      </PanelBody>
+    );
   }
 
   if (rows.length === 0) {
@@ -106,7 +195,10 @@ export function DecisionTable({
 
   return (
     <PanelBody className="overflow-hidden p-0">
-      <Table>
+      <Table
+        aria-busy={first.stale || undefined}
+        className={cn("transition-opacity", first.stale && "opacity-50")}
+      >
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {HEADERS.map((h) => (
@@ -141,7 +233,16 @@ export function DecisionTable({
               <TableCell label="Agent">
                 {r.agentId ? (names.get(r.agentId) ?? r.agentId) : <Dash />}
               </TableCell>
-              <TableCell label="User">{r.user ?? <Dash />}</TableCell>
+              <TableCell label="User">
+                {r.user ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    {r.user}
+                    <MemberLabel email={r.user} />
+                  </span>
+                ) : (
+                  <Dash />
+                )}
+              </TableCell>
               <TableCell label="Tool" className="font-mono text-xs">
                 {r.tool ?? <Dash />}
               </TableCell>
@@ -170,17 +271,7 @@ export function DecisionTable({
           ))}
         </TableBody>
       </Table>
-      <div className="flex items-center justify-between gap-3 border-t px-4 py-2.5 text-xs text-muted-foreground">
-        <span>
-          {rows.length} {rows.length === 1 ? "entry" : "entries"}
-          {next != null && " shown"}
-        </span>
-        {next != null && (
-          <Button variant="outline" size="sm" onClick={loadMore} loading={loadingMore}>
-            {loadingMore ? "Loading…" : "Load more"}
-          </Button>
-        )}
-      </div>
+      <Pager filters={filters} paging={paging} total={total} />
     </PanelBody>
   );
 }

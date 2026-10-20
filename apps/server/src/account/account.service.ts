@@ -34,6 +34,7 @@ export class AccountService {
       role: user.role,
       groups: user.groups,
       hasPassword: user.passwordHash !== null,
+      holdEmails: user.holdEmails,
       identities: user.identities.map((i) => ({
         provider: i.provider,
         email: i.email,
@@ -41,6 +42,18 @@ export class AccountService {
       })),
       cliToken: user.cliTokenCreatedAt ? { createdAt: user.cliTokenCreatedAt } : null,
     };
+  }
+
+  async update(me: SessionUser, holdEmails: boolean) {
+    await orgDb(this.prisma, me.orgId).$transaction(async (tx) => {
+      await tx.user.update({ where: { id: me.id }, data: { holdEmails } });
+      await this.audit.append(
+        me.orgId,
+        [{ kind: AuditKind.USER_UPDATED, actor: me.id, payload: { email: me.email, holdEmails } }],
+        tx,
+      );
+    });
+    return this.get(me);
   }
 
   async changePassword(me: SessionUser, currentPassword: string | undefined, newPassword: string) {

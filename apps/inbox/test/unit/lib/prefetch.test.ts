@@ -35,7 +35,7 @@ describe("pageQueryUrls", () => {
     ]);
     expect(pageQueryUrls("/activity", Role.enum.member)).toEqual([
       "/api/v1/agents",
-      "/api/v1/audit",
+      "/api/v1/audit?page=1&limit=50",
     ]);
     expect(pageQueryUrls("/holds", Role.enum.member)).toEqual([
       "/api/v1/agents",

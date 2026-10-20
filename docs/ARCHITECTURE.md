@@ -224,13 +224,14 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/auth/password/reset` | `{ token, password }` → 204 | Auth: none. Single use; ends all the user's sessions |
 | POST | `/v1/auth/logout` | → 204 | Auth: session |
 | GET | `/v1/me` | → `{ email, role, groups }` | Auth: session |
-| GET | `/v1/account` | → `{ email, role, groups, hasPassword, identities, cliToken }` | Auth: session |
+| GET | `/v1/account` | → `{ email, role, groups, hasPassword, holdEmails, identities, cliToken }` | Auth: session |
+| PATCH | `/v1/account` | `{ holdEmails }` → account | Auth: session. Own hold-email opt-out (ADR-072); audited as `user_updated` |
 | POST | `/v1/account/password` | `{ currentPassword?, newPassword }` → 204 | Auth: session. Current password required when one is set; ends the user's other sessions |
 | GET · DELETE | `/v1/account/sessions` | → own sessions (`current`, `ip`, `userAgent`, times) / 204 = sign out all others | Auth: session |
 | DELETE | `/v1/account/identities/:provider` | → 204 | Auth: session. 409 if it is the last sign-in method |
 | POST · DELETE | `/v1/account/cli-token` | → `{ token }` (shown once, replaces the old one) / 204 | Auth: session |
-| GET | `/v1/users` | → `User[]` | Auth: session. Admins get sign-in methods too; others get email, role, groups and status (read-only team list) |
-| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled? }` → `User` | Auth: session (admin); disabling ends their sessions |
+| GET | `/v1/users` | → `User[]` | Auth: session. Admins get sign-in methods too; others get email, role, groups, label and status (read-only team list) |
+| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled?, label? }` → `User` | Auth: session (admin); disabling ends their sessions; `label` is display only and never a policy input (ADR-073) |
 | POST | `/v1/users/:email/reset-link` | → `{ link, expiresAt, emailed }` | Auth: session (admin). 24 h, single use |
 | POST · GET | `/v1/invites` | `{ email, role, groups? }` → `{ invite, link, emailed }` / pending invites | Auth: session (admin). Link shown once; 7 days |
 | POST | `/v1/invites/:id/resend` | → `{ invite, link, emailed }` | Auth: session (admin). New token and expiry; the old link stops working |
@@ -262,7 +263,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET | `/v1/holds?status=pending` | → `Hold[]` | Auth: session. Approvers see holds they may approve; members see their own. `resolvedBy` is the approver's email (also in run detail) |
 | POST | `/v1/holds/:id/approve` · `/reject` | `{ note? }` → `Hold` | Auth: **session only**. Approver = signed-in user, must satisfy the hold's `ApproverSpec`; audited |
 | POST | `/v1/report` | `{ token, callId, outcome: ok\|error }` → `{ planStatus }` | Advances usage + completion |
-| GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=` | → paginated entries; `?format=jsonl` exports | Auth: session (scoped by role) |
+| GET | `/v1/audit?agentId=&user=&tool=&verdict=&ruleId=&policyVersion=&q=&from=&to=&cursor=&page=&limit=` | → `{ entries, nextCursor }`; with `page` (1-based) → `{ entries, total, page, nextCursor: null }` (ADR-074); `?format=jsonl` exports | Auth: session (scoped by role) |
 | POST | `/v1/audit/batch` | `{ planId, tokens: string[], entries: (ClientEntry without token, with tokenRef)[] }` → `{ ackedThrough: clientSeq, rejected: { clientSeq, reason }[] }` | `hybrid` mode. ≤ 100 entries; each entry points at a de-duplicated token. Idempotent on `(planId, clientSeq)`; checks the client chain for gaps and edits; re-runs `check()` per entry and flags looser-than-policy decisions |
 | GET | `/v1/audit/verify` | → `{ ok, count, firstBrokenSeq?, flagged }` | Recomputes chain; lists flagged client entries |
 | GET | `/v1/keys/jwks` | → JWKS | Auth: none (public keys by design) |
@@ -324,6 +325,8 @@ model User {
   email          String
   role           Role      @default(member)
   groups         String[]  @default([])     // policy labels, e.g. intern, oncall
+  holdEmails     Boolean   @default(true)   // hold notification opt-out (ADR-072)
+  label          String?                    // display only, e.g. bot; never matched by policies (ADR-073)
   passwordHash   String?                    // scrypt$N$r$p$salt$hash; null = OAuth-only
   cliTokenHash   String?                    // sha256 of the CLI token
   cliTokenCreatedAt DateTime?
@@ -476,7 +479,7 @@ model AuditEntry {
   seq        Int      @id @default(autoincrement())
   orgId      String
   at         DateTime @default(now())            // server receive time
-  kind       String   // plan_signed | check | hold_resolved | report | client_gap | policy_published | policy_rolled_back | agent_* | api_key_* | auth_* | user_* | setup_* | invite_* | password_* | identity_* | cli_token_*
+  kind       String   // plan_signed | check | hold_resolved | hold_notify_failed | report | client_gap | policy_published | policy_rolled_back | agent_* | api_key_* | auth_* | user_* | setup_* | invite_* | password_* | identity_* | cli_token_*
   origin     String   @default("server")         // server | client
   actor      String?                              // userId for human actions; agentId for agent actions
   user       String?                              // team member the agent acted for
@@ -552,6 +555,8 @@ Every method ends in the same session cookie (`httpOnly`, `Secure` on https, `Sa
 **Account settings** (every user): change password (current password required when one exists; ends the other sessions), active sessions with "sign out other sessions", link/unlink Google and GitHub (the last sign-in method cannot be removed), CLI token.
 
 **Mail.** One `MailService` over `nodemailer`, enabled by `SMTP_URL`. A send failure never blocks the action; the link is still returned to the admin.
+
+**Hold notifications (ADR-072).** After a hold commits, `HoldNotifier` emails each active member who may approve it and has `holdEmails` on, and posts to `HOLD_WEBHOOK_URL` if set. The webhook gets argument names only. Sending runs in the background, a failed send is retried once after 5 s, and a send that still fails is audited as `hold_notify_failed`. The hold is never changed or delayed.
 
 **Authorization rules**
 | Action | Who |
@@ -647,7 +652,7 @@ All views read the audit log and plan/hold tables through indexed queries (see t
 | Page | Shows | Backed by |
 | --- | --- | --- |
 | **Overview** | Allowed / blocked / held over time (Recharts, per agent or all), pending holds, median time-to-approve, top blocked tools and rules, flagged entries (decision mismatch, gaps), audit upload lag | `GET /v1/stats/overview` |
-| **Activity** | Every decision with filters (agent, user, tool, verdict, rule, policy version, time) and text search; export JSONL | `GET /v1/audit` |
+| **Activity** | Every decision with filters (agent, user, tool, verdict, rule, policy version, time) and text search, in numbered pages (25/50/100, `page` and `size` in the URL); export JSONL | `GET /v1/audit` |
 | **Run detail** | One plan: goal, user, agent, policy version, then every tool call in order with verdict, deciding rule, approval (who, when, note) and timing | `GET /v1/runs/:planId` |
 | **Holds** | Pending and recent holds, approve / reject (live) | `/v1/holds` + WebSocket |
 | **Agents** | Agents with 24 h counts, keys, policy version; agent page tabs: Overview · Policy · API keys · Activity | `/v1/agents*` |

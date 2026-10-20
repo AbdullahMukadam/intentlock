@@ -66,6 +66,8 @@ export type AuditRow = z.infer<typeof AuditRow>;
 export const AuditPage = z.object({
   entries: z.array(AuditRow),
   nextCursor: z.number().nullable(),
+  total: z.number().optional(),
+  page: z.number().optional(),
 });
 
 export const HoldView = z.object({
@@ -214,6 +216,7 @@ export const TeamMember = z.object({
   email: z.string(),
   role: Role,
   groups: z.array(z.string()),
+  label: z.string().nullable().optional(),
   disabledAt: z.string().nullable(),
   hasPassword: z.boolean().optional(),
   providers: z.array(z.string()).optional(),
@@ -243,6 +246,7 @@ export const Account = z.object({
   role: Role,
   groups: z.array(z.string()),
   hasPassword: z.boolean(),
+  holdEmails: z.boolean(),
   identities: z.array(z.object({ provider: z.string(), email: z.string(), createdAt: z.string() })),
   cliToken: z.object({ createdAt: z.string() }).nullable(),
 });

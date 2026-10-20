@@ -21,6 +21,7 @@ import {
 import { Flag, Info, ListTree, SearchX, TriangleAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 
+import { MemberLabel } from "@/components/member-label";
 import { DetailGrid, DetailItem } from "@/components/detail-grid";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
@@ -157,7 +158,12 @@ export function RunTimeline({ planId }: { planId: string }) {
         <PanelBody className="p-0">
           <DetailGrid className="-mb-px">
             <DetailItem label="Agent">{agent?.name ?? "—"}</DetailItem>
-            <DetailItem label="User">{plan.user}</DetailItem>
+            <DetailItem label="User">
+              <span className="inline-flex items-center gap-1.5">
+                {plan.user}
+                <MemberLabel email={plan.user} />
+              </span>
+            </DetailItem>
             <DetailItem label="Policy version">v{plan.policyVersion}</DetailItem>
             <DetailItem label="Duration">
               {formatDuration(timing.durationMs == null ? null : timing.durationMs / 1000)}

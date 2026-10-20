@@ -54,6 +54,7 @@ Keep Vercel, Render and Neon in one region (for example Vercel `sin1`, Render Si
 | `DATABASE_POOL_MAX` | `5`. |
 | `API_KEY_PEPPER` | Optional. A long random string, set once. |
 | `GOOGLE_*`, `GITHUB_*` | Optional. Callback `<PUBLIC_URL>/api/v1/auth/oauth/<google\|github>/callback`. |
-| `SMTP_URL`, `SMTP_FROM` | Optional. Otherwise copy invite and reset links by hand. |
+| `SMTP_URL`, `SMTP_FROM` | Optional. Otherwise copy invite and reset links by hand, and there are no hold emails. Render's free tier blocks SMTP ports 25, 465 and 587, so use a provider on port 2525, for example Brevo (see [Environment variables](/docs/deployment/environment-variables/)). |
+| `HOLD_WEBHOOK_URL` | Optional. A Slack or Discord webhook for new holds. It works over HTTPS, so Render's port block does not affect it. |
 
 Not needed on Render: `DIRECT_URL` (migrations run from a clone or CI), `CORS_ORIGINS` (one origin through the rewrite) and `LICENSE_FILE` (Community edition).

@@ -2,7 +2,11 @@ import { z } from "zod";
 
 import { Email } from "../../common/schemas/email.schema.js";
 import { zodDto } from "../../common/utils/zod-dto.util.js";
-import { AUDIT_PAGE_DEFAULT, AUDIT_PAGE_MAX } from "../constants/audit.constants.js";
+import {
+  AUDIT_MAX_PAGE_NUMBER,
+  AUDIT_PAGE_DEFAULT,
+  AUDIT_PAGE_MAX,
+} from "../constants/audit.constants.js";
 import { AuditFormat } from "../enums/audit-format.enum.js";
 import { AuditVerdict } from "../enums/audit-verdict.enum.js";
 
@@ -20,6 +24,7 @@ export class AuditQueryDto extends zodDto(
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     cursor: z.coerce.number().int().positive().optional(),
+    page: z.coerce.number().int().min(1).max(AUDIT_MAX_PAGE_NUMBER).optional(),
     limit: z.coerce.number().int().min(1).max(AUDIT_PAGE_MAX).default(AUDIT_PAGE_DEFAULT),
     format: z.enum(AuditFormat).default(AuditFormat.JSON),
   }),

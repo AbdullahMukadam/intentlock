@@ -59,7 +59,8 @@ Session, for the signed-in user.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/v1/account` | Profile, sign-in methods, CLI token status. |
+| GET | `/v1/account` | Profile, sign-in methods, CLI token status, `holdEmails`. |
+| PATCH | `/v1/account` | `{ holdEmails }`. Turns your hold emails on or off. |
 | POST | `/v1/account/password` | `{ currentPassword?, newPassword }`. Ends the other sessions. |
 | GET, DELETE | `/v1/account/sessions` | List own sessions; DELETE signs out all others. |
 | DELETE | `/v1/account/identities/:provider` | Unlinks Google or GitHub. 409 for the last sign-in method. |
@@ -70,7 +71,7 @@ Session, for the signed-in user.
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/v1/users` | The team. |
-| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled? }`. Admin. |
+| PATCH | `/v1/users/:email` | `{ role?, groups?, disabled?, label? }`. Admin. `label` (up to 24 characters, `null` clears it) is shown next to the person in the inbox and never changes a decision. |
 | POST | `/v1/users/:email/reset-link` | Admin. 24 hours, single use. |
 | GET, POST | `/v1/invites` | Pending invites; `{ email, role, groups? }` creates one. Admin. |
 | DELETE | `/v1/invites/:id` | Revokes an invite. Admin. |
@@ -107,7 +108,7 @@ Session, for the signed-in user.
 | GET | `/v1/runs` | Runs (plans) with decision counts. Filters: `agentId`, `user`, `status`, `cursor`. |
 | GET | `/v1/runs/:planId` | Plan, policy version, decisions, holds and timing. |
 | GET | `/v1/stats/overview` | Dashboard counts. Filters: `from`, `to`, `agentId`. |
-| GET | `/v1/audit` | Paginated entries with filters; `?format=jsonl` exports. |
+| GET | `/v1/audit` | Entries with filters, newest first. `?page=N&limit=M` returns numbered pages with a `total`; without `page`, follow `nextCursor` with `?cursor=`. `?format=jsonl` exports. |
 | GET | `/v1/audit/verify` | `{ ok, count, firstBrokenSeq?, flagged }`. |
 
 ## Server
