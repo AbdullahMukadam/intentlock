@@ -2067,3 +2067,19 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Next**
 - The Delete button with the type-the-name dialog lands with the Dialog/AlertDialog item; tick item 1 then
 - Run the full `pnpm test` before merging (only the affected e2e files were run: agent-delete, agents, license, holds, routes)
+
+### 2026-10-20 · Session 26 (cont.) · Phase 6.7 — Dialogs instead of browser pop-ups
+
+**Done**
+- `@intentlock/ui`: `alert-dialog` and `sheet` on `@base-ui/react` 1.9 (already installed). Inbox `ConfirmDialog` (title, description, optional extra fields, optional "type the name to confirm", busy state)
+- Replaced `window.confirm` (revoke API key) and `window.prompt` (policy rollback message, now a field in the confirm) and the hand-made mobile drawer (now `Sheet`: focus trap, Escape and outside click come from Base UI, so the custom Escape listener is gone)
+- Confirms on destructive actions: disable member, revoke invite, revoke key, reject hold (shows the note that will be sent), delete agent (type the agent's name; admin only, new `UiAction.DELETE_AGENT`). Item 1 ticked with this
+- Test `browser-dialogs.test.ts`: no `prompt(`, `confirm(` or `alert(` anywhere in the inbox source
+
+**Reviewed, not changed**
+- `NativeSelect` stays: the native picker is better on phones and needs no portal; Base UI `Select` would add code for no user-visible gain
+- Agent tabs stay as links: the tab lives in the URL (`?tab=`) so it can be shared and survives a reload; `Tabs` would need the same URL wiring
+- No `Popover` candidates found; plain `Dialog` not added since nothing needs it yet
+
+**Numbers**
+- Inbox: 105 tests green (was 104); inbox and ui lint and typecheck green. Not checked in a browser yet

@@ -2,6 +2,7 @@
 
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
+import { Sheet, SheetContent, SheetTitle } from "@intentlock/ui/components/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,6 @@ import {
   ShieldCheck,
   Sun,
   Users,
-  X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Route } from "next";
@@ -242,13 +242,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useLiveQueries();
 
   useEffect(() => {
-    if (!drawer) return;
-    const close = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [drawer]);
-
-  useEffect(() => {
     api(API_ENDPOINTS.ME, Me).then(setMe, () => setFailed(true));
     api(API_ENDPOINTS.LICENSE, License).then(setLicense, () => undefined);
   }, []);
@@ -264,29 +257,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="sticky top-0 z-20 hidden h-svh w-64 shrink-0 border-r bg-sidebar md:block">
         <Sidebar me={me} license={license} pathname={pathname} />
       </aside>
-      {drawer && (
-        <div
-          className="fixed inset-0 z-40 md:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menu"
-        >
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="absolute inset-0 bg-foreground/20 backdrop-blur-[1px]"
-            onClick={() => setDrawer(false)}
+      <Sheet open={drawer} onOpenChange={setDrawer}>
+        <SheetContent className="gap-0 bg-sidebar md:hidden">
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+          <Sidebar
+            me={me}
+            license={license}
+            pathname={pathname}
+            onNavigate={() => setDrawer(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r bg-sidebar shadow-xl">
-            <Sidebar
-              me={me}
-              license={license}
-              pathname={pathname}
-              onNavigate={() => setDrawer(false)}
-            />
-          </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
       <div className="min-w-0 flex-1 overflow-x-clip bg-hatch">
         <div className="mx-auto flex min-h-svh w-full max-w-[1400px] flex-col bg-card min-[1656px]:border-x">
           <header className="relative flex h-14 items-center gap-2 border-b px-4 md:px-6">
@@ -298,7 +279,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Open menu"
               onClick={() => setDrawer(true)}
             >
-              {drawer ? <X /> : <Menu />}
+              <Menu />
             </Button>
             <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
               {current && <current.icon className="size-4 shrink-0 text-muted-foreground" />}

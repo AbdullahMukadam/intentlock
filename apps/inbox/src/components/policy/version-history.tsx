@@ -4,9 +4,11 @@ import { API_ENDPOINTS } from "@intentlock/core";
 import { Badge } from "@intentlock/ui/components/badge";
 import { Button } from "@intentlock/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@intentlock/ui/components/card";
+import { Input } from "@intentlock/ui/components/input";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DiffView } from "@/components/policy/diff-view";
 import Loader from "@/components/loader";
 import { api, apiUrl } from "@/lib/api";
@@ -34,7 +36,7 @@ export function VersionHistory({
   onChanged: () => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [rollingBack, setRollingBack] = useState<number | null>(null);
+  const [rollbackTo, setRollbackTo] = useState<number | null>(null);
   const shown = useApi(
     selected === null
       ? null
@@ -42,25 +44,19 @@ export function VersionHistory({
     PolicyVersionView,
   );
 
-  async function rollback(version: number) {
-    const message = window.prompt(
-      `Message for rolling back to v${version}`,
-      `Roll back to v${version}`,
-    );
-    if (!message?.trim()) return;
-    setRollingBack(version);
+  async function rollback(version: number, form: FormData) {
+    const message = String(form.get("message") ?? "").trim() || `Roll back to v${version}`;
     try {
       const created = await api(API_ENDPOINTS.AGENT_POLICY_ROLLBACK, PolicyVersionView, {
         method: HttpMethod.POST,
         params: { id: agentId },
-        body: { toVersion: version, message: message.trim() },
+        body: { toVersion: version, message },
       });
       toast.success(`Published v${created.version} (copy of v${version})`);
       setSelected(null);
     } catch (e) {
       toast.error(errorMessage(e, "Rollback failed."));
     }
-    setRollingBack(null);
     onChanged();
   }
 
@@ -96,13 +92,7 @@ export function VersionHistory({
                       {selected === v.version ? "Hide diff" : "Diff vs active"}
                     </Button>
                     {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => rollback(v.version)}
-                        loading={rollingBack === v.version}
-                        disabled={rollingBack !== null}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setRollbackTo(v.version)}>
                         Roll back
                       </Button>
                     )}
@@ -126,6 +116,25 @@ export function VersionHistory({
             <Loader />
           ))}
       </CardContent>
+      <ConfirmDialog
+        open={rollbackTo !== null}
+        onOpenChange={(open) => !open && setRollbackTo(null)}
+        title={`Roll back to v${rollbackTo ?? ""}?`}
+        description={`This publishes v${active.version + 1} as a copy of v${rollbackTo ?? ""}. Agents pick it up on their next plan.`}
+        confirmLabel="Roll back"
+        destructive={false}
+        onConfirm={(form) => (rollbackTo === null ? Promise.resolve() : rollback(rollbackTo, form))}
+      >
+        <label className="grid gap-1.5">
+          <span>Message</span>
+          <Input
+            name="message"
+            defaultValue={`Roll back to v${rollbackTo ?? ""}`}
+            maxLength={500}
+            required
+          />
+        </label>
+      </ConfirmDialog>
     </Card>
   );
 }

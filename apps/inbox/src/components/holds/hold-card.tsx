@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { MemberLabel } from "@/components/member-label";
 import { api } from "@/lib/api";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
@@ -46,6 +47,7 @@ export function HoldCard({
 }) {
   const [note, setNote] = useState("");
   const [resolving, setResolving] = useState<boolean | null>(null);
+  const [confirmReject, setConfirmReject] = useState(false);
 
   async function resolve(approve: boolean) {
     setResolving(approve);
@@ -118,7 +120,7 @@ export function HoldCard({
             </Button>
             <Button
               variant="outline"
-              onClick={() => resolve(false)}
+              onClick={() => setConfirmReject(true)}
               loading={resolving === false}
               disabled={resolving === true}
               className="flex-1 text-destructive hover:text-destructive"
@@ -133,6 +135,18 @@ export function HoldCard({
           {hold.approvers.self ? " (the requester may approve)" : ""}
         </p>
       )}
+      <ConfirmDialog
+        open={confirmReject}
+        onOpenChange={setConfirmReject}
+        title={`Reject ${hold.tool}?`}
+        description={
+          note.trim()
+            ? `The agent's call is blocked with your note: "${note.trim()}".`
+            : "The agent's call is blocked. Add a note on the card first if the agent should know why."
+        }
+        confirmLabel="Reject"
+        onConfirm={() => resolve(false)}
+      />
     </article>
   );
 }

@@ -26,6 +26,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { SecretReveal } from "@/components/secret-reveal";
 import { api, apiUrl } from "@/lib/api";
@@ -44,7 +45,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
   );
   const [revealed, setRevealed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [revoking, setRevoking] = useState<string | null>(null);
+  const [toRevoke, setToRevoke] = useState<{ id: string; name: string } | null>(null);
 
   async function create(form: FormData) {
     setBusy(true);
@@ -64,8 +65,6 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
   }
 
   async function revoke(keyId: string, name: string) {
-    if (!window.confirm(`Revoke "${name}"? Agents using it can no longer sign new plans.`)) return;
-    setRevoking(keyId);
     try {
       await api(API_ENDPOINTS.AGENT_API_KEY, z.undefined(), {
         method: HttpMethod.DELETE,
@@ -75,7 +74,6 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
     } catch (e) {
       toast.error(errorMessage(e, "Could not revoke the key."));
     }
-    setRevoking(null);
     reload();
   }
 
@@ -168,8 +166,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => revoke(k.id, k.name)}
-                          loading={revoking === k.id}
+                          onClick={() => setToRevoke({ id: k.id, name: k.name })}
                         >
                           Revoke
                         </Button>
@@ -182,6 +179,14 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
           </PanelBody>
         )}
       </Panel>
+      <ConfirmDialog
+        open={toRevoke !== null}
+        onOpenChange={(open) => !open && setToRevoke(null)}
+        title={`Revoke ${toRevoke?.name ?? "this key"}?`}
+        description="Agents using this key can no longer sign plans or check calls. This can't be undone."
+        confirmLabel="Revoke key"
+        onConfirm={() => (toRevoke ? revoke(toRevoke.id, toRevoke.name) : Promise.resolve())}
+      />
     </div>
   );
 }
