@@ -36,7 +36,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
 import { EXPIRY_INTERVAL_MS, MAX_LISTED_HOLDS, WAIT_POLL_MS } from "./constants/hold.constants.js";
 import { HoldError } from "./enums/hold-error.enum.js";
-import { HoldState } from "./enums/hold-state.enum.js";
+import type { HoldState } from "./enums/hold-state.enum.js";
 import type { NewHold } from "./types/new-hold.type.js";
 import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
 import { emailsById } from "../users/utils/emails-by-id.util.js";
@@ -224,35 +224,54 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
   }
 
   async resolveMany(user: SessionUser, ids: string[], approve: boolean, note: string | undefined) {
-    const results: { id: string; outcome: HoldResolveOutcome }[] = [];
-    for (const id of ids) {
-      results.push({ id, outcome: await this.resolveOne(user, id, approve, note) });
-    }
-    const done = approve ? HoldResolveOutcome.APPROVED : HoldResolveOutcome.REJECTED;
-    const resolved = results.filter((r) => r.outcome === done).length;
-    return { results, resolved, skipped: results.length - resolved };
-  }
+    const now = new Date();
+    const status = approve ? HoldStatus.APPROVED : HoldStatus.REJECTED;
+    const found = new Map(
+      (await orgDb(this.prisma, user.orgId).hold.findMany({ where: { id: { in: ids } } })).map(
+        (h) => [h.id, h],
+      ),
+    );
+    const allowed = ids.filter((id) => {
+      const hold = found.get(id);
+      return hold !== undefined && this.mayApprove(user, hold);
+    });
+    const updated = allowed.length
+      ? await orgDb(this.prisma, user.orgId).$transaction(async (tx) => {
+          const rows = await tx.$queryRaw<ClosedHoldRow[]>`
+            UPDATE "Hold" SET status = ${status}::"HoldStatus", "resolvedBy" = ${user.id},
+              note = ${note ?? null}, "resolvedAt" = ${now}
+            WHERE "orgId" = ${user.orgId} AND id = ANY(${allowed})
+              AND status = ${HoldStatus.PENDING}::"HoldStatus" AND "expiresAt" > ${now}
+            RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
+          if (rows.length > 0) {
+            await this.audit.append(
+              user.orgId,
+              rows.map((h) => ({
+                kind: AuditKind.HOLD_RESOLVED,
+                actor: user.id,
+                user: h.user,
+                planId: h.planId,
+                agentId: h.agentId,
+                tool: h.tool,
+                verdict: approve ? AuditVerdict.APPROVED : AuditVerdict.REJECTED,
+                ruleId: h.ruleId,
+                payload: { holdId: h.id, note: note ?? null, approver: user.email },
+              })),
+              tx,
+            );
+          }
+          return rows;
+        })
+      : [];
+    for (const row of updated) this.announceResolved({ ...row, orgId: user.orgId, status });
 
-  private async resolveOne(
-    user: SessionUser,
-    id: string,
-    approve: boolean,
-    note: string | undefined,
-  ): Promise<HoldResolveOutcome> {
-    try {
-      await this.resolve(user, id, approve, note);
-      return approve ? HoldResolveOutcome.APPROVED : HoldResolveOutcome.REJECTED;
-    } catch (e) {
-      if (e instanceof NotFoundException) return HoldResolveOutcome.NOT_FOUND;
-      if (e instanceof ForbiddenException) return HoldResolveOutcome.NOT_AN_APPROVER;
-      if (e instanceof ConflictException) {
-        const body = e.getResponse() as { status?: HoldState | null };
-        return body.status === HoldState.PENDING || body.status === HoldState.EXPIRED
-          ? HoldResolveOutcome.EXPIRED
-          : HoldResolveOutcome.NOT_PENDING;
-      }
-      throw e;
-    }
+    const done = new Set(updated.map((h) => h.id));
+    const mayResolve = new Set(allowed);
+    const results = ids.map((id) => ({
+      id,
+      outcome: bulkOutcome(found.get(id), done.has(id), mayResolve.has(id), approve),
+    }));
+    return { results, resolved: done.size, skipped: ids.length - done.size };
   }
 
   async expireAll(): Promise<number> {
@@ -364,4 +383,18 @@ function holdNotFound() {
     statusCode: HttpStatus.NOT_FOUND,
     error: HoldError.HOLD_NOT_FOUND,
   });
+}
+
+function bulkOutcome(
+  hold: Hold | undefined,
+  resolved: boolean,
+  allowed: boolean,
+  approve: boolean,
+): HoldResolveOutcome {
+  if (resolved) return approve ? HoldResolveOutcome.APPROVED : HoldResolveOutcome.REJECTED;
+  if (!hold) return HoldResolveOutcome.NOT_FOUND;
+  if (!allowed) return HoldResolveOutcome.NOT_AN_APPROVER;
+  return hold.status === HoldStatus.PENDING || hold.status === HoldStatus.EXPIRED
+    ? HoldResolveOutcome.EXPIRED
+    : HoldResolveOutcome.NOT_PENDING;
 }
