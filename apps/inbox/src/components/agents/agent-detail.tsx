@@ -26,10 +26,15 @@ import { can } from "@/lib/permissions";
 import { type AgentView, AgentView as AgentViewSchema } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
-const TABS: { tab: AgentTab; label: string; action?: UiAction }[] = [
+const TABS: { tab: AgentTab; label: string; action?: UiAction; liveOnly?: boolean }[] = [
   { tab: AgentTab.OVERVIEW, label: "Overview" },
-  { tab: AgentTab.POLICY, label: "Policy" },
-  { tab: AgentTab.API_KEYS, label: "API keys", action: UiAction.MANAGE_API_KEYS },
+  { tab: AgentTab.POLICY, label: "Policy", liveOnly: true },
+  {
+    tab: AgentTab.API_KEYS,
+    label: "API keys",
+    action: UiAction.MANAGE_API_KEYS,
+    liveOnly: true,
+  },
   { tab: AgentTab.ACTIVITY, label: "Activity" },
 ];
 
@@ -52,7 +57,11 @@ function Overview({ agent }: { agent: AgentView }) {
         <PanelBody className="p-0">
           <DetailGrid className="-mb-px">
             <DetailItem label="Status">
-              {agent.disabledAt ? `Disabled ${formatTime(agent.disabledAt)}` : "Enabled"}
+              {agent.deletedAt
+                ? `Deleted ${formatTime(agent.deletedAt)}`
+                : agent.disabledAt
+                  ? `Disabled ${formatTime(agent.disabledAt)}`
+                  : "Enabled"}
             </DetailItem>
             <DetailItem label="Active policy">
               {agent.policyVersion ? `v${agent.policyVersion}` : "—"}
@@ -125,7 +134,10 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
     );
   }
 
-  const tabs = TABS.filter((t) => !t.action || can(me.role, t.action));
+  const tabs = TABS.filter(
+    (t) =>
+      (!t.action || can(me.role, t.action)) && (!agent.deletedAt || !t.liveOnly),
+  );
   const current = tabs.some((t) => t.tab === tab) ? tab : AgentTab.OVERVIEW;
 
   return (
@@ -139,7 +151,9 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
         title={agent.name}
         description={agent.description ?? undefined}
         actions={
-          agent.disabledAt ? (
+          agent.deletedAt ? (
+            <Badge>Deleted</Badge>
+          ) : agent.disabledAt ? (
             <Badge>Disabled</Badge>
           ) : (
             <Badge tone="success">

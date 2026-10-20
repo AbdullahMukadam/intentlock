@@ -238,9 +238,10 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | DELETE | `/v1/invites/:id` | → 204 | Auth: session (admin). Revoke |
 | POST | `/v1/invites/lookup` | `{ token }` → `{ email, role, orgName, expiresAt }` | Auth: none. 400 `link_invalid` when unknown, used, revoked or expired (same for accept and reset) |
 | POST | `/v1/invites/accept` | `{ token, password }` → sets session cookie, `{ user }` | Auth: none. Creates the user; fails if license `maxUsers` reached |
-| GET | `/v1/agents` | → `Agent[]` with key counts, active policy version, 24 h decision counts | Auth: session |
+| GET | `/v1/agents?includeDeleted=` | → `Agent[]` with key counts, active policy version, 24 h decision counts; deleted agents only with `includeDeleted=true` | Auth: session |
 | POST | `/v1/agents` | `{ name, description? }` → `Agent` (created with the starter policy as v1) | Auth: session (admin). Fails if license `maxAgents` reached |
-| GET · PATCH · DELETE | `/v1/agents/:id` | `{ name?, description?, disabled? }` → `Agent` | Auth: session (PATCH/DELETE admin). Disabling blocks new plans for the agent |
+| GET · PATCH | `/v1/agents/:id` | `{ name?, description?, disabled? }` → `Agent` | Auth: session (PATCH admin). Disabling blocks new plans for the agent. GET still returns a deleted agent; PATCH, policy and API-key routes 404 for it |
+| DELETE | `/v1/agents/:id` | → 204 | Auth: session (admin). Archives the agent (ADR-075): revokes its keys, rejects its pending holds, frees its license slot and name; audited `agent_deleted` |
 | POST | `/v1/agents/:id/api-keys` | `{ name }` → `{ id, prefix, key }` | Auth: session (admin). Key shown once |
 | GET | `/v1/agents/:id/api-keys` | → `{ id, name, prefix, createdBy (email), createdAt, lastUsedAt, revokedAt }[]` | Auth: session (admin) |
 | DELETE | `/v1/agents/:id/api-keys/:keyId` | → 204 | Auth: session (admin). Revoke: immediate for new plans |
@@ -298,11 +299,12 @@ model Agent {
   name        String                         // kebab-case, e.g. github-assistant
   description String?
   disabledAt  DateTime?
+  deletedAt   DateTime?                      // archived, never removed (ADR-075)
   createdBy   String
   createdAt   DateTime  @default(now())
   apiKeys     ApiKey[]
   policy      PolicySet?
-  @@unique([orgId, name])
+  @@unique([orgId, name], where: { deletedAt: null })
 }
 
 model ApiKey {

@@ -11,7 +11,7 @@ import {
 import { Skeleton } from "@intentlock/ui/components/skeleton";
 import { CircleCheck, Hand, Hourglass, TriangleAlert } from "lucide-react";
 
-import { useAgents } from "@/components/agent-filter";
+import { agentNames, useAgents } from "@/components/agent-filter";
 import { EmptyState } from "@/components/empty-state";
 import { HoldCard } from "@/components/holds/hold-card";
 import { apiUrl } from "@/lib/api";
@@ -86,7 +86,7 @@ export function HoldList() {
     );
   }
 
-  const names = new Map(agents.map((a) => [a.id, a.name]));
+  const names = agentNames(agents);
   return (
     <div className="grid gap-6">
       <Section

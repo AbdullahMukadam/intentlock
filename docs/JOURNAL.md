@@ -2055,3 +2055,15 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Two migrations to apply on the deployed database before the new server starts
 - `turbo` concurrency: `pnpm dev` needs `--concurrency 11` or a `concurrency` setting in turbo.json
 - Not checked: which version the deployed inbox runs (button loaders item)
+
+### 2026-10-20 · Session 26 · Phase 6.7 — Early user 1 feedback, round 2: delete an agent (server)
+
+**Done**
+- ADR-075 (accepted by Abdullah): deleting an agent archives it. `Agent.deletedAt` plus a partial unique index on `(orgId, name)` over live rows (Prisma `partialIndexes` preview), one migration. `DELETE /v1/agents/:id` now returns 204 and, in one transaction, revokes the agent's keys, rejects its pending holds ("agent deleted", one `hold_resolved` entry each), and appends `agent_deleted`. Deleted agents don't count against `maxAgents`, can't sign plans, are hidden from `GET /v1/agents` unless `includeDeleted=true`, and their name can be reused. The inbox keeps history names as "name (deleted)" and drops them from filters; a deleted agent's page shows only Overview and Activity. Test `agent-delete.e2e.test.ts`
+
+**Problems hit and how they were solved**
+- Docker Desktop was off → started it and only the `postgres` service (`--pull never`, image already local)
+
+**Next**
+- The Delete button with the type-the-name dialog lands with the Dialog/AlertDialog item; tick item 1 then
+- Run the full `pnpm test` before merging (only the affected e2e files were run: agent-delete, agents, license, holds, routes)

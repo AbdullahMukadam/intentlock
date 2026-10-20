@@ -84,7 +84,7 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
   countActive(db: Pick<OrgTx, "user" | "agent">, resource: LicensedResource): Promise<number> {
     return resource === LicensedResource.USERS
       ? db.user.count({ where: { disabledAt: null } })
-      : db.agent.count({ where: { disabledAt: null } });
+      : db.agent.count({ where: { disabledAt: null, deletedAt: null } });
   }
 
   async load(): Promise<void> {

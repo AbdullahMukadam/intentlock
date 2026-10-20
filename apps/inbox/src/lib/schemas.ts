@@ -29,7 +29,11 @@ export const ApiErrorBody = z.object({ error: z.string() });
 
 const VerdictCounts = z.object({ allow: z.number(), block: z.number(), hold: z.number() });
 
-export const AgentSummary = z.object({ id: z.string(), name: z.string() });
+export const AgentSummary = z.object({
+  id: z.string(),
+  name: z.string(),
+  deletedAt: z.string().nullable().optional(),
+});
 export type AgentSummary = z.infer<typeof AgentSummary>;
 export const AgentSummaries = z.array(AgentSummary);
 
@@ -143,6 +147,7 @@ export const PendingHolds = z.array(PendingHold);
 export const AgentView = AgentSummary.extend({
   description: z.string().nullable(),
   disabledAt: z.string().nullable(),
+  deletedAt: z.string().nullable(),
   createdAt: z.string(),
   activeKeys: z.number(),
   policyVersion: z.number().nullable(),

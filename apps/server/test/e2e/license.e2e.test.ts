@@ -137,14 +137,23 @@ describe("license limits", () => {
   const createAgent = (name: string) =>
     http().post("/v1/agents").set("Cookie", admin.cookie).set(CSRF).send({ name });
 
-  it("enforces maxAgents; disabling an agent frees a seat; re-enabling at the limit fails", async () => {
+  it("enforces maxAgents; disabling or deleting an agent frees a seat; re-enabling at the limit fails", async () => {
     for (const name of ["a1", "a2", "a3"]) await createAgent(name).expect(201);
     const over = await createAgent("a4").expect(403);
     expect(over.body).toMatchObject({ error: "agent_limit_reached", max: 3 });
 
     const a1 = await prisma.agent.findFirstOrThrow({ where: { name: "a1" } });
-    await http().delete(`/v1/agents/${a1.id}`).set("Cookie", admin.cookie).set(CSRF).expect(200);
+    await http()
+      .patch(`/v1/agents/${a1.id}`)
+      .set("Cookie", admin.cookie)
+      .set(CSRF)
+      .send({ disabled: true })
+      .expect(200);
     await createAgent("a4").expect(201);
+    await createAgent("a5").expect(403);
+    const a2 = await prisma.agent.findFirstOrThrow({ where: { name: "a2" } });
+    await http().delete(`/v1/agents/${a2.id}`).set("Cookie", admin.cookie).set(CSRF).expect(204);
+    await createAgent("a5").expect(201);
     await http()
       .patch(`/v1/agents/${a1.id}`)
       .set("Cookie", admin.cookie)

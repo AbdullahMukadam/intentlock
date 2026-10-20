@@ -1,8 +1,9 @@
 // ARCHITECTURE §5.3; connection URLs live in prisma.config.ts (CLI) and prisma.service.ts (runtime).
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -22,12 +23,13 @@ model Agent {
   name        String
   description String?
   disabledAt  DateTime?
+  deletedAt   DateTime?
   createdBy   String
   createdAt   DateTime   @default(now())
   apiKeys     ApiKey[]
   policy      PolicySet?
 
-  @@unique([orgId, name])
+  @@unique([orgId, name], where: { deletedAt: null })
 }
 
 model ApiKey {

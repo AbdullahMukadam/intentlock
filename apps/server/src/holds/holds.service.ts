@@ -36,7 +36,7 @@ import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
 import { emailsById } from "../users/utils/emails-by-id.util.js";
 import { toHoldView } from "./utils/to-hold-view.util.js";
 
-type ExpiredRow = Pick<
+type ClosedHoldRow = Pick<
   Hold,
   "id" | "planId" | "agentId" | "user" | "tool" | "ruleId" | "approvers"
 >;
@@ -228,7 +228,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
   async expireDue(orgId: string): Promise<number> {
     return orgDb(this.prisma, orgId)
       .$transaction(async (tx) => {
-        const rows = await tx.$queryRaw<ExpiredRow[]>`
+        const rows = await tx.$queryRaw<ClosedHoldRow[]>`
         UPDATE "Hold" SET status = ${HoldStatus.EXPIRED}::"HoldStatus", "resolvedAt" = now()
         WHERE "orgId" = ${orgId} AND status = ${HoldStatus.PENDING}::"HoldStatus" AND "expiresAt" <= now()
         RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
@@ -255,6 +255,35 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
           this.announceResolved({ ...row, orgId, status: HoldStatus.EXPIRED });
         return rows.length;
       });
+  }
+
+  async rejectPendingForAgent(tx: OrgTx, admin: SessionUser, agentId: string, note: string) {
+    const rows = await tx.$queryRaw<ClosedHoldRow[]>`
+      UPDATE "Hold" SET status = ${HoldStatus.REJECTED}::"HoldStatus", "resolvedBy" = ${admin.id},
+        note = ${note}, "resolvedAt" = now()
+      WHERE "orgId" = ${admin.orgId} AND "agentId" = ${agentId} AND status = ${HoldStatus.PENDING}::"HoldStatus"
+      RETURNING id, "planId", "agentId", "user", tool, "ruleId", approvers`;
+    if (rows.length > 0) {
+      await this.audit.append(
+        admin.orgId,
+        rows.map((h) => ({
+          kind: AuditKind.HOLD_RESOLVED,
+          actor: admin.id,
+          user: h.user,
+          planId: h.planId,
+          agentId: h.agentId,
+          tool: h.tool,
+          verdict: AuditVerdict.REJECTED,
+          ruleId: h.ruleId,
+          payload: { holdId: h.id, note, approver: admin.email },
+        })),
+        tx,
+      );
+    }
+    return () => {
+      for (const row of rows)
+        this.announceResolved({ ...row, orgId: admin.orgId, status: HoldStatus.REJECTED });
+    };
   }
 
   announceCreated(hold: Hold) {
