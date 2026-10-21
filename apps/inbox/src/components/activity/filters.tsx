@@ -67,7 +67,11 @@ export function Filters({
           ))}
         </NativeSelect>
         <div className="ml-auto flex gap-2">
-          <Button variant="ghost" nativeButton={false} render={<Link href="/activity" />}>
+          <Button
+            className="border-border bg-white text-neutral-900 hover:bg-neutral-100"
+            nativeButton={false}
+            render={<Link href="/activity" />}
+          >
             Reset
           </Button>
           <Button type="submit">Apply</Button>
