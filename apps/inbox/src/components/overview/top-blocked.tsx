@@ -65,7 +65,7 @@ function TopList({
                     </Link>
                   </TableCell>
                   <TableCell label="Blocked">
-                    <span className="flex items-center gap-2 max-sm:w-44">
+                    <span className="flex items-center gap-2">
                       <span className="w-8 text-right tabular-nums">{r.count}</span>
                       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                         <span
