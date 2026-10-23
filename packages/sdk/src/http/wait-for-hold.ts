@@ -1,9 +1,8 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { API_ENDPOINTS, apiPath } from "@intentlock/core";
+import { API_ENDPOINTS, apiPath, HoldStatus } from "@intentlock/core";
 
 import { HttpMethod } from "../enums/http-method.enum.js";
-import { HoldStatus } from "../enums/hold-status.enum.js";
 import { GateUnavailableError } from "../errors.js";
 import type { HoldOutcome } from "../gate.js";
 import { backoffMs } from "../outbox/worker.js";

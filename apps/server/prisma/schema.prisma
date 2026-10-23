@@ -18,16 +18,18 @@ model Organization {
 }
 
 model Agent {
-  id          String     @id @default(cuid())
-  orgId       String
-  name        String
-  description String?
-  disabledAt  DateTime?
-  deletedAt   DateTime?
-  createdBy   String
-  createdAt   DateTime   @default(now())
-  apiKeys     ApiKey[]
-  policy      PolicySet?
+  id            String     @id @default(cuid())
+  orgId         String
+  name          String
+  description   String?
+  disabledAt    DateTime?
+  deletedAt     DateTime?
+  webhookUrl    String?
+  webhookSecret String?
+  createdBy     String
+  createdAt     DateTime   @default(now())
+  apiKeys       ApiKey[]
+  policy        PolicySet?
 
   @@unique([orgId, name], where: { deletedAt: null })
 }
@@ -227,6 +229,24 @@ model Hold {
 
   @@index([orgId, status, expiresAt])
   @@index([planId])
+}
+
+model HoldEvent {
+  id            String     @id @default(cuid())
+  orgId         String
+  agentId       String
+  holdId        String
+  planId        String
+  status        HoldStatus
+  attempts      Int        @default(0)
+  nextAttemptAt DateTime   @default(now())
+  deliveredAt   DateTime?
+  failedAt      DateTime?
+  lastError     String?
+  createdAt     DateTime   @default(now())
+
+  @@index([nextAttemptAt], where: { deliveredAt: null, failedAt: null })
+  @@index([holdId])
 }
 
 enum HoldStatus {

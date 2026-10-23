@@ -62,6 +62,7 @@ export default defineConfig({
           items: [
             { slug: "docs/sdk/installation", label: "Install" },
             "docs/sdk/guard",
+            { slug: "docs/sdk/pausable-holds", label: "Pause on a hold" },
             "docs/sdk/providers",
             { slug: "docs/sdk/gates", label: "Configure a gate" },
             { slug: "docs/sdk/core", label: "Core utilities" },

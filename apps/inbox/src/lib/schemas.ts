@@ -156,6 +156,7 @@ export const AgentView = AgentSummary.extend({
   description: z.string().nullable(),
   disabledAt: z.string().nullable(),
   deletedAt: z.string().nullable(),
+  webhookUrl: z.string().nullable(),
   createdAt: z.string(),
   activeKeys: z.number(),
   policyVersion: z.number().nullable(),
@@ -176,6 +177,7 @@ export const ApiKeyView = z.object({
 export type ApiKeyView = z.infer<typeof ApiKeyView>;
 export const ApiKeyViews = z.array(ApiKeyView);
 export const NewApiKey = z.object({ id: z.string(), prefix: z.string(), key: z.string() });
+export const NewWebhook = z.object({ url: z.string(), secret: z.string() });
 
 export const PolicyVersionSummary = z.object({
   version: z.number(),

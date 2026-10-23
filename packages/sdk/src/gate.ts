@@ -1,4 +1,11 @@
-import type { GateDecision, PlanInput, ReportOutcome, ToolCall } from "@intentlock/core";
+import type {
+  GateDecision,
+  GatePlanState,
+  HoldInfo,
+  PlanInput,
+  ReportOutcome,
+  ToolCall,
+} from "@intentlock/core";
 
 export interface SignedPlan {
   planId: string;
@@ -27,4 +34,7 @@ export interface Gate {
   ): Promise<HoldOutcome>;
   report(token: string, callId: string, outcome: ReportOutcome): Promise<void>;
   close(): Promise<void>;
+  holdInfo?(holdId: string): Promise<HoldInfo>;
+  exportPlan?(planId: string): Promise<GatePlanState | null>;
+  importPlan?(planId: string, state: unknown): Promise<void>;
 }

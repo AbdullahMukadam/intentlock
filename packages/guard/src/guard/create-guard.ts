@@ -5,10 +5,12 @@ import type { ToolCallReq, ToolResult } from "../provider/types.js";
 import { EventType } from "./enums/event-type.enum.js";
 import { PlanSource } from "./enums/plan-source.enum.js";
 import { eventSink } from "./events.js";
+import { MessageRole } from "../provider/enums/message-role.enum.js";
 import { executeCalls, type GuardSession } from "./execute.js";
-import { runLoop, type RunResult } from "./loop.js";
+import { type LoopContext, runLoop, type RunResult } from "./loop.js";
 import { GuardOptions, type GuardOptionsInput } from "./options.js";
 import { planWithModel } from "./planner.js";
+import { parseCheckpoint, resumeRun } from "./resume.js";
 
 const RunInput = z.object({
   user: z.email(),
@@ -22,6 +24,7 @@ export interface Guard {
   start(input: RunInput): Promise<GuardSession>;
   execute(session: GuardSession, calls: ToolCallReq[]): Promise<ToolResult[]>;
   run(input: RunInput): Promise<RunResult>;
+  resume(checkpoint: unknown): Promise<RunResult>;
 }
 
 export function createGuard(options: GuardOptionsInput): Guard {
@@ -70,23 +73,28 @@ export function createGuard(options: GuardOptionsInput): Guard {
     }
   }
 
+  const loopContext = (user: string): LoopContext => ({
+    ...context(user),
+    provider: opts.provider,
+    tools: opts.tools,
+    maxTurns: opts.maxTurns,
+    holdMode: opts.onHold,
+    ...(opts.system !== undefined && { system: opts.system }),
+    ...(opts.maxTokens !== undefined && { maxTokens: opts.maxTokens }),
+  });
+
   return {
     start,
     execute: (session, calls) => executeCalls(context(session.user), session, calls),
     async run(raw) {
       const session = await start(raw);
-      return runLoop(
-        {
-          ...context(session.user),
-          provider: opts.provider,
-          tools: opts.tools,
-          maxTurns: opts.maxTurns,
-          ...(opts.system !== undefined && { system: opts.system }),
-          ...(opts.maxTokens !== undefined && { maxTokens: opts.maxTokens }),
-        },
-        session,
-        RunInput.parse(raw).task,
-      );
+      return runLoop(loopContext(session.user), session, [
+        { role: MessageRole.USER, text: RunInput.parse(raw).task },
+      ]);
+    },
+    async resume(raw) {
+      const checkpoint = parseCheckpoint(raw);
+      return resumeRun(loopContext(checkpoint.user), checkpoint);
     },
   };
 }

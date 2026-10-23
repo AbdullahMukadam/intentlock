@@ -1,6 +1,11 @@
+export { type CheckpointStore } from "./checkpoints/store.js";
+export { FileCheckpointStore, type FileCheckpointStoreOptions } from "./checkpoints/file-store.js";
+export { S3CheckpointStore, type S3CheckpointStoreOptions } from "./checkpoints/s3-store.js";
+export { Checkpoint, CheckpointError } from "./guard/checkpoint.js";
 export { createGuard, type Guard, type RunInput } from "./guard/create-guard.js";
 export { EventType } from "./guard/enums/event-type.enum.js";
 export { GuardBlockReason } from "./guard/enums/guard-block-reason.enum.js";
+export { HoldMode } from "./guard/enums/hold-mode.enum.js";
 export { PlanSource } from "./guard/enums/plan-source.enum.js";
 export { RunStatus } from "./guard/enums/run-status.enum.js";
 export type { GuardEvent } from "./guard/events.js";

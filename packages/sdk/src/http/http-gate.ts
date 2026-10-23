@@ -2,6 +2,7 @@ import {
   API_ENDPOINTS,
   apiPath,
   GateDecision,
+  type HoldInfo,
   type PlanInput,
   type ReportOutcome,
   type ToolCall,
@@ -10,6 +11,7 @@ import {
 import { GateUnavailableError } from "../errors.js";
 import type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "../gate.js";
 import { HttpClient, type HttpClientOptions } from "./client.js";
+import { holdInfo } from "./hold-info.js";
 import { waitForHold } from "./wait-for-hold.js";
 
 export type HttpGateOptions = HttpClientOptions;
@@ -44,6 +46,10 @@ export class HttpGate implements Gate {
     opts: { timeoutMs: number; signal?: AbortSignal },
   ): Promise<HoldOutcome> {
     return waitForHold(this.#http, holdId, opts);
+  }
+
+  holdInfo(holdId: string): Promise<HoldInfo> {
+    return holdInfo(this.#http, holdId);
   }
 
   async report(token: string, callId: string, outcome: ReportOutcome): Promise<void> {

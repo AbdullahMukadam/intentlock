@@ -6,6 +6,9 @@ Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthrop
 
 ### Added
 
+- Pausable holds (ADR-080): `createGuard({ onHold: HoldMode.SUSPEND })` makes `run()` return `suspended` with a checkpoint instead of waiting, and `guard.resume(checkpoint)` continues it after checking the hold's exact call with the server. `FileCheckpointStore` and `S3CheckpointStore` (any S3-compatible bucket, optional AES-256-GCM)
+- Hold-resolved webhooks: set a URL per agent in the inbox (`PUT /v1/agents/:id/webhook`); approve, reject and expiry post a signed `hold.resolved` event, retried for about 4 hours, every attempt audited. `verifyWebhook` in `@intentlock/core`
+- `GET /v1/holds/:id/wait` also returns the held call (`planId`, `callId`, `tool`, `args`); `timeout=0` answers at once
 - `@intentlock/cli` is published to npm: `npm install -g @intentlock/cli`, or `npx -y @intentlock/cli audit verify --file intentlock-audit.jsonl` without installing (ADR-079)
 - Inbox Audit page: chain size and head, oldest entry, retention, last verified and by whom, flagged entries linked to their runs, export and the offline verify command; new `GET /v1/audit/summary`, and each verify is recorded as `audit_verified` (ADR-078)
 

@@ -1,4 +1,4 @@
-export { HoldStatus } from "./enums/hold-status.enum.js";
+export { HoldStatus } from "@intentlock/core";
 export { GateUnavailableError, HttpError } from "./errors.js";
 export type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "./gate.js";
 export type { HttpClientOptions } from "./http/client.js";

@@ -3,6 +3,7 @@ export enum LoggerContext {
   LICENSE = "License",
   KEYS = "Keys",
   HOLDS = "Holds",
+  HOLD_WEBHOOKS = "HoldWebhooks",
   MAIL = "Mail",
   SETUP = "Setup",
   EVENTS = "Events",

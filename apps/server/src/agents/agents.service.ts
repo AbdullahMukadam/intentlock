@@ -5,12 +5,14 @@ import { AuditKind } from "../audit/enums/audit-kind.enum.js";
 import { HoldsService } from "../holds/holds.service.js";
 import { PrismaErrorCode } from "../common/enums/prisma-error-code.enum.js";
 import type { SessionUser } from "../common/types/auth.types.js";
+import { newSecret } from "../common/utils/crypto.util.js";
 import { emptyVerdictCounts, tallyVerdicts } from "../common/utils/verdict-counts.util.js";
 import { Prisma } from "../generated/prisma/client.js";
 import { LicensedResource } from "../license/enums/licensed-resource.enum.js";
 import { LicenseService } from "../license/license.service.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { WEBHOOK_SECRET_PREFIX } from "./constants/agent.constants.js";
 import { AgentError } from "./enums/agent-error.enum.js";
 import { createAgent } from "./utils/create-agent.util.js";
 import { toAgentView } from "./utils/to-agent-view.util.js";
@@ -119,6 +121,46 @@ export class AgentsService {
       return announceHolds;
     });
     announce();
+  }
+
+  async setWebhook(admin: SessionUser, id: string, url: string) {
+    await this.findOrThrow(admin.orgId, id);
+    const secret = WEBHOOK_SECRET_PREFIX + newSecret();
+    await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+      await tx.agent.updateMany({
+        where: { id, deletedAt: null },
+        data: { webhookUrl: url, webhookSecret: secret },
+      });
+      await this.audit.append(
+        admin.orgId,
+        [{ kind: AuditKind.AGENT_WEBHOOK_SET, actor: admin.id, agentId: id, payload: { url } }],
+        tx,
+      );
+    });
+    return { url, secret };
+  }
+
+  async removeWebhook(admin: SessionUser, id: string) {
+    const target = await this.findOrThrow(admin.orgId, id);
+    if (target.webhookUrl === null) return;
+    await orgDb(this.prisma, admin.orgId).$transaction(async (tx) => {
+      await tx.agent.updateMany({
+        where: { id },
+        data: { webhookUrl: null, webhookSecret: null },
+      });
+      await this.audit.append(
+        admin.orgId,
+        [
+          {
+            kind: AuditKind.AGENT_WEBHOOK_REMOVED,
+            actor: admin.id,
+            agentId: id,
+            payload: { url: target.webhookUrl },
+          },
+        ],
+        tx,
+      );
+    });
   }
 
   async update(

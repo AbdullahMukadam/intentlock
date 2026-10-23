@@ -143,7 +143,10 @@ src/
 │   ├── loop.ts                     # run(): turns, concurrent checks, max turns
 │   ├── execute.ts                  # one turn's tool calls → results
 │   ├── results.ts                  # block / error result text builders
+│   ├── checkpoint.ts               # Checkpoint schema + CheckpointError (ADR-080)
+│   ├── resume.ts                   # resume(): match holds to the checkpoint, settle them, continue the loop
 │   └── events.ts                   # event types + emitter
+├── checkpoints/                    # store.ts (CheckpointStore), codec.ts (AES-256-GCM), file-store.ts, s3-store.ts, sigv4.ts
 └── tools/
     └── define-tool.ts              # defineTool({ name, description, schema: zod, impl }) → ToolDef + impl
 ```
@@ -283,7 +286,8 @@ src/
 │   ├── schemas/                    # user-fields.schema.ts
 │   └── utils/                      # to-public-user.util.ts
 ├── agents/                         # agents.module/controller/service: CRUD, 24 h counts, DELETE = disable, maxAgents
-│   ├── dto/                        # create-agent, update-agent, agent-id-params
+│   ├── constants/                  # agent.constants.ts (webhook URL length, secret prefix)
+│   ├── dto/                        # create-agent, update-agent, agent-id-params, set-agent-webhook
 │   ├── enums/                      # agent-error
 │   ├── schemas/                    # agent-fields.schema.ts (kebab-case name, id)
 │   ├── utils/                      # create-agent.util.ts (agent + starter policy v1), to-agent-view.util.ts
@@ -320,8 +324,10 @@ src/
 │   ├── dto/                        # check-call.dto.ts
 │   └── utils/                      # to-check-audit.util.ts (check payload contract)
 ├── holds/                          # holds.module/controller/service: create (hybrid), list, approve/reject, long-poll wait, expiry job
-│   ├── constants/ · enums/ · dto/ · types/   # hold.constants, hold-state + hold-error, create/wait/list/resolve DTOs, new-hold.type
-│   └── utils/                      # hold-state.util.ts (DB ↔ API status), to-hold-view.util.ts
+│   ├── hold-notifier.service.ts    # hold emails + HOLD_WEBHOOK_URL (ADR-072)
+│   ├── hold-webhooks.service.ts    # HoldEvent outbox: enqueue in the resolve tx, SKIP LOCKED delivery, retries (ADR-080)
+│   ├── constants/ · enums/ · dto/ · types/   # hold.constants, hold-state + hold-error + webhook-delivery-outcome, create/wait/list/resolve DTOs, new-hold.type
+│   └── utils/                      # hold-state.util.ts (DB ↔ API status), to-hold-view.util.ts, to-hold-wait-view.util.ts, webhook-retry.util.ts
 ├── reports/                        # reports.module/controller/service: POST /v1/report (ran counts, plan completion)
 │   ├── enums/ · schemas/ · dto/    # report-error, checked-call.schema, report.dto (ReportOutcome comes from core)
 │   └── utils/                      # plan-progress.util.ts (findCheckedCall, recordRun, updateCompletion; shared with batch ingest)

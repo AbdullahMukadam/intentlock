@@ -86,6 +86,7 @@ Session, for the signed-in user.
 | --- | --- | --- |
 | GET, POST | `/v1/agents` | List; `{ name, description? }` creates one with the starter policy (admin). |
 | GET, PATCH, DELETE | `/v1/agents/:id` | `{ name?, description?, disabled? }`. Changes are admin-only. |
+| PUT, DELETE | `/v1/agents/:id/webhook` | `{ url }` sets the hold webhook and returns `{ url, secret }`, the signing secret shown once (a new one each time); DELETE removes it. Admin, audited. See [Pause on a hold](/docs/sdk/pausable-holds/). |
 | GET, POST | `/v1/agents/:id/api-keys` | List; `{ name }` creates a key, shown once. Admin. |
 | DELETE | `/v1/agents/:id/api-keys/:keyId` | Revokes a key. Admin. |
 

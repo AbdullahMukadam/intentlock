@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from "@nestjs/common";
 import { API_ENDPOINTS } from "@intentlock/core";
@@ -19,6 +20,7 @@ import { UserRole } from "../users/enums/user-role.enum.js";
 import { AgentsService } from "./agents.service.js";
 import { AgentIdParamsDto } from "./dto/agent-id-params.dto.js";
 import { CreateAgentDto } from "./dto/create-agent.dto.js";
+import { SetAgentWebhookDto } from "./dto/set-agent-webhook.dto.js";
 import { ListAgentsQueryDto } from "./dto/list-agents-query.dto.js";
 import { UpdateAgentDto } from "./dto/update-agent.dto.js";
 
@@ -50,6 +52,23 @@ export class AgentsController {
     @Body() body: UpdateAgentDto,
   ) {
     return this.agents.update(admin, id, body);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Put(API_ENDPOINTS.AGENT_WEBHOOK)
+  setWebhook(
+    @CurrentUser() admin: SessionUser,
+    @Param() { id }: AgentIdParamsDto,
+    @Body() body: SetAgentWebhookDto,
+  ) {
+    return this.agents.setWebhook(admin, id, body.url);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(API_ENDPOINTS.AGENT_WEBHOOK)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeWebhook(@CurrentUser() admin: SessionUser, @Param() { id }: AgentIdParamsDto) {
+    return this.agents.removeWebhook(admin, id);
   }
 
   @Roles(UserRole.ADMIN)

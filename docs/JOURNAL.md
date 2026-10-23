@@ -2150,3 +2150,36 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes for Abdullah**
 - Check the TriStack runs #23/#24 in the inbox; they were still running (maybe on a hold) when the issues were closed
+
+### 2026-10-23 · Session 29 · Phase 6.7 — Pausable holds (ADR-080)
+
+**Done**
+- Pausable holds, Intentlock side (PLAN round 3). Abdullah approved four shapes first: the wait route returns the held call (no new route), `PUT/DELETE /v1/agents/:id/webhook` with an inbox panel, hand-written S3 Signature V4 (no `@aws-sdk`), and TriStack as a separate follow-up task. Abdullah also asked that the feature stay generic (any receiver, any store), not TriStack-shaped
+- Core: `signWebhook`/`verifyWebhook` (HMAC-SHA256 over WebCrypto, `t=…,v1=…`, 5 min tolerance), `HoldWebhookEvent`, `HoldInfo`, `GatePlanState`, `WebhookEventType`; `HoldStatus` moved here from sdk (sdk still exports it); `API_ENDPOINTS.AGENT_WEBHOOK`
+- Server: migration `20261023120000_hold_events` (`Agent.webhookUrl`/`webhookSecret`, `HoldEvent` with a partial index on due rows). Approve, reject, bulk resolve, expiry and agent delete insert events in the same transaction (only for agents with a URL). `HoldWebhooks` claims with `UPDATE … FROM (SELECT … FOR UPDATE SKIP LOCKED)` and a 60 s lease, posts signed events, retries 10 s → 2 h (8 attempts), fails at once when the URL was removed, audits each attempt as `hold_webhook`. Admin route audited as `agent_webhook_set`/`agent_webhook_removed`; the secret (`il_whsec_…`) is shown once
+- SDK: optional `Gate.holdInfo`, `exportPlan`, `importPlan`; `HybridGate` exports its client chain head, per-step usage and completion tracking and seeds them in a new process (`MemoryOutbox.head/seed`); `HttpGate.holdInfo`
+- Guard: `onHold: HoldMode.SUSPEND`, `RunStatus.SUSPENDED` with `holdIds` and a zod-validated `Checkpoint`; `guard.resume()` matches every held call against the server (plan, call id, tool, JCS args), returns `suspended` while any is pending, imports gate state, refreshes the token and continues the loop. `FileCheckpointStore`, `S3CheckpointStore`, AES-256-GCM codec with the store key as AAD
+- Inbox: Hold webhook panel on the agent Overview (admin), URL in Details for everyone; checked with headless Edge at 375 px and 1280 px, light and dark, including the secret reveal (no horizontal overflow)
+- Docs: site page "Pause on a hold", HTTP API reference, guard options, holds concept; ARCHITECTURE §5.1/§5.3/§7.3/§7.7, STRUCTURE, ADR-080 build notes, CHANGELOG
+
+**Problems hit and how they were solved**
+- A resume in a fresh process would restart the hybrid client chain at 1 and the server would reject it → the checkpoint carries the gate's plan state; `hybrid.e2e.test.ts` resumes with a new gate and a new outbox dir and gets seq 1–4, nothing flagged, no `client_gap`
+- Resolving a hold kicks delivery in the background, so a test that edited the event before the first attempt raced it → tests let the first attempt run, then edit the row
+- `holds.e2e.test.ts` pinned the wait response as exactly `{ status }` → `toMatchObject`; the full new shape is pinned in `hold-webhooks.e2e.test.ts`
+- The phone Details cell truncated the webhook URL → it wraps
+- `next dev` stopped once to print a Next.js 16.4.0 security upgrade notice; restarted, upgrade not run (it downloads)
+
+**Decisions**
+- ADR-080 build notes: routes, plan-id keyed checkpoints, `resume(checkpoint)` without an outcome argument, gate state in the checkpoint, delivery details, no new dependencies
+
+**Numbers**
+- Server 258 tests (48 files, incl. 7 new webhook e2e and 1 restart e2e), guard 59, sdk 39, core 150, inbox 110, site 9; full `pnpm test`, `pnpm lint`, `pnpm typecheck` green
+- SigV4 signer matches the AWS published GET Object example signature
+
+**Next**
+- Hold outcomes on phones (round 3)
+
+**Notes for Abdullah**
+- The dev database got the new migration with `prisma migrate deploy` (no reset). The screenshots used a temporary admin session that was deleted afterwards; setting and removing a webhook on `github-assistant` left two audit entries (`agent_webhook_set`, `agent_webhook_removed`)
+- Next.js in the inbox reports a known security advisory for 16.4.0; upgrading needs a download, so it is your call
+- TriStack wiring waits for a release of `@intentlock/core`, `sdk` and `guard`

@@ -6,6 +6,7 @@ import { can } from "../../../src/lib/permissions";
 test.each([
   [UiAction.CREATE_AGENT, { admin: true, approver: false, member: false }],
   [UiAction.MANAGE_API_KEYS, { admin: true, approver: false, member: false }],
+  [UiAction.MANAGE_WEBHOOK, { admin: true, approver: false, member: false }],
   [UiAction.EDIT_POLICY, { admin: true, approver: false, member: false }],
   [UiAction.TEST_POLICY, { admin: true, approver: true, member: false }],
   [UiAction.EXPORT_AUDIT_CHAIN, { admin: true, approver: true, member: false }],

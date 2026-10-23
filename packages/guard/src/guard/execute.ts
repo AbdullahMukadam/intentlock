@@ -141,11 +141,44 @@ async function runImpl(
   return result;
 }
 
+export async function settleHold(
+  ctx: ExecuteContext,
+  session: GuardSession,
+  call: ToolCallReq,
+  ruleId: string | null,
+  holdId: string,
+  outcome: HoldOutcome | HoldStatus,
+): Promise<ToolResult> {
+  const base = { planId: session.planId, tool: call.name, args: call.args, ruleId, holdId };
+  const impl = Object.hasOwn(ctx.impls, call.name) ? ctx.impls[call.name] : undefined;
+  if (outcome === HoldStatus.APPROVED && impl) {
+    ctx.emit({ type: EventType.APPROVED, ...base });
+    return runImpl(ctx, session, call, impl);
+  }
+  if (outcome === HoldStatus.APPROVED) {
+    ctx.emit({ type: EventType.BLOCK, ...base, reason: GuardBlockReason.UNKNOWN_TOOL });
+    return blockedResult(
+      call.id,
+      GuardBlockReason.UNKNOWN_TOOL,
+      `there is no tool named ${call.name}`,
+    );
+  }
+  if (outcome === HoldStatus.REJECTED) {
+    ctx.emit({ type: EventType.REJECTED, ...base });
+    return rejectedResult(call.id, holdId);
+  }
+  ctx.emit({ type: EventType.TIMEOUT, ...base });
+  return timeoutResult(call.id, holdId);
+}
+
+type Held = { held: true; holdId: string; ruleId: string | null };
+
 async function executeOne(
   ctx: ExecuteContext,
   session: GuardSession,
   call: ToolCallReq,
-): Promise<ToolResult> {
+  suspend: boolean,
+): Promise<ToolResult | Held> {
   const base = { planId: session.planId, tool: call.name, args: call.args };
   const impl = Object.hasOwn(ctx.impls, call.name) ? ctx.impls[call.name] : undefined;
   if (!impl) {
@@ -191,26 +224,37 @@ async function executeOne(
     case Verdict.HOLD: {
       const holdId = decision.holdId;
       ctx.emit({ type: EventType.HOLD, ...base, ruleId: decision.ruleId, holdId, latencyMs });
+      if (suspend) return { held: true, holdId, ruleId: decision.ruleId };
       const outcome = await waitSafely(ctx, session, call, holdId);
       if (outcome === null) return holdUnconfirmedResult(call.id, holdId);
-      if (outcome === HoldStatus.APPROVED) {
-        ctx.emit({ type: EventType.APPROVED, ...base, ruleId: decision.ruleId, holdId });
-        return runImpl(ctx, session, call, impl);
-      }
-      if (outcome === HoldStatus.REJECTED) {
-        ctx.emit({ type: EventType.REJECTED, ...base, ruleId: decision.ruleId, holdId });
-        return rejectedResult(call.id, holdId);
-      }
-      ctx.emit({ type: EventType.TIMEOUT, ...base, ruleId: decision.ruleId, holdId });
-      return timeoutResult(call.id, holdId);
+      return settleHold(ctx, session, call, decision.ruleId, holdId, outcome);
     }
   }
 }
 
-export function executeCalls(
+function isHeld(r: ToolResult | Held): r is Held {
+  return "held" in r;
+}
+
+export async function executeCalls(
   ctx: ExecuteContext,
   session: GuardSession,
   calls: ToolCallReq[],
 ): Promise<ToolResult[]> {
-  return Promise.all(calls.map((call) => executeOne(ctx, session, call)));
+  return (await executeTurn(ctx, session, calls, false)).results as ToolResult[];
+}
+
+export async function executeTurn(
+  ctx: ExecuteContext,
+  session: GuardSession,
+  calls: ToolCallReq[],
+  suspend: boolean,
+) {
+  const outcomes = await Promise.all(calls.map((call) => executeOne(ctx, session, call, suspend)));
+  return {
+    results: outcomes.map((o) => (isHeld(o) ? null : o)),
+    held: outcomes.flatMap((o, index) =>
+      isHeld(o) ? [{ index, holdId: o.holdId, ruleId: o.ruleId }] : [],
+    ),
+  };
 }

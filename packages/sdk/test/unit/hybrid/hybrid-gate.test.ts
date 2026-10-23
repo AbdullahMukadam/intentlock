@@ -104,3 +104,64 @@ describe("HybridGate audit entries", () => {
     }
   });
 });
+
+describe("HybridGate pause and resume", () => {
+  test("a new gate that imports the exported state continues the client chain and usage", async () => {
+    const t = await setup();
+    await t.gate.check(t.token, { tool: "get_issue", args: {}, callId: "c0" });
+    await t.gate.check(t.token, { tool: "search", args: {}, callId: "c1" });
+    const state = await t.gate.exportPlan("plan1");
+    await t.gate.close();
+    expect(state).toMatchObject({ chain: { clientSeq: 2 }, usage: [1, 1], decisions: 2 });
+
+    const next = new HybridGate({
+      baseUrl: BASE,
+      apiKey: "il_live_test",
+      outboxDir: null,
+      handleSignals: false,
+      fetch: t.fetchImpl,
+    });
+    await next.importPlan("plan1", JSON.parse(JSON.stringify(state)));
+    await next.check(t.token, { tool: "search", args: {}, callId: "c2" });
+    await next.close();
+    expect(t.entries.map((e) => e.clientSeq)).toEqual([1, 2, 3]);
+    expect(t.entries[2]!.prevLocalHash).toBe(t.entries[1]!.localHash);
+    expect(t.entries[2]!.usage).toEqual([1, 1]);
+  });
+
+  test("an invalid state is refused", async () => {
+    const t = await setup();
+    await expect(t.gate.importPlan("plan1", { chain: "x" })).rejects.toThrow(/Invalid gate state/);
+    await t.gate.close();
+  });
+
+  test("holdInfo asks the wait route without waiting and validates the answer", async () => {
+    const info = {
+      status: "approved",
+      planId: "plan1",
+      callId: "c1",
+      tool: "add_label",
+      args: { label: "bug" },
+    };
+    const seen: string[] = [];
+    const answer = (body: unknown) => async (input: string | URL | Request) => {
+      seen.push(String(input).slice(BASE.length));
+      return new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+      });
+    };
+    const gate = (fetchImpl: typeof fetch) =>
+      new HybridGate({
+        baseUrl: BASE,
+        apiKey: "k",
+        outboxDir: null,
+        handleSignals: false,
+        fetch: fetchImpl,
+      });
+    expect(await gate(answer(info) as typeof fetch).holdInfo("h1")).toEqual(info);
+    expect(seen).toEqual(["/v1/holds/h1/wait?timeout=0"]);
+    await expect(
+      gate(answer({ status: "approved" }) as typeof fetch).holdInfo("h1"),
+    ).rejects.toThrow(/Malformed hold/);
+  });
+});
