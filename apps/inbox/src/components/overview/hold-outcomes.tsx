@@ -67,16 +67,16 @@ export function HoldOutcomes({ overview }: { overview: Overview }) {
                 ))}
               </BarChart>
             </ChartContainer>
-            <dl className="grid grid-cols-3 gap-2 text-xs">
+            <dl className="grid gap-2 text-xs sm:grid-cols-3">
               {KEYS.map((key) => (
-                <div key={key} className="flex items-center gap-1.5">
+                <div key={key} className="flex min-w-0 items-center gap-1.5">
                   <span
                     aria-hidden
-                    className="size-2 rounded-[2px]"
+                    className="size-2 shrink-0 rounded-[2px]"
                     style={{ background: CONFIG[key].color }}
                   />
                   <dt className="text-muted-foreground">{CONFIG[key].label}</dt>
-                  <dd className="ml-auto font-medium tabular-nums">
+                  <dd className="ml-auto font-medium whitespace-nowrap tabular-nums">
                     {outcomes[key].toLocaleString()}
                     <span className="ml-1 text-muted-foreground">
                       {Math.round((outcomes[key] / total) * 100)}%

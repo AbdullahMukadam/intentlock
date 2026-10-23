@@ -2183,3 +2183,17 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - The dev database got the new migration with `prisma migrate deploy` (no reset). The screenshots used a temporary admin session that was deleted afterwards; setting and removing a webhook on `github-assistant` left two audit entries (`agent_webhook_set`, `agent_webhook_removed`)
 - Next.js in the inbox reports a known security advisory for 16.4.0; upgrading needs a download, so it is your call
 - TriStack wiring waits for a release of `@intentlock/core`, `sdk` and `guard`
+
+### 2026-10-23 · Session 29 (cont.) · Phase 6.7 — Hold outcomes on phones
+
+**Done**
+- Hold outcomes panel (`overview/hold-outcomes.tsx`): at 375 px the three legend items were forced into one row, so the colour swatches shrank to nothing (only a sliver of the red one showed) and "100%" touched the panel edge. The legend is now one row per outcome below `sm` and three columns from `sm` up; swatches are `shrink-0`, counts `whitespace-nowrap`. The chart bar already scaled to the width
+
+**Numbers**
+- Headless Edge at 375 px and 1280 px, light and dark: no horizontal page overflow, no element inside the panel clipped or outside it. Inbox 110 tests; full typecheck, lint and test green (38 tasks)
+
+**Next**
+- Policy page on phones (round 3)
+
+**Notes for Abdullah**
+- Asked where the hold webhook URL goes: it is an endpoint the team hosts (a route in their app, a serverless function, or a relay that starts a CI job). Without one, keep the default wait mode, or pause and call `guard.resume()` on a timer (it returns `suspended` while the hold is pending). The timer option is not on the "Pause on a hold" page yet
