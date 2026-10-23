@@ -2212,3 +2212,23 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - API keys tab on phones (round 3)
+
+### 2026-10-23 · Session 29 (cont.) · Phase 6.7 — API keys tab on phones
+
+**Done**
+- API keys tab at 375 px: the header form kept its 224 px input next to the button, so "Create key" stuck out past the panel's right edge → `PanelActions` and the form are full width on phones, the input flexes (`sm:w-56` from `sm` up)
+- One-time key reveal: the key was squeezed into a 149 px column beside Copy and Done → `SecretReveal` makes the key full width below `sm` with the buttons under it (unchanged from `sm` up). This also fixes the webhook secret, invite links, CLI token and onboarding reveals, which share the component
+- The keys table already scrolled sideways inside its panel, like the other tables
+
+**Problems hit and how they were solved**
+- Copy failed in the first headless run on every size, desktop included → headless Edge only writes the clipboard for a focused page; with focus emulation the clipboard holds exactly the shown key and the button changes to "Copied". The app was fine
+
+**Numbers**
+- Headless Edge, 375 and 1280 px, light and dark, table and reveal states: no element off screen, no page overflow, copy verified. Inbox 110 tests, typecheck and lint green
+
+**Next**
+- Visual policy builder (round 3, needs an ADR first)
+
+**Notes for Abdullah**
+- The check created throwaway keys named `phone-layout-check` on `github-assistant` in the local dev database and revoked each one through the API right after (audited `api_key_created` / `api_key_revoked`); they show as Revoked in the list
+- Port 3001 was already serving the inbox on Next 16.4.2 (not started by me); I used it and left it running

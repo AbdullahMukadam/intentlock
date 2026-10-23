@@ -24,7 +24,7 @@ export function SecretReveal({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="min-w-0 flex-1 rounded-md border bg-card px-3 py-2 font-mono text-xs break-all">
+        <code className="w-full rounded-md border bg-card px-3 py-2 font-mono text-xs break-all sm:w-auto sm:min-w-0 sm:flex-1">
           {secret}
         </code>
         <Button
