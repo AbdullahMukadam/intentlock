@@ -2133,3 +2133,20 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Docs: the CLI reference installs with `npm install -g @intentlock/cli`; self-host keygen and the Audit page use `npx -y @intentlock/cli …`; the policies page and "Protect your agent" link to the install line. CHANGELOG `Unreleased`, CONTRIBUTING, README and STRUCTURE updated
 - Nothing published: the CLI ships in the next `pnpm release`
 - Abdullah published `@intentlock/cli` 0.2.1 with `npm publish`; its dependencies kept `workspace:*` and `catalog:`, and `npm install --dry-run @intentlock/cli` fails with `EUNSUPPORTEDPROTOCOL`. The CLI's source has not changed since v0.2.1 and it imports only core exports that exist in core 0.2.1 (`API_ENDPOINTS`, `apiPath`, `IntentlockError`, `Role`, `parsePolicy`, `verifyChain`), so the CLI is bumped alone to 0.2.2 for `pnpm publish` (packed deps: `@intentlock/core` `0.2.1`, `zod` `^4.6.5`). One-off lockstep break, noted in ADR-079
+
+### 2026-10-22 · Session 28 · Phase 6.7 — Phone tables, domain, email templates
+
+**Done**
+- Tables on phones: back to real tables that scroll sideways (Abdullah's reference: the shadcn tasks table) instead of stacked cards; card-only classes removed from `@intentlock/ui` `Table` (merged in PR #16). Reset buttons on Activity and Holds filters restyled
+- Custom domain: site on `intentlock.space` (Cloudflare Worker custom domain, after deleting the registrar's imported A/CNAME records), inbox on `app.intentlock.space` (Vercel, CNAME DNS-only); site Sign in link points at the new inbox. Production site build checked locally with the real `SITE_URL`/`INBOX_URL` (27 pages, `og:url` correct); the live site still served the old link until Workers Builds deploys the merge
+- TriStack demo data: six issues (#23–#28) on `AbdullahMukadam/tristack` triggered six `issues: opened` triage runs, one with a hidden injection; issues closed afterwards
+- Email templates: shared layout `apps/server/src/mail/utils/email-layout.util.ts`; invite and password-reset emails now have HTML (they were text only), the hold email uses the same layout. Rendered all three with headless Edge at 640 and 500 px
+
+**Numbers**
+- Server unit tests 73 passed (new `email-layout.util.test.ts`: escaping of every field, link in button and fallback, optional sections left out); server typecheck and eslint green
+
+**Next**
+- Round 3 open items in PLAN: DEPLOYMENT domain update, Sign-in link from `INBOX_URL`, emails checked in real clients
+
+**Notes for Abdullah**
+- Check the TriStack runs #23/#24 in the inbox; they were still running (maybe on a hold) when the issues were closed
