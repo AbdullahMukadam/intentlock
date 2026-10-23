@@ -2197,3 +2197,18 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes for Abdullah**
 - Asked where the hold webhook URL goes: it is an endpoint the team hosts (a route in their app, a serverless function, or a relay that starts a CI job). Without one, keep the default wait mode, or pause and call `guard.resume()` on a timer (it returns `suspended` while the hold is pending). The timer option is not on the "Pause on a hold" page yet
+
+### 2026-10-23 · Session 29 (cont.) · Phase 6.7 — Policy page on phones
+
+**Done**
+- Policy tab at 375 px: CodeMirror's long YAML lines became the minimum content width of the card grids, so the editor (764 px) pushed its card to 800 px and the history list to 964 px; the right side was clipped (the Publish button, "Diff vs active" and "Roll back" were unreachable) and the diff showed only the old side. Fix: `grid-cols-[minmax(0,1fr)]` on the policy, test and history card content, so the editor fits (303 px) and scrolls sideways inside itself; `DiffView` uses CodeMirror's unified merge view below 640 px (`useSyncExternalStore` over `matchMedia`, no new dependency) and keeps the side-by-side view above. Test results already scrolled inside their own box
+
+**Problems hit and how they were solved**
+- Docker Desktop had stopped between tasks and the dev server died with `ECONNREFUSED` → restarted Docker and the server
+- Full `turbo run typecheck lint test` failed once each in sdk, cli, evals and server across three runs (one test each time, a different package each run); every package passed when run alone (sdk 39, cli 20, evals 96, server 258). Timing flakes under parallel load right after Docker restarted, not this change (inbox only). Worth watching
+
+**Numbers**
+- Headless Edge, 375 px and 1280 px, light and dark, three states each (editor, test + diff, show changes): no element off screen, no page overflow. Desktop unchanged (editor 905 px, side-by-side diff)
+
+**Next**
+- API keys tab on phones (round 3)

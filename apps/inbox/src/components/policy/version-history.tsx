@@ -65,7 +65,7 @@ export function VersionHistory({
       <CardHeader>
         <CardTitle>History</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-4">
         <ul className="-my-2 grid divide-y text-sm">
           {versions.map((v) => {
             const isActive = v.version === active.version;

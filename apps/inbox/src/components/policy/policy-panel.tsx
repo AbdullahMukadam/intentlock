@@ -133,7 +133,7 @@ export function PolicyPanel({ agentId }: { agentId: string }) {
               : "Read-only: only admins can change policies."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowChanges((s) => !s)}>
               {showChanges ? "Hide changes" : `Show changes vs v${active.version}`}
