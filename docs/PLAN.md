@@ -406,10 +406,11 @@ TriStack (`github.com/AbdullahMukadam/tristack`, local `C:\Users\Abdullah\Deskto
 
 - [x] **Tables on phones.** The stacked card layout made each Activity row about 10 lines tall. Tables now stay tables on phones (header shown, one line per row) and scroll sideways inside their panel, like the shadcn tasks table. The card-only classes were removed from `@intentlock/ui` `Table`
 - [x] **Email templates.** Invite and password-reset emails were plain text only; the hold email had its own HTML. One shared layout (`mail/utils/email-layout.util.ts`: wordmark, accent bar per email type, details table, code block, button plus a pasteable fallback link, preheader, footer) now renders all three, with every value HTML-escaped (unit test). The plain-text part stays for clients without HTML
-- [ ] **Custom domain.** The site moved to `intentlock.space` and the inbox to `app.intentlock.space` (Cloudflare DNS, Vercel CNAME DNS-only). Replace the `<vercel-domain>` and `workers.dev` placeholders in DEPLOYMENT §9 with the real domains, add the custom-domain steps (§9.2), and check `PUBLIC_URL` on Render and the OAuth callback URLs point at `app.intentlock.space`
-- [ ] **Sign-in link from build config.** `apps/site/src/lib/links.ts` hardcodes the inbox URL; read it from `INBOX_URL` (already declared in `astro.config.ts` and passed through Turbo) so a self-hosted copy of the site points at its own inbox
-- [ ] **Email in dark mode and real clients.** Send the three emails through Mailpit and to Gmail, Outlook and Apple Mail; check the accent bar and rounded card (some clients drop `overflow:hidden` and `border-radius`) and dark-mode colour inversion; fix what breaks
 - [ ] **Pausable holds (ADR-080, accepted 2026-10-23).** Today the agent process waits for the whole hold and loses the run if it dies. Build: hold-resolved events written with the status change and delivered by a Postgres `SKIP LOCKED` worker as signed webhooks with retries; file and S3-compatible checkpoint stores with optional AES-GCM; resume checks the hold's exact call before running it. TriStack: Supabase Storage bucket and a `repository_dispatch` resume job. Tests: approve, reject and expire while paused; tampered checkpoint (different call) refused; webhook retried after a failure and delivered once; process restart between pause and resume
+- [ ] **Hold outcomes on phones.** The Overview hold-outcomes panel (`overview/hold-outcomes.tsx`) does not fit a phone screen. Make it readable at 375 px (chart, legend and numbers stack or wrap; no clipped labels, no page-wide horizontal scroll); check light and dark
+- [ ] **Policy page on phones.** The agent's policy tab (`policy/policy-panel.tsx`, `policy-editor.tsx`, `test-panel.tsx`, `diff-view.tsx`, `version-history.tsx`) is hard to use on a phone. Editor full width with a usable height, action buttons wrap, the test results and version history readable, the diff usable (stacked instead of side by side if needed); editing YAML on a phone only has to work, not be pleasant
+- [ ] **API keys tab on phones.** `agents/api-keys-table.tsx` and the create-key form on the agent page: the table scrolls inside its panel like the other tables, the create form and the one-time key reveal fit the screen, the key can be copied
+- [ ] **Visual policy builder.** Build and edit rules with forms instead of YAML: pick tools, add argument conditions (`eq`, `in`, `glob`, `lte`, ...), user/role/group match, decision, approvers and timeout for holds, drag to reorder (first match wins). It writes the same YAML (round-trip with the editor, no second format), validates with core `parsePolicy` as you go, and publishes through the existing publish route (409 on a stale base). ADR first: free or paid (it is listed as a paid candidate in Phase 7), which rule shapes the form covers and how YAML it cannot show is handled (fall back to the editor). Tests: form → YAML → form round-trip for every rule type
 
 **After launch (v0.2, decide with early-user feedback)**
 - The MCP proxy (Phase 7) is the next headline feature; a Python SDK is not planned
@@ -438,7 +439,7 @@ Added on 2026-10-19 with Abdullah, as the first item after the Phase 6.7 build w
 
 - `packages/mcp-proxy`: moved to Phase 7.1
 - ~~Inbox team page (list, add, disable, re-issue token) for admins~~ moved to Phase 5.5
-- [ ] Visual policy rule builder (paid feature candidate)
+- [ ] Visual policy rule builder (paid feature candidate) → moved to Phase 6.7 round 3
 - [ ] Second-admin approval for policy changes (paid feature candidate)
 - [ ] Per-tool argument redaction in the dashboard (paid feature candidate)
 - [ ] Audit retention purge per license `retentionDays` (with verifiable export before purge)
