@@ -2279,3 +2279,16 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes for Abdullah**
 - Nothing in TriStack is pushed yet; the branch is local
+
+### 2026-10-24 · Session 29 (cont.) · Pausable holds live on TriStack
+
+**Done**
+- Abdullah set the six checkpoint settings, the dispatch token, the webhook URL and deployed the `intentlock-relay` Edge Function (`--use-api`, no Docker); TriStack PR #35 merged
+- Live test, issue #36 ("Go chi scaffold fails to build after choosing PostgreSQL"): triage run 40104187780 allowed `github_get_issue`, four `github_add_label` and `github_search_issues`, held `github_post_comment` (`hold-comments`) and ended with "Paused on hold cmvmilyu6000001chkr8z0ddm". Abdullah approved in the inbox; resume run 40104383092 (`repository_dispatch`) posted the comment. Labels on the issue: bug, needs-repro, go, chi
+
+**Problems hit and how they were solved**
+- First relay deploy: run from the TriStack root (wrong folder) and Docker not running → deploy from `.github/triage-bot` with `--use-api`
+- Resume logged `token refresh failed: … 409 (plan_not_active)`: the plan's only required step had run in the first job, so the server treats the plan as completed and refuses refresh. Harmless here (token still valid, approved call ran, model finished). Backlog item: refresh only when needed
+
+**Numbers**
+- Pause to approval to posted comment worked first time; the triage job no longer waits for the approval (it used to hold the runner up to 30 min)
