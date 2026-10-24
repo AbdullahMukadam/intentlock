@@ -2133,3 +2133,129 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Docs: the CLI reference installs with `npm install -g @intentlock/cli`; self-host keygen and the Audit page use `npx -y @intentlock/cli …`; the policies page and "Protect your agent" link to the install line. CHANGELOG `Unreleased`, CONTRIBUTING, README and STRUCTURE updated
 - Nothing published: the CLI ships in the next `pnpm release`
 - Abdullah published `@intentlock/cli` 0.2.1 with `npm publish`; its dependencies kept `workspace:*` and `catalog:`, and `npm install --dry-run @intentlock/cli` fails with `EUNSUPPORTEDPROTOCOL`. The CLI's source has not changed since v0.2.1 and it imports only core exports that exist in core 0.2.1 (`API_ENDPOINTS`, `apiPath`, `IntentlockError`, `Role`, `parsePolicy`, `verifyChain`), so the CLI is bumped alone to 0.2.2 for `pnpm publish` (packed deps: `@intentlock/core` `0.2.1`, `zod` `^4.6.5`). One-off lockstep break, noted in ADR-079
+
+### 2026-10-22 · Session 28 · Phase 6.7 — Phone tables, domain, email templates
+
+**Done**
+- Tables on phones: back to real tables that scroll sideways (Abdullah's reference: the shadcn tasks table) instead of stacked cards; card-only classes removed from `@intentlock/ui` `Table` (merged in PR #16). Reset buttons on Activity and Holds filters restyled
+- Custom domain: site on `intentlock.space` (Cloudflare Worker custom domain, after deleting the registrar's imported A/CNAME records), inbox on `app.intentlock.space` (Vercel, CNAME DNS-only); site Sign in link points at the new inbox. Production site build checked locally with the real `SITE_URL`/`INBOX_URL` (27 pages, `og:url` correct); the live site still served the old link until Workers Builds deploys the merge
+- TriStack demo data: six issues (#23–#28) on `AbdullahMukadam/tristack` triggered six `issues: opened` triage runs, one with a hidden injection; issues closed afterwards
+- Email templates: shared layout `apps/server/src/mail/utils/email-layout.util.ts`; invite and password-reset emails now have HTML (they were text only), the hold email uses the same layout. Rendered all three with headless Edge at 640 and 500 px
+
+**Numbers**
+- Server unit tests 73 passed (new `email-layout.util.test.ts`: escaping of every field, link in button and fallback, optional sections left out); server typecheck and eslint green
+
+**Next**
+- Round 3 open items in PLAN: DEPLOYMENT domain update, Sign-in link from `INBOX_URL`, emails checked in real clients
+
+**Notes for Abdullah**
+- Check the TriStack runs #23/#24 in the inbox; they were still running (maybe on a hold) when the issues were closed
+
+### 2026-10-23 · Session 29 · Phase 6.7 — Pausable holds (ADR-080)
+
+**Done**
+- Pausable holds, Intentlock side (PLAN round 3). Abdullah approved four shapes first: the wait route returns the held call (no new route), `PUT/DELETE /v1/agents/:id/webhook` with an inbox panel, hand-written S3 Signature V4 (no `@aws-sdk`), and TriStack as a separate follow-up task. Abdullah also asked that the feature stay generic (any receiver, any store), not TriStack-shaped
+- Core: `signWebhook`/`verifyWebhook` (HMAC-SHA256 over WebCrypto, `t=…,v1=…`, 5 min tolerance), `HoldWebhookEvent`, `HoldInfo`, `GatePlanState`, `WebhookEventType`; `HoldStatus` moved here from sdk (sdk still exports it); `API_ENDPOINTS.AGENT_WEBHOOK`
+- Server: migration `20261023120000_hold_events` (`Agent.webhookUrl`/`webhookSecret`, `HoldEvent` with a partial index on due rows). Approve, reject, bulk resolve, expiry and agent delete insert events in the same transaction (only for agents with a URL). `HoldWebhooks` claims with `UPDATE … FROM (SELECT … FOR UPDATE SKIP LOCKED)` and a 60 s lease, posts signed events, retries 10 s → 2 h (8 attempts), fails at once when the URL was removed, audits each attempt as `hold_webhook`. Admin route audited as `agent_webhook_set`/`agent_webhook_removed`; the secret (`il_whsec_…`) is shown once
+- SDK: optional `Gate.holdInfo`, `exportPlan`, `importPlan`; `HybridGate` exports its client chain head, per-step usage and completion tracking and seeds them in a new process (`MemoryOutbox.head/seed`); `HttpGate.holdInfo`
+- Guard: `onHold: HoldMode.SUSPEND`, `RunStatus.SUSPENDED` with `holdIds` and a zod-validated `Checkpoint`; `guard.resume()` matches every held call against the server (plan, call id, tool, JCS args), returns `suspended` while any is pending, imports gate state, refreshes the token and continues the loop. `FileCheckpointStore`, `S3CheckpointStore`, AES-256-GCM codec with the store key as AAD
+- Inbox: Hold webhook panel on the agent Overview (admin), URL in Details for everyone; checked with headless Edge at 375 px and 1280 px, light and dark, including the secret reveal (no horizontal overflow)
+- Docs: site page "Pause on a hold", HTTP API reference, guard options, holds concept; ARCHITECTURE §5.1/§5.3/§7.3/§7.7, STRUCTURE, ADR-080 build notes, CHANGELOG
+
+**Problems hit and how they were solved**
+- A resume in a fresh process would restart the hybrid client chain at 1 and the server would reject it → the checkpoint carries the gate's plan state; `hybrid.e2e.test.ts` resumes with a new gate and a new outbox dir and gets seq 1–4, nothing flagged, no `client_gap`
+- Resolving a hold kicks delivery in the background, so a test that edited the event before the first attempt raced it → tests let the first attempt run, then edit the row
+- `holds.e2e.test.ts` pinned the wait response as exactly `{ status }` → `toMatchObject`; the full new shape is pinned in `hold-webhooks.e2e.test.ts`
+- The phone Details cell truncated the webhook URL → it wraps
+- `next dev` stopped once to print a Next.js 16.4.0 security upgrade notice; restarted, upgrade not run (it downloads)
+
+**Decisions**
+- ADR-080 build notes: routes, plan-id keyed checkpoints, `resume(checkpoint)` without an outcome argument, gate state in the checkpoint, delivery details, no new dependencies
+
+**Numbers**
+- Server 258 tests (48 files, incl. 7 new webhook e2e and 1 restart e2e), guard 59, sdk 39, core 150, inbox 110, site 9; full `pnpm test`, `pnpm lint`, `pnpm typecheck` green
+- SigV4 signer matches the AWS published GET Object example signature
+
+**Next**
+- Hold outcomes on phones (round 3)
+
+**Notes for Abdullah**
+- The dev database got the new migration with `prisma migrate deploy` (no reset). The screenshots used a temporary admin session that was deleted afterwards; setting and removing a webhook on `github-assistant` left two audit entries (`agent_webhook_set`, `agent_webhook_removed`)
+- Next.js in the inbox reports a known security advisory for 16.4.0; upgrading needs a download, so it is your call
+- TriStack wiring waits for a release of `@intentlock/core`, `sdk` and `guard`
+
+### 2026-10-23 · Session 29 (cont.) · Phase 6.7 — Hold outcomes on phones
+
+**Done**
+- Hold outcomes panel (`overview/hold-outcomes.tsx`): at 375 px the three legend items were forced into one row, so the colour swatches shrank to nothing (only a sliver of the red one showed) and "100%" touched the panel edge. The legend is now one row per outcome below `sm` and three columns from `sm` up; swatches are `shrink-0`, counts `whitespace-nowrap`. The chart bar already scaled to the width
+
+**Numbers**
+- Headless Edge at 375 px and 1280 px, light and dark: no horizontal page overflow, no element inside the panel clipped or outside it. Inbox 110 tests; full typecheck, lint and test green (38 tasks)
+
+**Next**
+- Policy page on phones (round 3)
+
+**Notes for Abdullah**
+- Asked where the hold webhook URL goes: it is an endpoint the team hosts (a route in their app, a serverless function, or a relay that starts a CI job). Without one, keep the default wait mode, or pause and call `guard.resume()` on a timer (it returns `suspended` while the hold is pending). The timer option is not on the "Pause on a hold" page yet
+
+### 2026-10-23 · Session 29 (cont.) · Phase 6.7 — Policy page on phones
+
+**Done**
+- Policy tab at 375 px: CodeMirror's long YAML lines became the minimum content width of the card grids, so the editor (764 px) pushed its card to 800 px and the history list to 964 px; the right side was clipped (the Publish button, "Diff vs active" and "Roll back" were unreachable) and the diff showed only the old side. Fix: `grid-cols-[minmax(0,1fr)]` on the policy, test and history card content, so the editor fits (303 px) and scrolls sideways inside itself; `DiffView` uses CodeMirror's unified merge view below 640 px (`useSyncExternalStore` over `matchMedia`, no new dependency) and keeps the side-by-side view above. Test results already scrolled inside their own box
+
+**Problems hit and how they were solved**
+- Docker Desktop had stopped between tasks and the dev server died with `ECONNREFUSED` → restarted Docker and the server
+- Full `turbo run typecheck lint test` failed once each in sdk, cli, evals and server across three runs (one test each time, a different package each run); every package passed when run alone (sdk 39, cli 20, evals 96, server 258). Timing flakes under parallel load right after Docker restarted, not this change (inbox only). Worth watching
+
+**Numbers**
+- Headless Edge, 375 px and 1280 px, light and dark, three states each (editor, test + diff, show changes): no element off screen, no page overflow. Desktop unchanged (editor 905 px, side-by-side diff)
+
+**Next**
+- API keys tab on phones (round 3)
+
+### 2026-10-23 · Session 29 (cont.) · Phase 6.7 — API keys tab on phones
+
+**Done**
+- API keys tab at 375 px: the header form kept its 224 px input next to the button, so "Create key" stuck out past the panel's right edge → `PanelActions` and the form are full width on phones, the input flexes (`sm:w-56` from `sm` up)
+- One-time key reveal: the key was squeezed into a 149 px column beside Copy and Done → `SecretReveal` makes the key full width below `sm` with the buttons under it (unchanged from `sm` up). This also fixes the webhook secret, invite links, CLI token and onboarding reveals, which share the component
+- The keys table already scrolled sideways inside its panel, like the other tables
+
+**Problems hit and how they were solved**
+- Copy failed in the first headless run on every size, desktop included → headless Edge only writes the clipboard for a focused page; with focus emulation the clipboard holds exactly the shown key and the button changes to "Copied". The app was fine
+
+**Numbers**
+- Headless Edge, 375 and 1280 px, light and dark, table and reveal states: no element off screen, no page overflow, copy verified. Inbox 110 tests, typecheck and lint green
+
+**Next**
+- Visual policy builder (round 3, needs an ADR first)
+
+**Notes for Abdullah**
+- The check created throwaway keys named `phone-layout-check` on `github-assistant` in the local dev database and revoked each one through the API right after (audited `api_key_created` / `api_key_revoked`); they show as Revoked in the list
+- Port 3001 was already serving the inbox on Next 16.4.2 (not started by me); I used it and left it running
+
+### 2026-10-24 · Session 29 (cont.) · Phase 6.7 — Visual policy builder (ADR-081)
+
+**Done**
+- ADR-081 (Abdullah: free; a form edit rewrites the YAML and warns first about comments and anchors; drag plus up/down, no drag library)
+- Core: `policyToYaml` (standard layout: block rules, flow `match`/`except`/`approvers`, empty approver fields and `self: false` left out) and `yamlExtras` (comments, anchors/aliases). `to-yaml.test.ts`: a policy with every rule type, argument condition, user field, `except`, tool list and `inPlan` round-trips exactly and serializes the same twice; the starter policy and an empty match survive
+- Inbox: Form/YAML switch on the policy tab (Form by default, "Show changes" only in YAML). `PolicyForm` keeps its own draft while it is the one that wrote the YAML, so half-typed values (an invalid id, "1.") don't throw the form away; a YAML change from the editor re-derives it. `RuleCard` (id, decision, reorder, delete, except, approvers and timeout for holds, reason), `MatchFields` (tools, plan, user email/role/group, argument rows with all eight conditions), `LooseInput` (keeps typed text such as a trailing comma). Comments or anchors: form read-only with "Edit in form" behind a confirm. Values the form can't keep (objects or lists in `eq`, `null`, quoted numbers or booleans, list items with commas): that rule is read-only and written back unchanged. YAML errors: "Fix the YAML first"
+- `policy-form.test.ts`: form → YAML → form for every rule type and condition built through the form's own parsing, which values fit, text ↔ value for every condition
+- Docs: policies concept page, ARCHITECTURE §5.9, STRUCTURE, README roadmap, CHANGELOG; Phase 7 "visual rule builder (paid candidate)" closed
+
+**Problems hit and how they were solved**
+- Placeholders such as `github_post_comment, github_*` read like real values on empty fields in dark mode → "any tool" and "none"
+
+**Numbers**
+- Core 156 tests, inbox 124, site 9; full typecheck and lint green (27 tasks). Headless Edge at 375 and 1280 px, light and dark: add a rule, make it a hold, add an argument condition, move it up; the YAML view shows the new rule in place; no element off screen, no console errors. The full test run across all packages was not repeated after this change (the core change only adds exports)
+
+**Next**
+- Round 3 is done. Open: Pausable holds in TriStack (after the next npm release), TriStack triage bot on `issues: opened`
+
+**Notes for Abdullah**
+- The comments warning path ("Edit in form" on a commented policy) is covered by the core `yamlExtras` tests but was not clicked through in a browser
+- Nothing was published to the dev database; all edits were in the browser only
+
+### 2026-10-24 · Session 29 (cont.) · Release 0.3.0 prepared
+
+- Abdullah asked for a new npm release before merging this branch. Bumped `core`, `sdk`, `guard`, `anthropic`, `mcp-proxy` and `cli` to 0.3.0 (the CLI is back in lockstep after its one-off 0.2.2, ADR-079), the self-host bundle and its env example to `INTENTLOCK_VERSION` 0.3.0, the deployment docs page, and `CHANGELOG.md` (`## 0.3.0 · 2026-10-24`, completed with everything since 0.2.1)
+- `pnpm release` only runs on an up-to-date, clean `main` and asks for a typed `yes` and the npm 2FA code, so the publish itself happens after the merge, from Abdullah's terminal

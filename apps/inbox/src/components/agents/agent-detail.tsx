@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import { DecisionTable } from "@/components/activity/decision-table";
 import { ApiKeysTable } from "@/components/agents/api-keys-table";
+import { WebhookPanel } from "@/components/agents/webhook-panel";
 import { useMe } from "@/components/app-shell";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DetailGrid, DetailItem } from "@/components/detail-grid";
@@ -52,7 +53,8 @@ const COUNTS = [
   { key: "hold", label: "Held", dot: "bg-warning" },
 ] as const;
 
-function Overview({ agent }: { agent: AgentView }) {
+function Overview({ agent, onChange }: { agent: AgentView; onChange: () => void }) {
+  const me = useMe();
   return (
     <div className="grid gap-6">
       <Panel>
@@ -75,6 +77,9 @@ function Overview({ agent }: { agent: AgentView }) {
               {agent.policyVersion ? `v${agent.policyVersion}` : "—"}
             </DetailItem>
             <DetailItem label="Active API keys">{agent.activeKeys}</DetailItem>
+            <DetailItem label="Hold webhook">
+              <span className="whitespace-normal break-all">{agent.webhookUrl ?? "Not set"}</span>
+            </DetailItem>
             <DetailItem label="Created">{formatTime(agent.createdAt)}</DetailItem>
           </DetailGrid>
         </PanelBody>
@@ -100,6 +105,9 @@ function Overview({ agent }: { agent: AgentView }) {
           ))}
         </PanelBody>
       </Panel>
+      {!agent.deletedAt && can(me.role, UiAction.MANAGE_WEBHOOK) && (
+        <WebhookPanel agent={agent} onChange={onChange} />
+      )}
     </div>
   );
 }
@@ -146,10 +154,11 @@ function DeleteAgent({ agent }: { agent: AgentView }) {
 
 export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }) {
   const me = useMe();
-  const { data: agent, error } = useApi(
-    apiUrl(API_ENDPOINTS.AGENT, { params: { id: agentId } }),
-    AgentViewSchema,
-  );
+  const {
+    data: agent,
+    error,
+    reload,
+  } = useApi(apiUrl(API_ENDPOINTS.AGENT, { params: { id: agentId } }), AgentViewSchema);
 
   if (error) {
     const notFound = error instanceof ApiError && error.status === HttpStatus.NOT_FOUND;
@@ -230,7 +239,7 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
           </Link>
         ))}
       </nav>
-      {current === AgentTab.OVERVIEW && <Overview agent={agent} />}
+      {current === AgentTab.OVERVIEW && <Overview agent={agent} onChange={reload} />}
       {current === AgentTab.POLICY && <PolicyPanel agentId={agentId} />}
       {current === AgentTab.API_KEYS && <ApiKeysTable agentId={agentId} />}
       {current === AgentTab.ACTIVITY && (

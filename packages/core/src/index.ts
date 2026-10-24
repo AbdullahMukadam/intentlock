@@ -1,9 +1,11 @@
 export { BlockReason } from "./enums/block-reason.enum.js";
 export { ClientBlockReason } from "./enums/client-block-reason.enum.js";
 export { ClientEntryKind } from "./enums/client-entry-kind.enum.js";
+export { HoldStatus } from "./enums/hold-status.enum.js";
 export { HoldResolveOutcome } from "./enums/hold-resolve-outcome.enum.js";
 export { ReportOutcome } from "./enums/report-outcome.enum.js";
 export { Verdict } from "./enums/verdict.enum.js";
+export { WebhookEventType } from "./enums/webhook-event-type.enum.js";
 export { API_ENDPOINTS, apiPath, type ApiEndpoint } from "./api/endpoints.js";
 export { chainClientEntry, hashClientEntry, type NewClientEntry } from "./audit/client-chain.js";
 export { GENESIS, hashEntry } from "./audit/hash-entry.js";
@@ -59,3 +61,14 @@ export {
 } from "./schemas/plan.js";
 export { ApproverSpec, Match, PolicySet, Role, Rule } from "./schemas/policy.js";
 export { ToolCall } from "./schemas/tool-call.js";
+export {
+  HoldWebhookEvent,
+  signWebhook,
+  verifyWebhook,
+  WEBHOOK_EVENT_ID_HEADER,
+  WEBHOOK_SIGNATURE_HEADER,
+  WEBHOOK_TOLERANCE_SECONDS,
+} from "./webhook/hold-webhook.js";
+export { GatePlanState } from "./schemas/gate-plan-state.js";
+export { HoldInfo } from "./schemas/hold-info.js";
+export { policyToYaml, yamlExtras, type PolicyDraft, type YamlExtras } from "./policy/to-yaml.js";

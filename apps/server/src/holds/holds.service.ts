@@ -31,12 +31,14 @@ import { toJson } from "../common/utils/to-json.util.js";
 import { type Hold, HoldStatus } from "../generated/prisma/client.js";
 import { KeysService } from "../keys/keys.service.js";
 import { HoldNotifier } from "./hold-notifier.service.js";
+import { HoldWebhooks } from "./hold-webhooks.service.js";
 import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
 import { EXPIRY_INTERVAL_MS, MAX_LISTED_HOLDS, WAIT_POLL_MS } from "./constants/hold.constants.js";
 import { HoldError } from "./enums/hold-error.enum.js";
 import type { HoldState } from "./enums/hold-state.enum.js";
+import { type HoldWaitView, toHoldWaitView } from "./utils/to-hold-wait-view.util.js";
 import type { NewHold } from "./types/new-hold.type.js";
 import { toHoldState, toHoldStatus } from "./utils/hold-state.util.js";
 import { emailsById } from "../users/utils/emails-by-id.util.js";
@@ -59,6 +61,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
     private readonly keys: KeysService,
     private readonly events: EventsService,
     private readonly notifier: HoldNotifier,
+    private readonly webhooks: HoldWebhooks,
   ) {}
 
   onModuleInit() {
@@ -135,11 +138,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
     };
   }
 
-  async wait(
-    caller: AgentCaller,
-    holdId: string,
-    timeoutSeconds: number,
-  ): Promise<{ status: HoldState }> {
+  async wait(caller: AgentCaller, holdId: string, timeoutSeconds: number): Promise<HoldWaitView> {
     const db = orgDb(this.prisma, caller.orgId);
     const deadline = Date.now() + timeoutSeconds * 1000;
     for (;;) {
@@ -151,7 +150,7 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
       }
       const remaining = deadline - Date.now();
       if (hold.status !== HoldStatus.PENDING || remaining <= 0 || this.shutdown.signal.aborted) {
-        return { status: toHoldState(hold.status) };
+        return toHoldWaitView(hold);
       }
       await sleep(Math.min(WAIT_POLL_MS, remaining), undefined, {
         signal: this.shutdown.signal,
@@ -217,9 +216,11 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
         ],
         tx,
       );
+      await this.webhooks.enqueue(tx, user.orgId, [holdId]);
       return tx.hold.findFirstOrThrow({ where: { id: holdId } });
     });
     this.announceResolved(resolved);
+    this.webhooks.kick();
     return toHoldView(resolved, new Map([[user.id, user.email]]));
   }
 
@@ -259,11 +260,17 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
               })),
               tx,
             );
+            await this.webhooks.enqueue(
+              tx,
+              user.orgId,
+              rows.map((h) => h.id),
+            );
           }
           return rows;
         })
       : [];
     for (const row of updated) this.announceResolved({ ...row, orgId: user.orgId, status });
+    if (updated.length > 0) this.webhooks.kick();
 
     const done = new Set(updated.map((h) => h.id));
     const mayResolve = new Set(allowed);
@@ -304,12 +311,18 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
             })),
             tx,
           );
+          await this.webhooks.enqueue(
+            tx,
+            orgId,
+            rows.map((h) => h.id),
+          );
         }
         return rows;
       })
       .then((rows) => {
         for (const row of rows)
           this.announceResolved({ ...row, orgId, status: HoldStatus.EXPIRED });
+        if (rows.length > 0) this.webhooks.kick();
         return rows.length;
       });
   }
@@ -336,10 +349,16 @@ export class HoldsService implements OnModuleInit, BeforeApplicationShutdown {
         })),
         tx,
       );
+      await this.webhooks.enqueue(
+        tx,
+        admin.orgId,
+        rows.map((h) => h.id),
+      );
     }
     return () => {
       for (const row of rows)
         this.announceResolved({ ...row, orgId: admin.orgId, status: HoldStatus.REJECTED });
+      if (rows.length > 0) this.webhooks.kick();
     };
   }
 

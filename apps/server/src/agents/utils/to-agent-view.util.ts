@@ -11,6 +11,7 @@ export function toAgentView(
     description: agent.description,
     disabledAt: agent.disabledAt,
     deletedAt: agent.deletedAt,
+    webhookUrl: agent.webhookUrl,
     createdBy: agent.createdBy,
     createdAt: agent.createdAt,
     activeKeys: agent._count.apiKeys,

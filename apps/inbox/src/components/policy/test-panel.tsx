@@ -187,7 +187,7 @@ export function TestPanel({
           Nothing is saved.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3">
+      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <Textarea
           aria-label="Sample calls (JSON)"
           value={samples}

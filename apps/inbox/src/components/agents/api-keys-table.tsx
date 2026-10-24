@@ -94,15 +94,15 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
             API keys
             {data && <PanelCount>{data.filter((k) => !k.revokedAt).length}</PanelCount>}
           </PanelTitle>
-          <PanelActions>
-            <form action={create} className="flex gap-2">
+          <PanelActions className="w-full sm:w-auto">
+            <form action={create} className="flex w-full gap-2">
               <Input
                 name="name"
                 aria-label="Key name"
                 placeholder="Where it runs, e.g. production"
                 maxLength={64}
                 required
-                className="h-8 w-56"
+                className="h-8 min-w-0 flex-1 sm:w-56 sm:flex-none"
               />
               <Button type="submit" size="sm" loading={busy}>
                 {!busy && <Plus />} Create key

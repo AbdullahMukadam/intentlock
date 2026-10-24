@@ -57,7 +57,7 @@ await gate.close();
 1. Asks the model to call a built-in `declare_plan` tool with the steps it needs. The model sees the task and each tool's name, description and argument names, but no tool output and not your policy. Only your tools may appear in the plan.
 2. Signs the plan through the gate.
 3. Runs the tool loop. Each call is checked: allowed calls run your `impl`, everything else returns an error result so the model can continue or stop.
-4. Ends when the model stops calling tools (`completed`) or after `maxTurns` (`max_turns`).
+4. Ends when the model stops calling tools (`completed`), after `maxTurns` (`max_turns`), or, with `onHold: suspend`, when a call is held (`suspended`).
 
 ## Tools
 
@@ -74,6 +74,7 @@ await gate.close();
 | `gate` | | `HybridGate`, `HttpGate` or `LocalGate`. See [Gates](/docs/sdk/gates/). |
 | `tools`, `impls` | | Use `...toolset([...])`. |
 | `planSource` | `planner` | `explicit`: you pass `steps` to `run()` instead of letting the model plan. |
+| `onHold` | `wait` | `suspend`: return a checkpoint instead of waiting, and resume later with `guard.resume()`. See [Pause on a hold](/docs/sdk/pausable-holds/). |
 | `holdTimeoutMs` | `300000` | How long a held call waits before it counts as rejected. |
 | `maxTurns` | `20` | Model turns after the plan is signed. |
 | `system`, `maxTokens` | | Passed to the provider. |

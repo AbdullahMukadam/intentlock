@@ -53,6 +53,16 @@ export class MemoryOutbox {
     await this.removeIfFinished(planId, state);
   }
 
+  head(planId: string): Pick<ClientEntry, "clientSeq" | "localHash"> | null {
+    const last = this.plans.get(planId)?.last;
+    return last ? { clientSeq: last.clientSeq, localHash: last.localHash } : null;
+  }
+
+  seed(planId: string, head: Pick<ClientEntry, "clientSeq" | "localHash">): void {
+    const state = this.state(planId);
+    if ((state.last?.clientSeq ?? 0) < head.clientSeq) state.last = head;
+  }
+
   unackedCount(): number {
     let n = 0;
     for (const s of this.plans.values()) n += s.pending.length;

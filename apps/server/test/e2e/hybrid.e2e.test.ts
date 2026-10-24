@@ -241,6 +241,44 @@ describe("HybridGate", () => {
     await gate.close();
   });
 
+  it("pause and resume in a new process: the held call matches and the client chain continues", async () => {
+    const paused = hybrid({ outboxDir: await outboxDir() });
+    const signed = await paused.signPlan(planFor(user, STEPS));
+    await paused.check(signed.token, call("github_list_issues", { repo: "acme/app" }));
+    const commentCall = call("github_post_comment", { repo: "acme/app" });
+    const held = await paused.check(signed.token, commentCall);
+    if (held.verdict !== Verdict.HOLD) throw new Error("expected a hold");
+    const state = JSON.parse(JSON.stringify(await paused.exportPlan(signed.planId))) as unknown;
+    await paused.close();
+
+    await request(app.getHttpServer())
+      .post(`/v1/holds/${held.holdId}/approve`)
+      .set("Cookie", approver.cookie)
+      .set(CSRF)
+      .send({})
+      .expect(200);
+
+    const resumed = hybrid({ outboxDir: await outboxDir() });
+    await resumed.importPlan(signed.planId, state);
+    expect(await resumed.holdInfo(held.holdId)).toEqual({
+      status: "approved",
+      planId: signed.planId,
+      callId: commentCall.callId,
+      tool: commentCall.tool,
+      args: commentCall.args,
+    });
+    const { token } = await resumed.refresh(signed.planId, signed.token);
+    await resumed.report(token, commentCall.callId, ReportOutcome.OK);
+    await resumed.check(token, call("github_list_issues", { repo: "acme/app" }));
+    await resumed.close();
+
+    const entries = await clientEntries();
+    expect(entries.map((e) => e.clientSeq)).toEqual([1, 2, 3, 4]);
+    expect(entries.filter((e) => e.flagged !== null)).toEqual([]);
+    expect(await prisma.auditEntry.count({ where: { kind: AuditKind.CLIENT_GAP } })).toBe(0);
+    expect(await verifyAuditChain(prisma)).toMatchObject({ ok: true });
+  });
+
   it("after a crash, a new process uploads the leftovers exactly once", async () => {
     const dir = await outboxDir();
     const net = switchableFetch();

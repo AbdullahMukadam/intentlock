@@ -242,6 +242,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/agents` | `{ name, description? }` → `Agent` (created with the starter policy as v1) | Auth: session (admin). Fails if license `maxAgents` reached |
 | GET · PATCH | `/v1/agents/:id` | `{ name?, description?, disabled? }` → `Agent` | Auth: session (PATCH admin). Disabling blocks new plans for the agent. GET still returns a deleted agent; PATCH, policy and API-key routes 404 for it |
 | DELETE | `/v1/agents/:id` | → 204 | Auth: session (admin). Archives the agent (ADR-075): revokes its keys, rejects its pending holds, frees its license slot and name; audited `agent_deleted` |
+| PUT · DELETE | `/v1/agents/:id/webhook` | `{ url }` → `{ url, secret }` / 204 | Auth: session (admin). Sets the hold-resolved webhook; the signing secret (`il_whsec_…`) is shown once and replaced on every PUT; audited `agent_webhook_set` / `agent_webhook_removed` (ADR-080). The agent view shows `webhookUrl`, never the secret |
 | POST | `/v1/agents/:id/api-keys` | `{ name }` → `{ id, prefix, key }` | Auth: session (admin). Key shown once |
 | GET | `/v1/agents/:id/api-keys` | → `{ id, name, prefix, createdBy (email), createdAt, lastUsedAt, revokedAt }[]` | Auth: session (admin) |
 | DELETE | `/v1/agents/:id/api-keys/:keyId` | → 204 | Auth: session (admin). Revoke: immediate for new plans |
@@ -260,7 +261,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | POST | `/v1/plans/:id/refresh` | `{ token }` → `{ token, expiresAt }` | Same plan hash only |
 | POST | `/v1/check` | `{ token, call }` → `GateDecision` | `remote` mode. Audits every decision; creates hold if needed |
 | POST | `/v1/holds` | `{ token, call, ruleId }` → `{ holdId, approvers, timeoutSeconds }` | `hybrid` mode. Server re-runs `check()` and only creates the hold if it also returns `hold` |
-| GET | `/v1/holds/:id/wait?timeout=25` | → `{ status: pending\|approved\|rejected\|expired }` | Long-poll, max 25 s per request; client loops |
+| GET | `/v1/holds/:id/wait?timeout=25` | → `{ status: pending\|approved\|rejected\|expired, planId, callId, tool, args }` | Long-poll, max 25 s per request; client loops. `timeout=0` answers at once; resume matches its checkpoint against the call fields (ADR-080) |
 | GET | `/v1/holds?status=pending` | → `Hold[]` | Auth: session. Approvers see holds they may approve; members see their own. `resolvedBy` is the approver's email (also in run detail) |
 | POST | `/v1/holds/:id/approve` · `/reject` | `{ note? }` → `Hold` | Auth: **session only**. Approver = signed-in user, must satisfy the hold's `ApproverSpec`; audited |
 | POST | `/v1/holds/resolve` | `{ ids (1–100), approve, note? }` → `{ results: { id, outcome }[], resolved, skipped }` | Auth: **session only**. Resolves each id on its own, exactly like approve/reject; `outcome` is `HoldResolveOutcome` (ADR-076) |
@@ -302,6 +303,8 @@ model Agent {
   description String?
   disabledAt  DateTime?
   deletedAt   DateTime?                      // archived, never removed (ADR-075)
+  webhookUrl    String?                      // hold-resolved webhook (ADR-080)
+  webhookSecret String?                      // HMAC key for that webhook, shown once
   createdBy   String
   createdAt   DateTime  @default(now())
   apiKeys     ApiKey[]
@@ -479,11 +482,28 @@ model Hold {
 
 enum HoldStatus { PENDING APPROVED REJECTED EXPIRED }
 
+// Outbox of hold-resolved webhooks (ADR-080): written in the same transaction as the status change,
+// only when the agent has a webhookUrl; delivered by HoldWebhooks with FOR UPDATE SKIP LOCKED.
+model HoldEvent {
+  id            String     @id @default(cuid())
+  orgId         String
+  agentId       String
+  holdId        String
+  planId        String
+  status        HoldStatus
+  attempts      Int        @default(0)
+  nextAttemptAt DateTime   @default(now())   // a claim sets it 60 s ahead (lease), then the retry time
+  deliveredAt   DateTime?
+  failedAt      DateTime?                    // gave up after 8 attempts, or the webhook was removed
+  lastError     String?
+  createdAt     DateTime   @default(now())
+}
+
 model AuditEntry {
   seq        Int      @id @default(autoincrement())
   orgId      String
   at         DateTime @default(now())            // server receive time
-  kind       String   // plan_signed | check | hold_resolved | hold_notify_failed | report | client_gap | policy_published | policy_rolled_back | agent_* | api_key_* | auth_* | user_* | setup_* | invite_* | password_* | identity_* | cli_token_*
+  kind       String   // plan_signed | check | hold_resolved | hold_notify_failed | hold_webhook | report | client_gap | policy_published | policy_rolled_back | agent_* | api_key_* | auth_* | user_* | setup_* | invite_* | password_* | identity_* | cli_token_*
   origin     String   @default("server")         // server | client
   actor      String?                              // userId for human actions; agentId for agent actions
   user       String?                              // team member the agent acted for
@@ -562,6 +582,8 @@ Every method ends in the same session cookie (`httpOnly`, `Secure` on https, `Sa
 
 **Hold notifications (ADR-072).** After a hold commits, `HoldNotifier` emails each active member who may approve it and has `holdEmails` on, and posts to `HOLD_WEBHOOK_URL` if set. The webhook gets argument names only. Sending runs in the background, a failed send is retried once after 5 s, and a send that still fails is audited as `hold_notify_failed`. The hold is never changed or delayed.
 
+**Hold-resolved webhooks (ADR-080).** Approve, reject (single, bulk, agent delete) and expiry insert a `HoldEvent` in the same transaction as the status change, for agents with a `webhookUrl`. `HoldWebhooks` runs on every instance (every 5 s and right after a resolve): it claims due events with `FOR UPDATE SKIP LOCKED` and a 60 s lease, posts `{ id, type: "hold.resolved", at, holdId, planId, agentId, status }` with `intentlock-signature: t=…,v1=…` (HMAC-SHA256, `signWebhook`/`verifyWebhook` in core) and `intentlock-event-id`, and retries after 10 s, 30 s, 2 min, 10 min, 30 min, 1 h and 2 h (8 attempts). Each attempt is audited as `hold_webhook` with `delivered`, `retry` or `failed`. Delivery is at least once; receivers dedupe on the event id. The server stores no checkpoints (§7.7).
+
 **Authorization rules**
 | Action | Who |
 | --- | --- |
@@ -636,7 +658,7 @@ An **agent** is one AI application a team runs that uses tools (a GitHub triage 
 **Storage:** each agent has one `PolicySet` with immutable, numbered `PolicyVersion`s and at most one shared `PolicyDraft`. Exactly one version is active. There are no policy files on the server.
 
 **Editing flow (inbox → Agents → github-assistant → Policy):**
-1. **Edit** opens the draft (or starts one from the active version) in a CodeMirror YAML editor. The active version is untouched.
+1. **Edit** opens the draft (or starts one from the active version) in a CodeMirror YAML editor, or in the **Form** view (ADR-081): one card per rule covering every `PolicySet` field, reordered by drag or up/down. Both views edit the same YAML source; a form change serializes with core `policyToYaml` (standard layout; `parsePolicy(policyToYaml(p))` equals `p`). Comments and anchors (core `yamlExtras`) make the form read-only until the admin confirms a rewrite; rules with values the form cannot keep unchanged are read-only in the form and written back as they are. The active version is untouched.
 2. **Validate as you type:** the inbox runs `parsePolicy()` from `@intentlock/core` in the browser (pure, MIT) and shows errors on the exact line. The server validates again on save and publish; it is the source of truth.
 3. **Test (dry run):** run the draft against sample calls written in the test panel, and/or replay the last N decisions of this agent from the audit log. The result shows each decision under the active version vs the draft, with a summary such as "12 calls allowed → held, 1 allowed → blocked". Nothing is saved or executed.
 4. **Diff:** side-by-side diff of draft vs active (CodeMirror merge view).
@@ -647,7 +669,7 @@ An **agent** is one AI application a team runs that uses tools (a GitHub triage 
 
 **Git workflow (optional):** `intentlock policy pull <agent>` writes the active source to a file; `intentlock policy test <agent> file.yaml` runs the same dry run; `intentlock policy push <agent> file.yaml -m "message"` publishes through the same endpoint (same validation, same versioning, same audit).
 
-**Permissions:** admins edit, publish and roll back; approvers can view and run tests; members can view. Paid later: second-admin approval of policy changes, visual rule builder.
+**Permissions:** admins edit, publish and roll back; approvers can view and run tests; members can view. The form is free (ADR-081). Paid later: second-admin approval of policy changes.
 
 ### 5.10 Dashboard and activity
 
@@ -855,6 +877,11 @@ const result = await guard.run({ user: "alice@acme-demo.dev", task: "Triage open
 // or, with your own loop (ADR-042):
 const session = await guard.start({ user, task });        // { planId, token, user }; refresh updates session.token
 const results = await guard.execute(session, toolCalls);  // ToolCallReq[] -> tool results
+
+// pausable holds (ADR-080): createGuard({ ..., onHold: HoldMode.SUSPEND })
+const paused = await guard.run({ user, task });           // status "suspended", holdIds, checkpoint
+await store.save(paused.planId, paused.checkpoint);       // CheckpointStore: file, S3-compatible or your own
+const resumed = await guard.resume(await store.load(planId)); // from the hold-resolved webhook
 ```
 
 ### 7.4 Run sequence
@@ -910,6 +937,19 @@ sequenceDiagram
 ### 7.6 Events
 
 `{ type: "plan_signed" | "allow" | "block" | "hold" | "approved" | "rejected" | "timeout" | "error", at, user, provider, tool?, args?, ruleId?, reason?, holdId?, latencyMs? }` — `latencyMs` on every check, used by evals; `provider` so results are always labelled with the model.
+
+### 7.7 Pausable holds (ADR-080)
+
+With `onHold: suspend`, a turn that has held calls ends the run with `status: "suspended"`; the turn's other calls have run. The `Checkpoint` (zod, version 1) holds the plan id, token and user, the turn number, the messages up to the assistant turn, that turn's results with `null` for held calls, the held calls (`index`, `holdId`, `ruleId`) and the gate's plan state (`gate.exportPlan`: `HybridGate`'s client-chain head, per-step usage, required/ran steps and decision count; `null` for `HttpGate`).
+
+`guard.resume(checkpoint)`:
+1. Validates the checkpoint, then looks up every held call with `gate.holdInfo` (`GET /v1/holds/:id/wait?timeout=0`). The server's plan id, call id, tool and canonical (JCS) arguments must equal the checkpoint's call, else `CheckpointError` and nothing runs.
+2. If any hold is still pending, returns the same checkpoint (`suspended`).
+3. Imports the gate state (`gate.importPlan`; the hybrid outbox continues its chain from the saved head), refreshes the token for the same plan, settles each held call exactly like the waiting path (approved → run + report, rejected/expired → error result) and continues the loop from the next turn.
+
+`Gate.holdInfo`, `exportPlan` and `importPlan` are optional, so custom gates keep compiling; `onHold: suspend` requires `holdInfo`. `guard.execute()` keeps waiting on holds.
+
+Checkpoints stay in the team's app: `CheckpointStore` (`save`, `load`, `delete`, keyed by plan id) with `FileCheckpointStore` (mode 600, atomic rename) and `S3CheckpointStore` (path-style, Signature V4 over `fetch` + `node:crypto`). Optional AES-256-GCM (`encryptionKey`, 32 bytes base64; the store key is additional authenticated data; plain data is refused when a key is set).
 
 ## 8. Demo (`apps/demo`)
 

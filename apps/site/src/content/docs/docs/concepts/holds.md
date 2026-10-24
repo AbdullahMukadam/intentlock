@@ -19,6 +19,8 @@ A hold rule pauses a tool call until a person approves or rejects it. Use holds 
 2. An approver opens it and sees the agent, the person it acts for, the tool and its arguments.
 3. **Approved:** the tool runs. **Rejected or timed out:** the model gets an error result telling it not to retry.
 
+The agent process waits for the decision. A run that cannot stay alive that long (a CI job, a serverless function) can [pause instead](/docs/sdk/pausable-holds/) and resume from a webhook.
+
 If the wait itself fails (the server is unreachable), the call does not run, the guard emits an `error` event, and the model is told the approval could not be confirmed.
 
 ## Who can approve

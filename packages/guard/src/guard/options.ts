@@ -3,6 +3,7 @@ import type { Gate } from "@intentlock/sdk";
 import { z } from "zod";
 
 import type { LLMProvider } from "../provider/types.js";
+import { HoldMode } from "./enums/hold-mode.enum.js";
 import { PlanSource } from "./enums/plan-source.enum.js";
 import type { GuardEvent } from "./events.js";
 import { DECLARE_PLAN } from "./planner.js";
@@ -41,6 +42,7 @@ export const GuardOptions = z
       .min(1),
     impls: z.record(z.string(), z.custom<ToolImpl>(isFn, "impl must be a function")),
     planSource: z.enum(PlanSource).default(PlanSource.PLANNER),
+    onHold: z.enum(HoldMode).default(HoldMode.WAIT),
     holdTimeoutMs: z.number().int().positive().default(DEFAULT_HOLD_TIMEOUT_MS),
     maxTurns: z.number().int().positive().default(DEFAULT_MAX_TURNS),
     system: z.string().optional(),
@@ -49,6 +51,13 @@ export const GuardOptions = z
     now: z.custom<() => Date>(isFn).optional(),
   })
   .superRefine((o, ctx) => {
+    if (o.onHold === HoldMode.SUSPEND && typeof o.gate.holdInfo !== "function") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["gate"],
+        message: "onHold suspend needs a gate that can look up holds (HttpGate or HybridGate)",
+      });
+    }
     const names = o.tools.map((t) => t.name);
     for (const [i, name] of names.entries()) {
       if (names.indexOf(name) !== i) {

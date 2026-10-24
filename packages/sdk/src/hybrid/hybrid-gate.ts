@@ -5,6 +5,9 @@ import {
   ClientEntryKind,
   decide,
   type GateDecision,
+  GatePlanState,
+  type HoldInfo,
+  IntentlockError,
   Plan,
   type PlanInput,
   ReportOutcome,
@@ -15,6 +18,7 @@ import { decodeJwt } from "jose";
 
 import type { Gate, HoldOutcome, RefreshedToken, SignedPlan } from "../gate.js";
 import { HttpClient } from "../http/client.js";
+import { holdInfo } from "../http/hold-info.js";
 import { waitForHold } from "../http/wait-for-hold.js";
 import { FileOutbox } from "../outbox/file-outbox.js";
 import { MemoryOutbox, type PlanBacklog } from "../outbox/memory-outbox.js";
@@ -178,6 +182,38 @@ export class HybridGate implements Gate {
       ...opts,
       ...(this.#opts.onError && { onRetry: this.#opts.onError }),
     });
+  }
+
+  holdInfo(holdId: string): Promise<HoldInfo> {
+    return holdInfo(this.#http, holdId);
+  }
+
+  async exportPlan(planId: string): Promise<GatePlanState | null> {
+    await this.start();
+    const track = this.#track(planId);
+    return {
+      chain: this.#outbox.head(planId),
+      usage: Array.from(this.#usageFor(planId), (n) => n ?? 0),
+      required: [...track.required],
+      ran: [...track.ran],
+      steps: [...track.steps],
+      decisions: track.decisions,
+    };
+  }
+
+  async importPlan(planId: string, raw: unknown): Promise<void> {
+    const parsed = GatePlanState.safeParse(raw);
+    if (!parsed.success) throw new IntentlockError("Invalid gate state for the plan");
+    await this.start();
+    const state = parsed.data;
+    if (state.chain) this.#outbox.seed(planId, state.chain);
+    const usage = this.#usageFor(planId);
+    for (const [i, n] of state.usage.entries()) usage[i] = Math.max(usage[i] ?? 0, n);
+    const track = this.#track(planId);
+    for (const s of state.required) track.required.add(s);
+    for (const s of state.ran) track.ran.add(s);
+    for (const [callId, step] of state.steps) track.steps.set(callId, step);
+    track.decisions = Math.max(track.decisions, state.decisions);
   }
 
   async report(token: string, callId: string, outcome: ReportOutcome): Promise<void> {

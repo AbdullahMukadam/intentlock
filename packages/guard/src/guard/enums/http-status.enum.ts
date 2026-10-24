@@ -1,5 +1,6 @@
 export enum HttpStatus {
   UNAUTHORIZED = 401,
+  NOT_FOUND = 404,
   REQUEST_TIMEOUT = 408,
   CONFLICT = 409,
   TOO_MANY_REQUESTS = 429,

@@ -97,7 +97,7 @@ describe("holds", () => {
       resolvedBy: approver.user.email,
       note: "ok",
     });
-    expect((await waiting).body).toEqual({ status: "approved" });
+    expect((await waiting).body).toMatchObject({ status: "approved" });
     const entry = await prisma.auditEntry.findFirstOrThrow({
       where: { kind: AuditKind.HOLD_RESOLVED },
     });
@@ -111,7 +111,7 @@ describe("holds", () => {
   it("reject is final: a second decision gets 409", async () => {
     const { holdId } = await heldCall();
     await resolve(holdId, "reject", approver.cookie).expect(200);
-    expect((await wait(holdId)).body).toEqual({ status: "rejected" });
+    expect((await wait(holdId)).body).toMatchObject({ status: "rejected" });
     expect((await resolve(holdId, "approve", approver.cookie).expect(409)).body).toMatchObject({
       error: "hold_not_pending",
       status: "rejected",
@@ -164,7 +164,7 @@ describe("holds", () => {
     const holds = app.get(HoldsService);
     const expired = await Promise.all([holds.expireAll(), holds.expireAll()]);
     expect(expired.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(1);
-    expect((await wait(holdId, 0)).body).toEqual({ status: "expired" });
+    expect((await wait(holdId, 0)).body).toMatchObject({ status: "expired" });
     await resolve(holdId, "approve", approver.cookie).expect(409);
     expect(
       await prisma.auditEntry.count({
@@ -175,7 +175,7 @@ describe("holds", () => {
 
   it("wait returns pending at its timeout and 404s for another agent's hold", async () => {
     const { holdId } = await heldCall();
-    expect((await wait(holdId, 1)).body).toEqual({ status: "pending" });
+    expect((await wait(holdId, 1)).body).toMatchObject({ status: "pending" });
     const other = await createAgentWithKey(prisma, orgId, "other");
     await http().get(`/v1/holds/${holdId}/wait?timeout=0`).set(other.auth).expect(404);
   });
@@ -207,7 +207,7 @@ describe("shutdown", () => {
     const waiting = wait(holdId, 20).then((res) => res);
     await new Promise((r) => setTimeout(r, 300));
     app.get(HoldsService).beforeApplicationShutdown();
-    expect((await waiting).body).toEqual({ status: "pending" });
+    expect((await waiting).body).toMatchObject({ status: "pending" });
     expect(Date.now() - started).toBeLessThan(3_000);
   });
 });

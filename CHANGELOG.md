@@ -1,13 +1,37 @@
 # Changelog
 
-Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`, from 0.2.0 `mcp-proxy`, and from the next release `cli`) and to the server and inbox Docker images, which are released together. To upgrade a self-hosted instance, set `INTENTLOCK_VERSION` to the new version and run `docker compose up -d` again; migrations run first, before the new server starts.
+Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthropic`, from 0.2.0 `mcp-proxy`, and from 0.2.1 `cli`) and to the server and inbox Docker images, which are released together. To upgrade a self-hosted instance, set `INTENTLOCK_VERSION` to the new version and run `docker compose up -d` again; migrations run first, before the new server starts.
 
 ## Unreleased
 
+## 0.3.0 · 2026-10-24
+
 ### Added
 
+- Visual policy builder (ADR-081, free): a Form view next to the YAML editor in the inbox policy tab, one card per rule (tools, plan, user, every argument condition, except, decision, approvers and timeout), reorder by drag or arrows. Both views edit the same YAML; `policyToYaml` and `yamlExtras` in `@intentlock/core`
+- Pausable holds (ADR-080): `createGuard({ onHold: HoldMode.SUSPEND })` makes `run()` return `suspended` with a checkpoint instead of waiting, and `guard.resume(checkpoint)` continues it after checking the hold's exact call with the server. `FileCheckpointStore` and `S3CheckpointStore` (any S3-compatible bucket, optional AES-256-GCM)
+- Hold-resolved webhooks: set a URL per agent in the inbox (`PUT /v1/agents/:id/webhook`); approve, reject and expiry post a signed `hold.resolved` event, retried for about 4 hours, every attempt audited. `verifyWebhook` in `@intentlock/core`
+- `GET /v1/holds/:id/wait` also returns the held call (`planId`, `callId`, `tool`, `args`); `timeout=0` answers at once
 - `@intentlock/cli` is published to npm: `npm install -g @intentlock/cli`, or `npx -y @intentlock/cli audit verify --file intentlock-audit.jsonl` without installing (ADR-079)
 - Inbox Audit page: chain size and head, oldest entry, retention, last verified and by whom, flagged entries linked to their runs, export and the offline verify command; new `GET /v1/audit/summary`, and each verify is recorded as `audit_verified` (ADR-078)
+- Hold notifications (ADR-072): a new hold emails every member who may approve it (each can opt out in Account settings) and posts to `HOLD_WEBHOOK_URL` (Slack/Discord-compatible) if set; a failed send is audited and never changes the hold
+- Holds: search, agent and state filters in the URL, and bulk approve/reject with per-hold results (`POST /v1/holds/resolve`, ADR-076)
+- Delete an agent (ADR-075): archives it, revokes its keys, rejects its pending holds and frees its license slot; its history stays visible
+- Member labels (ADR-073): an admin can tag a member (for example `bot`); display only, never a policy input
+- Activity: numbered pages with a total count and page size, kept in the URL (ADR-074)
+- Overview: stacked decision chart, hold outcomes and sparklines on shadcn charts (ADR-077)
+
+### Changed
+
+- Invite, password-reset and hold emails share one HTML layout with a plain-text part
+- Destructive actions are confirmed in dialogs instead of browser pop-ups; the mobile menu is a sheet
+- Tables stay tables on phones and scroll sideways inside their panel
+
+### Fixed
+
+- Inbox: Next.js 16.4.0 → 16.4.2 for a security advisory
+- Inbox on phones: hold outcomes legend, policy tab (editor, publish, history buttons; stacked diff), API key form and one-time secret reveal
+- Inbox: the Audit page showed its empty state after navigating back; some action buttons had no loading state
 
 ## 0.2.1 · 2026-10-19
 

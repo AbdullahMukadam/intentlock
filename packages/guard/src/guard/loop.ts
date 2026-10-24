@@ -1,10 +1,12 @@
 import { MessageRole } from "../provider/enums/message-role.enum.js";
 import { ToolChoice } from "../provider/enums/tool-choice.enum.js";
 import { toProviderError } from "../provider/provider-error.js";
-import type { ChatResponse, LLMProvider, Message, ToolDef } from "../provider/types.js";
+import type { ChatResponse, LLMProvider, Message, ToolDef, ToolResult } from "../provider/types.js";
+import { type Checkpoint, CHECKPOINT_VERSION } from "./checkpoint.js";
 import { EventType } from "./enums/event-type.enum.js";
+import { HoldMode } from "./enums/hold-mode.enum.js";
 import { RunStatus } from "./enums/run-status.enum.js";
-import { executeCalls, type ExecuteContext, type GuardSession } from "./execute.js";
+import { executeTurn, type ExecuteContext, type GuardSession } from "./execute.js";
 
 export interface RunResult {
   status: RunStatus;
@@ -12,12 +14,15 @@ export interface RunResult {
   text?: string;
   turns: number;
   messages: Message[];
+  holdIds?: string[];
+  checkpoint?: Checkpoint;
 }
 
 export interface LoopContext extends ExecuteContext {
   provider: LLMProvider;
   tools: ToolDef[];
   maxTurns: number;
+  holdMode: HoldMode;
   system?: string;
   maxTokens?: number;
 }
@@ -25,11 +30,11 @@ export interface LoopContext extends ExecuteContext {
 export async function runLoop(
   ctx: LoopContext,
   session: GuardSession,
-  task: string,
+  messages: Message[],
+  firstTurn = 1,
 ): Promise<RunResult> {
-  const messages: Message[] = [{ role: MessageRole.USER, text: task }];
   let text: string | undefined;
-  for (let turn = 1; turn <= ctx.maxTurns; turn++) {
+  for (let turn = firstTurn; turn <= ctx.maxTurns; turn++) {
     let res: ChatResponse;
     try {
       res = await ctx.provider.chat({
@@ -61,10 +66,28 @@ export async function runLoop(
         messages,
       };
     }
-    messages.push({
-      role: MessageRole.TOOL,
-      results: await executeCalls(ctx, session, res.toolCalls),
-    });
+    const { results, held } = await executeTurn(
+      ctx,
+      session,
+      res.toolCalls,
+      ctx.holdMode === HoldMode.SUSPEND,
+    );
+    if (held.length > 0) {
+      const checkpoint: Checkpoint = {
+        version: CHECKPOINT_VERSION,
+        planId: session.planId,
+        token: session.token,
+        user: session.user,
+        turn,
+        savedAt: ctx.now().toISOString(),
+        messages,
+        results,
+        held,
+        gate: (await ctx.gate.exportPlan?.(session.planId)) ?? null,
+      };
+      return suspendedResult(checkpoint);
+    }
+    messages.push({ role: MessageRole.TOOL, results: results as ToolResult[] });
   }
   return {
     status: RunStatus.MAX_TURNS,
@@ -72,5 +95,16 @@ export async function runLoop(
     ...(text !== undefined && { text }),
     turns: ctx.maxTurns,
     messages,
+  };
+}
+
+export function suspendedResult(checkpoint: Checkpoint): RunResult {
+  return {
+    status: RunStatus.SUSPENDED,
+    planId: checkpoint.planId,
+    turns: checkpoint.turn,
+    messages: checkpoint.messages as Message[],
+    holdIds: checkpoint.held.map((h) => h.holdId),
+    checkpoint,
   };
 }

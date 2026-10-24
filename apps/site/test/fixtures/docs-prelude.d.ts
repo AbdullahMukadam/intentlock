@@ -1,6 +1,7 @@
 import type {
   ChatRequest,
   ChatResponse,
+  CheckpointStore,
   Guard,
   GuardTool,
   LLMProvider,
@@ -20,6 +21,7 @@ declare global {
   const provider: LLMProvider;
   const gate: Gate;
   const guard: Guard;
+  const store: CheckpointStore;
   const tools: GuardTool[];
   const lookupOrder: GuardTool;
   const sendEmail: GuardTool;

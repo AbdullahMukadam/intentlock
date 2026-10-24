@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
   transpilePackages: ["@intentlock/ui"],
+  experimental: { agentUpgrade: "security" },
   rewrites: async () => [
     { source: "/api/:path*", destination: `${apiUrl}/:path*` },
     { source: "/demo-runner/:path*", destination: `${demoRunnerUrl}/:path*` },

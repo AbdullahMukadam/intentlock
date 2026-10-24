@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
 
   AGENTS: "/v1/agents",
   AGENT: "/v1/agents/:id",
+  AGENT_WEBHOOK: "/v1/agents/:id/webhook",
   AGENT_API_KEYS: "/v1/agents/:id/api-keys",
   AGENT_API_KEY: "/v1/agents/:id/api-keys/:keyId",
   AGENT_POLICY: "/v1/agents/:id/policy",
