@@ -112,7 +112,7 @@ Both built-in stores take `encryptionKey`: 32 random bytes, base64 (`openssl ran
 
 - The checkpoint must match the hold: same plan, call id, tool and arguments as the server recorded when the hold was created. A checkpoint edited to run something else is refused with `CheckpointError` and nothing runs.
 - The hold's status comes from the server, never from the checkpoint or the webhook body.
-- The plan token is refreshed for the same plan only. Every later call goes through the normal checks.
+- If the plan token has expired or expires within a minute, it is refreshed (same plan only). Every later call goes through the normal checks.
 - **Long holds:** the server refreshes a token at most 60 minutes after it expired, and tokens last 15 minutes. If a hold is resolved later than that, resume still settles the held call (the server confirmed the decision) but cannot refresh, so the run's later calls are blocked with `token_expired`. Keep hold timeouts under about an hour for runs that pause, or start a new run after a long hold.
 - With `HybridGate`, the checkpoint also carries the gate's local state for the plan (audit chain position and per-step call counts), so the audit chain continues where it stopped.
 

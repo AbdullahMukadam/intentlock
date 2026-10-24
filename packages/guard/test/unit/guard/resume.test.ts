@@ -200,3 +200,45 @@ describe("suspend on hold", () => {
     expect(() => setup([], gate)).toThrow(/look up holds/);
   });
 });
+
+describe("token refresh on resume", () => {
+  const jwt = (exp: number) =>
+    `e30.${Buffer.from(JSON.stringify({ exp })).toString("base64url")}.sig`;
+  const secondsFromNow = (s: number) => Math.floor(Date.now() / 1000) + s;
+
+  async function resumeWithToken(token: string, refreshFails = false) {
+    const { holds, stored } = await suspendedRun(HoldStatus.APPROVED);
+    const gate = fakeGate(holds);
+    if (refreshFails) gate.refresh.mockRejectedValue(new Error("409 (plan_not_active)"));
+    const second = setup([done()], gate);
+    const result = await second.guard.resume({ ...(stored as object), token });
+    return { gate, second, result };
+  }
+
+  test("a token that is still valid is used as it is: no refresh, no error event", async () => {
+    const token = jwt(secondsFromNow(600));
+    const { gate, second, result } = await resumeWithToken(token, true);
+    expect(result.status).toBe(RunStatus.COMPLETED);
+    expect(gate.refresh).not.toHaveBeenCalled();
+    expect(gate.report).toHaveBeenCalledWith(token, "h", "ok");
+    expect(second.events.map((e) => e.type)).toEqual([EventType.APPROVED]);
+  });
+
+  test.each([
+    ["expired", -60],
+    ["about to expire", 30],
+  ])("an %s token is refreshed before the held call runs", async (_name, offset) => {
+    const { gate } = await resumeWithToken(jwt(secondsFromNow(offset)));
+    expect(gate.refresh).toHaveBeenCalledWith("plan-1", expect.any(String));
+    expect(gate.report).toHaveBeenCalledWith("t2", "h", "ok");
+  });
+
+  test("a failed refresh of an expired token is reported and the approved call still runs", async () => {
+    const { second } = await resumeWithToken(jwt(secondsFromNow(-60)), true);
+    expect(second.ran).toEqual(["add_label"]);
+    expect(second.events[0]).toMatchObject({
+      type: EventType.ERROR,
+      reason: "token refresh failed: 409 (plan_not_active)",
+    });
+  });
+});

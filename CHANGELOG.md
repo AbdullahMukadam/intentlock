@@ -4,6 +4,12 @@ Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthrop
 
 ## Unreleased
 
+## 0.3.1 · 2026-10-24
+
+### Fixed
+
+- `guard.resume()` refreshed the plan token every time; the server refuses refresh for a completed plan (409 `plan_not_active`), so a resume logged an error event although nothing failed (seen on the first live TriStack run). It now refreshes only when the token has expired or expires within a minute; later calls still refresh once on `token_expired`
+
 ## 0.3.0 · 2026-10-24
 
 ### Added

@@ -2292,3 +2292,9 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Numbers**
 - Pause to approval to posted comment worked first time; the triage job no longer waits for the approval (it used to hold the runner up to 30 min)
+
+### 2026-10-24 · Session 29 (cont.) · 0.3.1: resume refreshes only when needed
+
+- `guard.resume()` now refreshes the plan token only when it has expired or expires within 60 s (`tokenNeedsRefresh` reads `exp` from the token; an unreadable token is refreshed as before). The always-refresh hit `409 plan_not_active` on TriStack #36 because the plan's only required step had already run. A failed refresh of an expired token is still reported and the approved call still runs
+- Tests: still-valid token → no refresh and no error event, the report uses the saved token; expired and about-to-expire tokens refresh first; failed refresh reported (guard resume tests 13)
+- Bumped the six packages, the self-host pins and the docs page to 0.3.1; CHANGELOG `## 0.3.1 · 2026-10-24`. TriStack picks it up after `npm install @intentlock/guard@^0.3.1` (its lockfile pins 0.3.0)
