@@ -1,6 +1,6 @@
 {
   "name": "@intentlock/core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Pure core: plan schema, canonicalization, signing, policy engine, check(), audit hashing.",
   "private": false,
   "license": "MIT",

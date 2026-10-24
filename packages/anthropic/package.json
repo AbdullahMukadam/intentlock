@@ -1,6 +1,6 @@
 {
   "name": "@intentlock/anthropic",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Anthropic adapter implementing the Intentlock LLMProvider interface.",
   "private": false,
   "license": "MIT",

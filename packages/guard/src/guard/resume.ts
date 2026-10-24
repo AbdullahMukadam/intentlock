@@ -16,6 +16,34 @@ export function parseCheckpoint(raw: unknown): Checkpoint {
   return parsed.data;
 }
 
+const REFRESH_MARGIN_MS = 60_000;
+
+export function tokenNeedsRefresh(token: string, now: Date): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return true;
+    const { exp } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      exp?: unknown;
+    };
+    if (typeof exp !== "number") return true;
+    return exp * 1000 - now.getTime() <= REFRESH_MARGIN_MS;
+  } catch {
+    return true;
+  }
+}
+
+async function refreshToken(ctx: LoopContext, session: { planId: string; token: string }) {
+  try {
+    session.token = (await ctx.gate.refresh(session.planId, session.token)).token;
+  } catch (err) {
+    ctx.emit({
+      type: EventType.ERROR,
+      planId: session.planId,
+      reason: `token refresh failed: ${err instanceof Error ? err.message : String(err)}`,
+    });
+  }
+}
+
 export async function resumeRun(ctx: LoopContext, cp: Checkpoint): Promise<RunResult> {
   const lookup = ctx.gate.holdInfo?.bind(ctx.gate);
   if (!lookup) throw new CheckpointError("This gate cannot look up holds, so it cannot resume");
@@ -40,15 +68,7 @@ export async function resumeRun(ctx: LoopContext, cp: Checkpoint): Promise<RunRe
 
   const session = { planId: cp.planId, token: cp.token, user: cp.user };
   if (cp.gate && ctx.gate.importPlan) await ctx.gate.importPlan(cp.planId, cp.gate);
-  try {
-    session.token = (await ctx.gate.refresh(cp.planId, cp.token)).token;
-  } catch (err) {
-    ctx.emit({
-      type: EventType.ERROR,
-      planId: cp.planId,
-      reason: `token refresh failed: ${err instanceof Error ? err.message : String(err)}`,
-    });
-  }
+  if (tokenNeedsRefresh(cp.token, ctx.now())) await refreshToken(ctx, session);
 
   const results = [...cp.results];
   for (const [i, h] of cp.held.entries()) {

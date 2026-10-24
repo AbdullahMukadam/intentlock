@@ -945,7 +945,7 @@ With `onHold: suspend`, a turn that has held calls ends the run with `status: "s
 `guard.resume(checkpoint)`:
 1. Validates the checkpoint, then looks up every held call with `gate.holdInfo` (`GET /v1/holds/:id/wait?timeout=0`). The server's plan id, call id, tool and canonical (JCS) arguments must equal the checkpoint's call, else `CheckpointError` and nothing runs.
 2. If any hold is still pending, returns the same checkpoint (`suspended`).
-3. Imports the gate state (`gate.importPlan`; the hybrid outbox continues its chain from the saved head), refreshes the token for the same plan, settles each held call exactly like the waiting path (approved → run + report, rejected/expired → error result) and continues the loop from the next turn.
+3. Imports the gate state (`gate.importPlan`; the hybrid outbox continues its chain from the saved head), refreshes the token for the same plan when it expires within a minute (a completed plan cannot be refreshed, so an unneeded refresh would fail), settles each held call exactly like the waiting path (approved → run + report, rejected/expired → error result) and continues the loop from the next turn.
 
 `Gate.holdInfo`, `exportPlan` and `importPlan` are optional, so custom gates keep compiling; `onHold: suspend` requires `holdInfo`. `guard.execute()` keeps waiting on holds.
 

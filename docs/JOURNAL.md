@@ -2259,3 +2259,42 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 - Abdullah asked for a new npm release before merging this branch. Bumped `core`, `sdk`, `guard`, `anthropic`, `mcp-proxy` and `cli` to 0.3.0 (the CLI is back in lockstep after its one-off 0.2.2, ADR-079), the self-host bundle and its env example to `INTENTLOCK_VERSION` 0.3.0, the deployment docs page, and `CHANGELOG.md` (`## 0.3.0 · 2026-10-24`, completed with everything since 0.2.1)
 - `pnpm release` only runs on an up-to-date, clean `main` and asks for a typed `yes` and the npm 2FA code, so the publish itself happens after the merge, from Abdullah's terminal
+
+### 2026-10-24 · Session 29 (cont.) · Pausable holds in TriStack (code)
+
+**Done**
+- Checked first: `@intentlock/core`, `sdk`, `guard` 0.3.0 on npm; the deployed instance answers the new webhook route (401 without a session)
+- TriStack branch `feat/triage-pausable-holds` (`dd45be35`): `@intentlock/*` ^0.3.0; `triageIssue` pauses with `onHold: suspend` and saves the checkpoint (encrypted, `S3CheckpointStore`, prefix `triage/`) only when all six checkpoint settings are set, otherwise it waits as before; `resumeTriage` loads by plan id, resumes, deletes or saves again. `main.ts` resumes when `TRIAGE_RESUME_PLAN` is set (validated, from `client_payload.planId`). Workflow: `repository_dispatch` `intentlock-hold-resolved`, concurrency per plan, storage settings as variables and secrets. Relay: `supabase/functions/intentlock-relay` (`handler.ts` plain and tested, `index.ts` Deno with `npm:@intentlock/core@0.3.0`, deploy with `--no-verify-jwt`). README with the setup steps
+- Docs ("Pause on a hold"): resume on a timer without a webhook, a CI recipe (relay → `repository_dispatch`), one resume per plan at a time, the long-hold token limit
+
+**Problems hit and how they were solved**
+- TriStack's pre-commit lint (`anti-slop/no-unknown-parameters`) refused helpers taking `unknown` → inline error text in the `catch` blocks, zod `""` literal for unset env values
+- Found while designing: refresh accepts tokens expired up to 60 min, so pausing past ~75 min blocks the rest of the run → documented, backlog item in PLAN
+
+**Numbers**
+- TriStack bot: 17 tests (8 existing, 9 new: pause, approved once, rejected, expired, still pending, edited checkpoint refused, missing checkpoint, relay signed/forged/GitHub failure); typecheck and oxlint green. Site docs tests 9
+
+**Next**
+- Abdullah: the setup steps in `.github/triage-bot/README.md`, merge the TriStack branch, then one live run on a test issue (approve the held comment in the inbox and watch the resume job)
+
+**Notes for Abdullah**
+- Nothing in TriStack is pushed yet; the branch is local
+
+### 2026-10-24 · Session 29 (cont.) · Pausable holds live on TriStack
+
+**Done**
+- Abdullah set the six checkpoint settings, the dispatch token, the webhook URL and deployed the `intentlock-relay` Edge Function (`--use-api`, no Docker); TriStack PR #35 merged
+- Live test, issue #36 ("Go chi scaffold fails to build after choosing PostgreSQL"): triage run 40104187780 allowed `github_get_issue`, four `github_add_label` and `github_search_issues`, held `github_post_comment` (`hold-comments`) and ended with "Paused on hold cmvmilyu6000001chkr8z0ddm". Abdullah approved in the inbox; resume run 40104383092 (`repository_dispatch`) posted the comment. Labels on the issue: bug, needs-repro, go, chi
+
+**Problems hit and how they were solved**
+- First relay deploy: run from the TriStack root (wrong folder) and Docker not running → deploy from `.github/triage-bot` with `--use-api`
+- Resume logged `token refresh failed: … 409 (plan_not_active)`: the plan's only required step had run in the first job, so the server treats the plan as completed and refuses refresh. Harmless here (token still valid, approved call ran, model finished). Backlog item: refresh only when needed
+
+**Numbers**
+- Pause to approval to posted comment worked first time; the triage job no longer waits for the approval (it used to hold the runner up to 30 min)
+
+### 2026-10-24 · Session 29 (cont.) · 0.3.1: resume refreshes only when needed
+
+- `guard.resume()` now refreshes the plan token only when it has expired or expires within 60 s (`tokenNeedsRefresh` reads `exp` from the token; an unreadable token is refreshed as before). The always-refresh hit `409 plan_not_active` on TriStack #36 because the plan's only required step had already run. A failed refresh of an expired token is still reported and the approved call still runs
+- Tests: still-valid token → no refresh and no error event, the report uses the saved token; expired and about-to-expire tokens refresh first; failed refresh reported (guard resume tests 13)
+- Bumped the six packages, the self-host pins and the docs page to 0.3.1; CHANGELOG `## 0.3.1 · 2026-10-24`. TriStack picks it up after `npm install @intentlock/guard@^0.3.1` (its lockfile pins 0.3.0)
