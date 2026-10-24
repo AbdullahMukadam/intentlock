@@ -6,6 +6,7 @@ Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthrop
 
 ### Added
 
+- Visual policy builder (ADR-081, free): a Form view next to the YAML editor in the inbox policy tab, one card per rule (tools, plan, user, every argument condition, except, decision, approvers and timeout), reorder by drag or arrows. Both views edit the same YAML; `policyToYaml` and `yamlExtras` in `@intentlock/core`
 - Pausable holds (ADR-080): `createGuard({ onHold: HoldMode.SUSPEND })` makes `run()` return `suspended` with a checkpoint instead of waiting, and `guard.resume(checkpoint)` continues it after checking the hold's exact call with the server. `FileCheckpointStore` and `S3CheckpointStore` (any S3-compatible bucket, optional AES-256-GCM)
 - Hold-resolved webhooks: set a URL per agent in the inbox (`PUT /v1/agents/:id/webhook`); approve, reject and expiry post a signed `hold.resolved` event, retried for about 4 hours, every attempt audited. `verifyWebhook` in `@intentlock/core`
 - `GET /v1/holds/:id/wait` also returns the held call (`planId`, `callId`, `tool`, `args`); `timeout=0` answers at once

@@ -658,7 +658,7 @@ An **agent** is one AI application a team runs that uses tools (a GitHub triage 
 **Storage:** each agent has one `PolicySet` with immutable, numbered `PolicyVersion`s and at most one shared `PolicyDraft`. Exactly one version is active. There are no policy files on the server.
 
 **Editing flow (inbox → Agents → github-assistant → Policy):**
-1. **Edit** opens the draft (or starts one from the active version) in a CodeMirror YAML editor. The active version is untouched.
+1. **Edit** opens the draft (or starts one from the active version) in a CodeMirror YAML editor, or in the **Form** view (ADR-081): one card per rule covering every `PolicySet` field, reordered by drag or up/down. Both views edit the same YAML source; a form change serializes with core `policyToYaml` (standard layout; `parsePolicy(policyToYaml(p))` equals `p`). Comments and anchors (core `yamlExtras`) make the form read-only until the admin confirms a rewrite; rules with values the form cannot keep unchanged are read-only in the form and written back as they are. The active version is untouched.
 2. **Validate as you type:** the inbox runs `parsePolicy()` from `@intentlock/core` in the browser (pure, MIT) and shows errors on the exact line. The server validates again on save and publish; it is the source of truth.
 3. **Test (dry run):** run the draft against sample calls written in the test panel, and/or replay the last N decisions of this agent from the audit log. The result shows each decision under the active version vs the draft, with a summary such as "12 calls allowed → held, 1 allowed → blocked". Nothing is saved or executed.
 4. **Diff:** side-by-side diff of draft vs active (CodeMirror merge view).
@@ -669,7 +669,7 @@ An **agent** is one AI application a team runs that uses tools (a GitHub triage 
 
 **Git workflow (optional):** `intentlock policy pull <agent>` writes the active source to a file; `intentlock policy test <agent> file.yaml` runs the same dry run; `intentlock policy push <agent> file.yaml -m "message"` publishes through the same endpoint (same validation, same versioning, same audit).
 
-**Permissions:** admins edit, publish and roll back; approvers can view and run tests; members can view. Paid later: second-admin approval of policy changes, visual rule builder.
+**Permissions:** admins edit, publish and roll back; approvers can view and run tests; members can view. The form is free (ADR-081). Paid later: second-admin approval of policy changes.
 
 ### 5.10 Dashboard and activity
 

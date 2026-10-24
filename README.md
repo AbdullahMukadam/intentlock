@@ -183,7 +183,7 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 
 - MCP proxy: remote (HTTP) MCP servers, resources and prompts (stdio tools ship now, see `packages/mcp-proxy`)
 - Taint tracking: hold writes that contain data read from private sources
-- Visual policy builder; second-admin approval for policy changes; argument redaction
+- Second-admin approval for policy changes; argument redaction
 - Audit retention with verifiable export; OpenTelemetry spans; cross-instance live events; sharded audit chains
 
 ## Repository

@@ -413,7 +413,8 @@ src/components/                     # app-specific; shared primitives come from 
 ├── holds/                          # hold-list.tsx, hold-card.tsx (note + approve/reject inline)
 ├── agents/                         # agent-list.tsx, create-agent-form.tsx, agent-detail.tsx (tabs), api-keys-table.tsx (shows a new key once)
 ├── policy/                         # policy-panel.tsx (edit state, publish, 409), policy-editor.tsx (CodeMirror + inline lint),
-│                                   # editor-theme.ts, test-panel.tsx, diff-view.tsx, version-history.tsx
+│                                   # editor-theme.ts, test-panel.tsx, diff-view.tsx (stacked below sm), version-history.tsx,
+│                                   # policy-form.tsx, rule-card.tsx, match-fields.tsx, loose-input.tsx (form view, ADR-081)
 ├── audit/                          # verify-button.tsx
 ├── demo/                           # demo-view.tsx (EventSource + Run both), agent-pane.tsx, event-row.tsx
 ├── team/                           # team-view.tsx (members + invites tables, actions menu), invite-member-form.tsx

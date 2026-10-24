@@ -30,6 +30,8 @@ Rules are evaluated in order and the first match wins. When no rule matches, the
 
 Policies are stored on the server, never in files next to it. You edit them in the inbox (**Agents → your agent → Policy**) with live validation, a dry run against sample calls or recent decisions, and a diff against the active version. Or keep them in Git and use the [CLI](/docs/reference/cli/) (`npm install -g @intentlock/cli`):
 
+The inbox has two views of the same policy: **Form** (one card per rule: tools, plan, user, argument conditions, an optional "except when", the decision, and for holds who may approve and the timeout; drag a card or use the arrows to reorder) and **YAML**. They edit the same text, so you can switch at any time. The form writes YAML in a standard layout. If your YAML has comments or anchors, the form asks before rewriting it without them. A rule with a value the form can't show unchanged (for example a list inside `eq`) stays read-only in the form and is kept as it is.
+
 ```bash
 intentlock policy validate policy.yaml
 intentlock policy pull --agent github-assistant --out policy.yaml

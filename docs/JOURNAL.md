@@ -2232,3 +2232,25 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - The check created throwaway keys named `phone-layout-check` on `github-assistant` in the local dev database and revoked each one through the API right after (audited `api_key_created` / `api_key_revoked`); they show as Revoked in the list
 - Port 3001 was already serving the inbox on Next 16.4.2 (not started by me); I used it and left it running
+
+### 2026-10-24 · Session 29 (cont.) · Phase 6.7 — Visual policy builder (ADR-081)
+
+**Done**
+- ADR-081 (Abdullah: free; a form edit rewrites the YAML and warns first about comments and anchors; drag plus up/down, no drag library)
+- Core: `policyToYaml` (standard layout: block rules, flow `match`/`except`/`approvers`, empty approver fields and `self: false` left out) and `yamlExtras` (comments, anchors/aliases). `to-yaml.test.ts`: a policy with every rule type, argument condition, user field, `except`, tool list and `inPlan` round-trips exactly and serializes the same twice; the starter policy and an empty match survive
+- Inbox: Form/YAML switch on the policy tab (Form by default, "Show changes" only in YAML). `PolicyForm` keeps its own draft while it is the one that wrote the YAML, so half-typed values (an invalid id, "1.") don't throw the form away; a YAML change from the editor re-derives it. `RuleCard` (id, decision, reorder, delete, except, approvers and timeout for holds, reason), `MatchFields` (tools, plan, user email/role/group, argument rows with all eight conditions), `LooseInput` (keeps typed text such as a trailing comma). Comments or anchors: form read-only with "Edit in form" behind a confirm. Values the form can't keep (objects or lists in `eq`, `null`, quoted numbers or booleans, list items with commas): that rule is read-only and written back unchanged. YAML errors: "Fix the YAML first"
+- `policy-form.test.ts`: form → YAML → form for every rule type and condition built through the form's own parsing, which values fit, text ↔ value for every condition
+- Docs: policies concept page, ARCHITECTURE §5.9, STRUCTURE, README roadmap, CHANGELOG; Phase 7 "visual rule builder (paid candidate)" closed
+
+**Problems hit and how they were solved**
+- Placeholders such as `github_post_comment, github_*` read like real values on empty fields in dark mode → "any tool" and "none"
+
+**Numbers**
+- Core 156 tests, inbox 124, site 9; full typecheck and lint green (27 tasks). Headless Edge at 375 and 1280 px, light and dark: add a rule, make it a hold, add an argument condition, move it up; the YAML view shows the new rule in place; no element off screen, no console errors. The full test run across all packages was not repeated after this change (the core change only adds exports)
+
+**Next**
+- Round 3 is done. Open: Pausable holds in TriStack (after the next npm release), TriStack triage bot on `issues: opened`
+
+**Notes for Abdullah**
+- The comments warning path ("Edit in form" on a commented policy) is covered by the core `yamlExtras` tests but was not clicked through in a browser
+- Nothing was published to the dev database; all edits were in the browser only

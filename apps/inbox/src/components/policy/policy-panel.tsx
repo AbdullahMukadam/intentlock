@@ -16,11 +16,13 @@ import { toast } from "sonner";
 import { useMe } from "@/components/app-shell";
 import Loader from "@/components/loader";
 import { PolicyEditor } from "@/components/policy/policy-editor";
+import { PolicyForm } from "@/components/policy/policy-form";
 import { TestPanel } from "@/components/policy/test-panel";
 import { VersionHistory } from "@/components/policy/version-history";
 import { ApiError, api, apiUrl } from "@/lib/api";
 import { ApiErrorCode } from "@/lib/enums/api-error-code.enum";
 import { HttpMethod } from "@/lib/enums/http-method.enum";
+import { PolicyView } from "@/lib/enums/policy-view.enum";
 import { policyDiagnostics } from "@/lib/policy-lint";
 import {
   AgentPolicy,
@@ -49,6 +51,7 @@ export function PolicyPanel({ agentId }: { agentId: string }) {
   const [edited, setEdited] = useState<string | null>(null);
   const [base, setBase] = useState<number | null>(null);
   const [showChanges, setShowChanges] = useState(false);
+  const [view, setView] = useState(PolicyView.FORM);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState<number | null>(null);
@@ -135,21 +138,48 @@ export function PolicyPanel({ agentId }: { agentId: string }) {
         </CardHeader>
         <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowChanges((s) => !s)}>
-              {showChanges ? "Hide changes" : `Show changes vs v${active.version}`}
-            </Button>
+            <div role="group" aria-label="Editor" className="inline-flex rounded-lg border p-0.5">
+              {[
+                { view: PolicyView.FORM, label: "Form" },
+                { view: PolicyView.YAML, label: "YAML" },
+              ].map((v) => (
+                <Button
+                  key={v.view}
+                  variant={view === v.view ? "secondary" : "ghost"}
+                  size="xs"
+                  aria-pressed={view === v.view}
+                  onClick={() => setView(v.view)}
+                >
+                  {v.label}
+                </Button>
+              ))}
+            </div>
+            {view === PolicyView.YAML && (
+              <Button variant="outline" size="sm" onClick={() => setShowChanges((s) => !s)}>
+                {showChanges ? "Hide changes" : `Show changes vs v${active.version}`}
+              </Button>
+            )}
             {isAdmin && dirty && (
               <Button variant="ghost" size="sm" onClick={discard}>
                 Discard edits
               </Button>
             )}
           </div>
-          <PolicyEditor
-            value={source}
-            onChange={onChange}
-            readOnly={!isAdmin}
-            original={showChanges ? active.source : undefined}
-          />
+          {view === PolicyView.FORM ? (
+            <PolicyForm
+              source={source}
+              onChange={onChange}
+              readOnly={!isAdmin}
+              onOpenYaml={() => setView(PolicyView.YAML)}
+            />
+          ) : (
+            <PolicyEditor
+              value={source}
+              onChange={onChange}
+              readOnly={!isAdmin}
+              original={showChanges ? active.source : undefined}
+            />
+          )}
           {diagnostics.length > 0 && (
             <ul className="grid gap-0.5 text-xs text-destructive" role="alert">
               {diagnostics.map((d, i) => (

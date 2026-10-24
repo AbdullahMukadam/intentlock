@@ -71,3 +71,4 @@ export {
 } from "./webhook/hold-webhook.js";
 export { GatePlanState } from "./schemas/gate-plan-state.js";
 export { HoldInfo } from "./schemas/hold-info.js";
+export { policyToYaml, yamlExtras, type PolicyDraft, type YamlExtras } from "./policy/to-yaml.js";
