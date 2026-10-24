@@ -3,17 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium whitespace-nowrap [&_svg]:size-3",
+  "inline-flex w-fit shrink-0 items-center gap-1.5 text-[13px] whitespace-nowrap text-foreground [&_svg]:size-3.5",
   {
     variants: {
       tone: {
-        neutral: "border-border bg-muted text-muted-foreground",
-        success: "border-success/25 bg-success/10 text-success",
-        warning:
-          "border-warning/30 bg-warning/12 text-[color-mix(in_oklch,var(--warning),black_25%)] dark:text-warning",
-        danger: "border-destructive/25 bg-destructive/10 text-destructive",
-        info: "border-info/25 bg-info/10 text-info",
-        violet: "border-violet/25 bg-violet/10 text-violet",
+        neutral: "text-muted-foreground",
+        success: "before:size-1.5 before:rounded-full before:bg-success",
+        warning: "before:size-1.5 before:rounded-full before:bg-warning",
+        danger: "before:size-1.5 before:rounded-full before:bg-destructive",
+        info: "before:size-1.5 before:rounded-full before:bg-info",
+        violet: "before:size-1.5 before:rounded-full before:bg-violet",
       },
     },
     defaultVariants: { tone: "neutral" },

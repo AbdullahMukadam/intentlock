@@ -211,20 +211,16 @@ export function AgentDetail({ agentId, tab }: { agentId: string; tab: AgentTab }
             <Badge>Deleted</Badge>
           ) : (
             <div className="flex items-center gap-2">
-              {agent.disabledAt ? (
-                <Badge>Disabled</Badge>
-              ) : (
-                <Badge tone="success">
-                  <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                  Enabled
-                </Badge>
-              )}
+              {agent.disabledAt ? <Badge>Disabled</Badge> : <Badge tone="success">Enabled</Badge>}
               {can(me.role, UiAction.DELETE_AGENT) && <DeleteAgent agent={agent} />}
             </div>
           )
         }
       />
-      <nav className="-mt-1 flex gap-1 overflow-x-auto border-b" aria-label="Agent sections">
+      <nav
+        className="-mt-1 flex gap-1 overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Agent sections"
+      >
         {tabs.map((t) => (
           <Link
             key={t.tab}

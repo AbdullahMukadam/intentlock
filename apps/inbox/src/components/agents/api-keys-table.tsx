@@ -151,14 +151,7 @@ export function ApiKeysTable({ agentId }: { agentId: string }) {
                       {k.lastUsedAt ? formatRelative(k.lastUsedAt) : "never"}
                     </TableCell>
                     <TableCell label="Status">
-                      {k.revokedAt ? (
-                        <Badge>Revoked</Badge>
-                      ) : (
-                        <Badge tone="success">
-                          <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                          Active
-                        </Badge>
-                      )}
+                      {k.revokedAt ? <Badge>Revoked</Badge> : <Badge tone="success">Active</Badge>}
                     </TableCell>
                     <TableCell label="" className="text-right">
                       {!k.revokedAt && (

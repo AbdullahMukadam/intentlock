@@ -2,14 +2,10 @@
 
 import { API_ENDPOINTS } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@intentlock/ui/components/card";
+import { Badge } from "@intentlock/ui/components/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@intentlock/ui/components/tabs";
 import { Input } from "@intentlock/ui/components/input";
+import { FileCode, FlaskConical, History, ListChecks, Undo2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -123,128 +119,149 @@ export function PolicyPanel({ agentId }: { agentId: string }) {
     }
   }
 
+  const editing = view === PolicyView.FORM || view === PolicyView.YAML;
+
   return (
-    <div className="grid gap-4">
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>
-            {dirty ? `Editing (based on v${baseVersion})` : `Active policy v${active.version}`}
-          </CardTitle>
-          <CardDescription>
-            {isAdmin
-              ? "Errors are checked as you type. Publishing creates a new version; old versions never change."
-              : "Read-only: only admins can change policies."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div role="group" aria-label="Editor" className="inline-flex rounded-lg border p-0.5">
-              {[
-                { view: PolicyView.FORM, label: "Form" },
-                { view: PolicyView.YAML, label: "YAML" },
-              ].map((v) => (
-                <Button
-                  key={v.view}
-                  variant={view === v.view ? "secondary" : "ghost"}
-                  size="xs"
-                  aria-pressed={view === v.view}
-                  onClick={() => setView(v.view)}
-                >
-                  {v.label}
-                </Button>
-              ))}
-            </div>
-            {view === PolicyView.YAML && (
-              <Button variant="outline" size="sm" onClick={() => setShowChanges((s) => !s)}>
-                {showChanges ? "Hide changes" : `Show changes vs v${active.version}`}
-              </Button>
-            )}
-            {isAdmin && dirty && (
-              <Button variant="ghost" size="sm" onClick={discard}>
-                Discard edits
-              </Button>
-            )}
-          </div>
-          {view === PolicyView.FORM ? (
-            <PolicyForm
-              source={source}
-              onChange={onChange}
-              readOnly={!isAdmin}
-              onOpenYaml={() => setView(PolicyView.YAML)}
-            />
+    <Tabs value={view} onValueChange={(v) => setView(v as PolicyView)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <TabsList aria-label="Policy" className="max-sm:w-full max-sm:[&_svg]:hidden">
+          <TabsTrigger value={PolicyView.FORM}>
+            <ListChecks /> Rules
+          </TabsTrigger>
+          <TabsTrigger value={PolicyView.YAML}>
+            <FileCode /> YAML
+          </TabsTrigger>
+          {canTest && (
+            <TabsTrigger value={PolicyView.TEST}>
+              <FlaskConical /> Test
+            </TabsTrigger>
+          )}
+          {versions.data && (
+            <TabsTrigger value={PolicyView.HISTORY}>
+              <History /> History
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {versions.data.length}
+              </span>
+            </TabsTrigger>
+          )}
+        </TabsList>
+        <div className="flex items-center gap-3">
+          {dirty ? (
+            <Badge tone="warning">Unpublished changes, based on v{baseVersion}</Badge>
           ) : (
-            <PolicyEditor
-              value={source}
-              onChange={onChange}
-              readOnly={!isAdmin}
-              original={showChanges ? active.source : undefined}
-            />
+            <Badge tone="success">Active v{active.version}</Badge>
           )}
-          {diagnostics.length > 0 && (
-            <ul className="grid gap-0.5 text-xs text-destructive" role="alert">
-              {diagnostics.map((d, i) => (
-                <li key={i}>
-                  line {source.slice(0, d.from).split("\n").length}: {d.message}
-                </li>
-              ))}
-            </ul>
+          {isAdmin && dirty && (
+            <Button variant="ghost" size="sm" onClick={discard}>
+              <Undo2 /> Discard
+            </Button>
           )}
-          {serverErrors.length > 0 && (
-            <ul className="grid gap-0.5 text-xs text-destructive" role="alert">
-              {serverErrors.map((m, i) => (
-                <li key={i}>Server: {m}</li>
-              ))}
-            </ul>
-          )}
-          {conflict !== null && (
-            <div role="alert" className="grid gap-2 border border-destructive p-3 text-sm">
-              <p>
-                v{conflict} was published while you were editing. Your text is kept. Rebase onto v
-                {conflict}, review the changes, then publish again.
-              </p>
-              <Button size="sm" variant="outline" className="justify-self-start" onClick={rebase}>
-                Rebase onto v{conflict}
-              </Button>
-            </div>
-          )}
-          {isAdmin && (
-            <div className="flex flex-wrap gap-2">
-              <Input
-                aria-label="Publish message"
-                placeholder="What changed and why"
-                value={message}
-                maxLength={500}
-                onChange={(e) => setMessage(e.target.value)}
-                className="max-w-md"
-              />
-              <Button
-                onClick={publish}
-                loading={busy}
-                disabled={!dirty || diagnostics.length > 0 || !message.trim() || conflict !== null}
-              >
-                {busy ? "Publishing…" : `Publish as v${baseVersion + 1}`}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      {canTest && (
-        <TestPanel
-          agentId={agentId}
+        </div>
+      </div>
+      {!isAdmin && (
+        <p className="text-xs text-muted-foreground">Read-only: only admins can change policies.</p>
+      )}
+      <TabsContent value={PolicyView.FORM}>
+        <PolicyForm
           source={source}
-          email={me.email}
-          disabled={diagnostics.length > 0}
+          onChange={onChange}
+          readOnly={!isAdmin}
+          onOpenYaml={() => setView(PolicyView.YAML)}
         />
+      </TabsContent>
+      <TabsContent value={PolicyView.YAML} className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Errors are checked as you type. Publishing creates a new version; old versions never
+            change.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setShowChanges((s) => !s)}>
+            {showChanges ? "Hide changes" : `Show changes vs v${active.version}`}
+          </Button>
+        </div>
+        <PolicyEditor
+          value={source}
+          onChange={onChange}
+          readOnly={!isAdmin}
+          original={showChanges ? active.source : undefined}
+        />
+      </TabsContent>
+      {canTest && (
+        <TabsContent value={PolicyView.TEST} keepMounted>
+          <TestPanel
+            agentId={agentId}
+            source={source}
+            email={me.email}
+            disabled={diagnostics.length > 0}
+          />
+        </TabsContent>
       )}
       {versions.data && (
-        <VersionHistory
-          agentId={agentId}
-          versions={versions.data}
-          active={active}
-          isAdmin={isAdmin}
-          onChanged={reloadAll}
-        />
+        <TabsContent value={PolicyView.HISTORY}>
+          <VersionHistory
+            agentId={agentId}
+            versions={versions.data}
+            active={active}
+            isAdmin={isAdmin}
+            onChanged={reloadAll}
+          />
+        </TabsContent>
       )}
-    </div>
+      {editing && diagnostics.length > 0 && (
+        <ul
+          className="grid gap-0.5 rounded-lg bg-destructive/8 px-3 py-2 text-xs text-destructive"
+          role="alert"
+        >
+          {diagnostics.map((d, i) => (
+            <li key={i}>
+              line {source.slice(0, d.from).split("\n").length}: {d.message}
+            </li>
+          ))}
+        </ul>
+      )}
+      {editing && serverErrors.length > 0 && (
+        <ul
+          className="grid gap-0.5 rounded-lg bg-destructive/8 px-3 py-2 text-xs text-destructive"
+          role="alert"
+        >
+          {serverErrors.map((m, i) => (
+            <li key={i}>Server: {m}</li>
+          ))}
+        </ul>
+      )}
+      {conflict !== null && (
+        <div
+          role="alert"
+          className="grid gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm"
+        >
+          <p>
+            v{conflict} was published while you were editing. Your text is kept. Rebase onto v
+            {conflict}, review the changes, then publish again.
+          </p>
+          <Button size="sm" variant="outline" className="justify-self-start" onClick={rebase}>
+            Rebase onto v{conflict}
+          </Button>
+        </div>
+      )}
+      {isAdmin && dirty && editing && (
+        <div className="sticky bottom-4 z-10 flex items-center gap-2 rounded-xl border bg-card p-2 shadow-lg">
+          <Input
+            aria-label="Publish message"
+            placeholder="What changed and why"
+            value={message}
+            maxLength={500}
+            onChange={(e) => setMessage(e.target.value)}
+            className="min-w-0 flex-1"
+          />
+          <Button
+            onClick={publish}
+            loading={busy}
+            disabled={diagnostics.length > 0 || !message.trim() || conflict !== null}
+          >
+            {busy ? "Publishing…" : `Publish v${baseVersion + 1}`}
+          </Button>
+        </div>
+      )}
+    </Tabs>
   );
 }
