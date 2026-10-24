@@ -82,7 +82,7 @@ export function VersionHistory({
                 {isActive ? (
                   <Badge tone="success">active</Badge>
                 ) : (
-                  <>
+                  <span className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -96,7 +96,7 @@ export function VersionHistory({
                         Roll back
                       </Button>
                     )}
-                  </>
+                  </span>
                 )}
               </li>
             );

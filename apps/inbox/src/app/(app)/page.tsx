@@ -168,7 +168,7 @@ export default function OverviewPage() {
                 </div>
               )}
             </div>
-            <div className="xl:col-start-4 xl:row-span-2 xl:row-start-1">
+            <div className="relative xl:col-start-4 xl:row-span-2 xl:row-start-1">
               <LatestActivity agentId={agentId} agents={agents} />
             </div>
             <div className="xl:col-span-3">

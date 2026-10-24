@@ -4,6 +4,7 @@ import { type Match, Role } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
 import { Input } from "@intentlock/ui/components/input";
 import { Plus, X } from "lucide-react";
+import { useState } from "react";
 
 import { NativeSelect } from "@/components/native-select";
 import { LooseInput } from "@/components/policy/loose-input";
@@ -42,12 +43,55 @@ const IN_PLAN_LABELS: Record<InPlanChoice, string> = {
 
 const ANY_ROLE = "";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label className="grid min-w-0 gap-1 text-xs">
-      <span className="text-muted-foreground">{label}</span>
+    <label className="grid min-w-0 content-start gap-1.5 text-xs">
+      <span className="font-medium">{label}</span>
       {children}
+      {hint && <span className="text-muted-foreground">{hint}</span>}
     </label>
+  );
+}
+
+function Group({
+  title,
+  onRemove,
+  removeLabel,
+  readOnly,
+  children,
+}: {
+  title: string;
+  onRemove: () => void;
+  removeLabel: string;
+  readOnly: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-2.5 rounded-lg border border-dashed p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium">{title}</span>
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={removeLabel}
+            onClick={onRemove}
+            className="text-muted-foreground"
+          >
+            <X />
+          </Button>
+        )}
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -60,12 +104,16 @@ export function MatchFields({
   onChange,
   readOnly,
   idPrefix,
+  actions,
 }: {
   match: Match;
   onChange: (match: Match) => void;
   readOnly: boolean;
   idPrefix: string;
+  actions?: React.ReactNode;
 }) {
+  const [showUser, setShowUser] = useState(false);
+  const userOpen = showUser || match.user !== undefined;
   const rows = argRows(match.args);
   const set = (patch: Partial<Match>) => onChange(compactMatch({ ...match, ...patch }));
   const setUser = (patch: NonNullable<Match["user"]>) => {
@@ -80,14 +128,14 @@ export function MatchFields({
 
   return (
     <div className="grid gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Tools (comma separated, empty = any tool)">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
+        <Field label="Tools" hint="Comma separated. Leave empty to match any tool.">
           <LooseInput
             value={toolsOf(match)}
             toText={joinList}
             fromText={splitList}
             onValue={(tools) => set({ tool: toolFromList(tools) })}
-            placeholder="any tool"
+            placeholder="Any tool"
             disabled={readOnly}
             className="h-8 font-mono text-xs"
           />
@@ -107,109 +155,136 @@ export function MatchFields({
           </NativeSelect>
         </Field>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="User email (glob)">
-          <Input
-            value={match.user?.email ?? ""}
-            onChange={(e) => setUser({ email: e.target.value })}
-            placeholder="any"
-            disabled={readOnly}
-            className="h-8"
-          />
-        </Field>
-        <Field label="User role">
-          <NativeSelect
-            value={match.user?.role ?? ANY_ROLE}
-            onChange={(e) =>
-              setUser({ role: e.target.value === ANY_ROLE ? undefined : (e.target.value as Role) })
-            }
-            disabled={readOnly}
-            className="w-full"
-          >
-            <option value={ANY_ROLE}>Any role</option>
-            {Role.options.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-        <Field label="User group">
-          <Input
-            value={match.user?.group ?? ""}
-            onChange={(e) => setUser({ group: e.target.value })}
-            placeholder="any"
-            disabled={readOnly}
-            className="h-8"
-          />
-        </Field>
-      </div>
-      <div className="grid gap-2">
-        <span className="text-xs text-muted-foreground">Arguments</span>
-        {rows.map((row, i) => (
-          <div
-            key={`${idPrefix}-arg-${i}`}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_minmax(0,1.4fr)_auto]"
-          >
-            <Input
-              aria-label="Argument name"
-              value={row.name}
-              onChange={(e) => setRow(i, { name: e.target.value })}
-              placeholder="repo"
-              disabled={readOnly}
-              className="h-8 font-mono text-xs"
-            />
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Remove argument condition"
-              onClick={() => setRows(rows.filter((_, j) => j !== i))}
-              disabled={readOnly}
-              className="sm:order-last"
-            >
-              <X />
-            </Button>
-            <NativeSelect
-              aria-label="Condition"
-              value={row.op}
-              onChange={(e) => {
-                const op = e.target.value as ArgOp;
-                setRow(i, { op, value: valueFromText(op, textFromValue(row.op, row.value)) });
-              }}
-              disabled={readOnly}
-              className="col-span-2 w-full sm:col-span-1"
-            >
-              {Object.values(ArgOp).map((op) => (
-                <option key={op} value={op}>
-                  {OP_LABELS[op]}
-                </option>
-              ))}
-            </NativeSelect>
-            <LooseInput
-              aria-label="Value"
-              key={row.op}
-              value={row.value}
-              toText={(v) => textFromValue(row.op, v)}
-              fromText={(t) => valueFromText(row.op, t)}
-              onValue={(value) => setRow(i, { value })}
-              type={row.op === ArgOp.LTE || row.op === ArgOp.GTE ? "number" : "text"}
-              placeholder={row.op === ArgOp.IN || row.op === ArgOp.NOT_IN ? "a, b, c" : "value"}
-              disabled={readOnly}
-              className="col-span-2 h-8 font-mono text-xs sm:col-span-1"
-            />
+      {userOpen && (
+        <Group
+          title="User"
+          removeLabel="Remove user condition"
+          readOnly={readOnly}
+          onRemove={() => {
+            setShowUser(false);
+            set({ user: undefined });
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Email (glob)">
+              <Input
+                value={match.user?.email ?? ""}
+                onChange={(e) => setUser({ email: e.target.value })}
+                placeholder="Any, e.g. *@acme.dev"
+                disabled={readOnly}
+                className="h-8"
+              />
+            </Field>
+            <Field label="Role">
+              <NativeSelect
+                value={match.user?.role ?? ANY_ROLE}
+                onChange={(e) =>
+                  setUser({
+                    role: e.target.value === ANY_ROLE ? undefined : (e.target.value as Role),
+                  })
+                }
+                disabled={readOnly}
+                className="w-full capitalize"
+              >
+                <option value={ANY_ROLE}>Any role</option>
+                {Role.options.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Group">
+              <Input
+                value={match.user?.group ?? ""}
+                onChange={(e) => setUser({ group: e.target.value })}
+                placeholder="Any"
+                disabled={readOnly}
+                className="h-8"
+              />
+            </Field>
           </div>
-        ))}
-        {!readOnly && (
+        </Group>
+      )}
+      {rows.length > 0 && (
+        <Group
+          title="Arguments"
+          removeLabel="Remove all argument conditions"
+          readOnly={readOnly}
+          onRemove={() => setRows([])}
+        >
+          {rows.map((row, i) => (
+            <div
+              key={`${idPrefix}-arg-${i}`}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_minmax(0,1.4fr)_auto]"
+            >
+              <Input
+                aria-label="Argument name"
+                value={row.name}
+                onChange={(e) => setRow(i, { name: e.target.value })}
+                placeholder="Argument, e.g. repo"
+                disabled={readOnly}
+                className="h-8 font-mono text-xs"
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Remove argument condition"
+                onClick={() => setRows(rows.filter((_, j) => j !== i))}
+                disabled={readOnly}
+                className="text-muted-foreground sm:order-last"
+              >
+                <X />
+              </Button>
+              <NativeSelect
+                aria-label="Condition"
+                value={row.op}
+                onChange={(e) => {
+                  const op = e.target.value as ArgOp;
+                  setRow(i, { op, value: valueFromText(op, textFromValue(row.op, row.value)) });
+                }}
+                disabled={readOnly}
+                className="col-span-2 w-full sm:col-span-1"
+              >
+                {Object.values(ArgOp).map((op) => (
+                  <option key={op} value={op}>
+                    {OP_LABELS[op]}
+                  </option>
+                ))}
+              </NativeSelect>
+              <LooseInput
+                aria-label="Value"
+                key={row.op}
+                value={row.value}
+                toText={(v) => textFromValue(row.op, v)}
+                fromText={(t) => valueFromText(row.op, t)}
+                onValue={(value) => setRow(i, { value })}
+                type={row.op === ArgOp.LTE || row.op === ArgOp.GTE ? "number" : "text"}
+                placeholder={row.op === ArgOp.IN || row.op === ArgOp.NOT_IN ? "a, b, c" : "Value"}
+                disabled={readOnly}
+                className="col-span-2 h-8 font-mono text-xs sm:col-span-1"
+              />
+            </div>
+          ))}
+        </Group>
+      )}
+      {!readOnly && (
+        <div className="flex flex-wrap gap-1">
+          {!userOpen && (
+            <Button variant="ghost" size="xs" onClick={() => setShowUser(true)}>
+              <Plus /> User
+            </Button>
+          )}
           <Button
-            variant="outline"
-            size="sm"
-            className="justify-self-start"
+            variant="ghost"
+            size="xs"
             onClick={() => setRows([...rows, { name: "", op: ArgOp.EQ, value: "" }])}
           >
-            <Plus /> Argument condition
+            <Plus /> Argument
           </Button>
-        )}
-      </div>
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

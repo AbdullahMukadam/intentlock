@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { parseFilters, toAuditQuery } from "./activity-filters";
 import { apiUrl, request } from "./api";
+import { activityWindow } from "./activity-window";
+import { ActivityWindow } from "./enums/activity-window.enum";
 import { ACTIVITY_DEFAULT_PAGE_SIZE, LATEST_ACTIVITY_LIMIT } from "./constants";
 import { HoldState } from "./enums/hold-state.enum";
 import { UiAction } from "./enums/ui-action.enum";
@@ -22,7 +24,13 @@ const PAGE_QUERIES: Partial<Record<Route, (role: Role) => string[]>> = {
       apiUrl(API_ENDPOINTS.AGENTS),
       apiUrl(API_ENDPOINTS.STATS_OVERVIEW, { query: { from: span.from } }),
       apiUrl(API_ENDPOINTS.STATS_OVERVIEW, { query: { from: span.prevFrom, to: span.from } }),
-      apiUrl(API_ENDPOINTS.AUDIT, { query: { limit: LATEST_ACTIVITY_LIMIT } }),
+      apiUrl(API_ENDPOINTS.AUDIT, {
+        query: {
+          limit: LATEST_ACTIVITY_LIMIT,
+          page: 1,
+          from: activityWindow(ActivityWindow.TODAY, new Date()).from,
+        },
+      }),
     ];
   },
   "/activity": () => [

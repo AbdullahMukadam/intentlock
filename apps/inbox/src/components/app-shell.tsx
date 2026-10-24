@@ -48,6 +48,7 @@ import { ThemeName } from "@/lib/enums/theme-name.enum";
 import { initials } from "@/lib/format";
 import { useLiveQueries } from "@/lib/live-queries";
 import { prefetchPage } from "@/lib/prefetch";
+import { SearchPalette } from "@/components/search-palette";
 import { License, Me } from "@/lib/schemas";
 import { signOut } from "@/lib/sign-out";
 
@@ -174,7 +175,7 @@ function Sidebar({
   const client = useQueryClient();
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
         <BrandMark className="size-7" />
         <div className="min-w-0">
           <div className="text-[15px] leading-tight font-semibold tracking-tight">Intentlock</div>
@@ -184,9 +185,10 @@ function Sidebar({
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-3">
+        <SearchPalette pages={CRUMBS.filter((c) => c.href !== "/runs")} onNavigate={onNavigate} />
         <nav className="flex flex-1 flex-col gap-5 overflow-y-auto" aria-label="Main">
-          {NAV.map(({ section, items, docs }) => (
-            <div key={section} className="grid gap-0.5">
+          {NAV.map(({ section, items, docs }, i) => (
+            <div key={section} className={cn("grid gap-0.5", i === NAV.length - 1 && "mt-auto")}>
               <div className="px-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
                 {section}
               </div>

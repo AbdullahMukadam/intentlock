@@ -2,6 +2,8 @@ import { Role } from "@intentlock/core";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { activityWindow } from "../../../src/lib/activity-window";
+import { ActivityWindow } from "../../../src/lib/enums/activity-window.enum";
 import { pageQueryUrls, prefetchPage } from "../../../src/lib/prefetch";
 import { queryKeyFor } from "../../../src/lib/query-client";
 import { statsWindow } from "../../../src/lib/stats-window";
@@ -31,7 +33,7 @@ describe("pageQueryUrls", () => {
       "/api/v1/agents",
       "/api/v1/stats/overview?from=2026-10-16T12%3A00%3A00.000Z",
       "/api/v1/stats/overview?from=2026-10-15T12%3A00%3A00.000Z&to=2026-10-16T12%3A00%3A00.000Z",
-      "/api/v1/audit?limit=8",
+      `/api/v1/audit?limit=8&page=1&from=${encodeURIComponent(activityWindow(ActivityWindow.TODAY, new Date()).from)}`,
     ]);
     expect(pageQueryUrls("/activity", Role.enum.member)).toEqual([
       "/api/v1/agents",

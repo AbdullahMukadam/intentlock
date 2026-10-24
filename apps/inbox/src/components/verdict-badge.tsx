@@ -24,7 +24,6 @@ export function VerdictBadge({ verdict }: { verdict: string | null }) {
     );
   return (
     <Badge tone={verdictTone(verdict)} className="capitalize">
-      <span aria-hidden className="size-1.5 rounded-full bg-current" />
       {verdict.toLowerCase()}
     </Badge>
   );

@@ -2,7 +2,8 @@
 
 import { parsePolicy, policyToYaml, Verdict, yamlExtras } from "@intentlock/core";
 import { Button } from "@intentlock/ui/components/button";
-import { Plus } from "lucide-react";
+import { Badge } from "@intentlock/ui/components/badge";
+import { Plus, ShieldX } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -87,8 +88,7 @@ export function PolicyForm({
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        Rules are checked from the top; the first one that matches decides. Anything no rule matches
-        is blocked.
+        Rules are checked from top to bottom. The first rule that matches a call decides it.
       </p>
       {current.rules.map((rule, i) => (
         <RuleCard
@@ -109,8 +109,7 @@ export function PolicyForm({
       {!locked && (
         <Button
           variant="outline"
-          size="sm"
-          className="justify-self-start"
+          className="w-full border-dashed text-muted-foreground shadow-none hover:text-foreground"
           onClick={() =>
             setRules([
               ...current.rules,
@@ -121,6 +120,13 @@ export function PolicyForm({
           <Plus /> Add rule
         </Button>
       )}
+      <div className="flex items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-[13px] text-muted-foreground">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted">
+          <ShieldX className="size-3.5" />
+        </span>
+        <span className="flex-1">Anything no rule matches</span>
+        <Badge tone="danger">Blocked</Badge>
+      </div>
       <ConfirmDialog
         open={confirmRewrite}
         onOpenChange={setConfirmRewrite}

@@ -1,7 +1,7 @@
 "use client";
 
 import { API_ENDPOINTS, Role } from "@intentlock/core";
-import { Badge, type BadgeTone } from "@intentlock/ui/components/badge";
+import { Badge } from "@intentlock/ui/components/badge";
 import { Button } from "@intentlock/ui/components/button";
 import {
   DropdownMenu,
@@ -75,12 +75,6 @@ import {
 import { useApi } from "@/lib/use-api";
 import { MemberField } from "@/lib/enums/member-field.enum";
 import { LabelBadge } from "@/components/member-label";
-
-const ROLE_TONE: Record<Role, BadgeTone> = {
-  [Role.enum.admin]: "violet",
-  [Role.enum.approver]: "info",
-  [Role.enum.member]: "neutral",
-};
 
 type Revealed = { title: string; description: string; secret: string };
 
@@ -411,9 +405,7 @@ function InvitesPanel({
                     </span>
                   </TableCell>
                   <TableCell label="Role">
-                    <Badge tone={ROLE_TONE[invite.role]} className="capitalize">
-                      {invite.role}
-                    </Badge>
+                    <Badge className="text-foreground capitalize">{invite.role}</Badge>
                   </TableCell>
                   <TableCell label="Invited by" className="text-muted-foreground">
                     {invite.invitedBy ?? "—"}
@@ -578,9 +570,7 @@ export function TeamView() {
                         </span>
                       </TableCell>
                       <TableCell label="Role">
-                        <Badge tone={ROLE_TONE[m.role]} className="capitalize">
-                          {m.role}
-                        </Badge>
+                        <Badge className="text-foreground capitalize">{m.role}</Badge>
                       </TableCell>
                       <TableCell label="Groups">
                         {isEditing(m.email, MemberField.GROUPS) ? (
@@ -606,10 +596,7 @@ export function TeamView() {
                         {m.disabledAt ? (
                           <Badge>Disabled</Badge>
                         ) : (
-                          <Badge tone="success">
-                            <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                            Active
-                          </Badge>
+                          <Badge tone="success">Active</Badge>
                         )}
                       </TableCell>
                       {isAdmin && (

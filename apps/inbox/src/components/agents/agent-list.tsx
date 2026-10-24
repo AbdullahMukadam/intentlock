@@ -126,10 +126,7 @@ export function AgentList() {
                       {a.disabledAt ? (
                         <Badge>Disabled</Badge>
                       ) : (
-                        <Badge tone="success">
-                          <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                          Enabled
-                        </Badge>
+                        <Badge tone="success">Enabled</Badge>
                       )}
                     </TableCell>
                     <TableCell label="Policy">
