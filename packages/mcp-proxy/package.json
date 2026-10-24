@@ -1,6 +1,6 @@
 {
   "name": "@intentlock/mcp-proxy",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Put Intentlock in front of any stdio MCP server: planned tools only, every call checked, holds and audit.",
   "private": false,
   "license": "Elastic-2.0",

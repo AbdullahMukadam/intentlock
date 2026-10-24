@@ -2254,3 +2254,8 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 **Notes for Abdullah**
 - The comments warning path ("Edit in form" on a commented policy) is covered by the core `yamlExtras` tests but was not clicked through in a browser
 - Nothing was published to the dev database; all edits were in the browser only
+
+### 2026-10-24 · Session 29 (cont.) · Release 0.3.0 prepared
+
+- Abdullah asked for a new npm release before merging this branch. Bumped `core`, `sdk`, `guard`, `anthropic`, `mcp-proxy` and `cli` to 0.3.0 (the CLI is back in lockstep after its one-off 0.2.2, ADR-079), the self-host bundle and its env example to `INTENTLOCK_VERSION` 0.3.0, the deployment docs page, and `CHANGELOG.md` (`## 0.3.0 · 2026-10-24`, completed with everything since 0.2.1)
+- `pnpm release` only runs on an up-to-date, clean `main` and asks for a typed `yes` and the npm 2FA code, so the publish itself happens after the merge, from Abdullah's terminal

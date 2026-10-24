@@ -1,6 +1,6 @@
 {
   "name": "@intentlock/cli",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "The intentlock CLI: verify audit exports offline, create signing keys, manage users, agents, keys and policies.",
   "private": false,
   "license": "Elastic-2.0",
