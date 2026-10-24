@@ -70,7 +70,15 @@ export async function onHoldResolved(body: string, headers: Headers) {
 
 `verifyWebhook` checks the HMAC signature and refuses events older than five minutes; it returns the parsed event or `null`. Answer with a 2xx status quickly. If your handler starts a longer job instead (a queue message, a CI workflow), answer first and resume in that job.
 
-The same event can arrive twice (after a timeout on your side, for example). Each event has an `id` (also in the `intentlock-event-id` header). A second resume of a finished run finds no checkpoint, and a run that is still waiting on another hold in the same turn simply returns `suspended` again.
+The same event can arrive twice (after a timeout on your side, for example). Each event has an `id` (also in the `intentlock-event-id` header). A second resume of a finished run finds no checkpoint, and a run that is still waiting on another hold in the same turn simply returns `suspended` again. Don't resume the same plan in two places at once: run resumes for one plan one after another (a queue, a lock, or a CI concurrency group keyed by `planId`).
+
+### No webhook URL? Resume on a timer
+
+The webhook only makes resuming fast. Without one, save checkpoints as above and call `guard.resume(checkpoint)` for each saved plan from a scheduled job (a cron every minute, for example). While the hold is pending it returns `suspended` and runs nothing; once it is resolved it continues.
+
+### Agents that run in CI
+
+A GitHub Actions job (or any CI) can't receive a webhook, so put a small relay in front of it: a serverless function that verifies the event with `verifyWebhook` and starts the resume job. For GitHub that is `POST /repos/{owner}/{repo}/dispatches` with `{ "event_type": "intentlock-hold-resolved", "client_payload": { "planId": … } }` and a token that may write the repository's contents. The workflow listens to `repository_dispatch`, reads `github.event.client_payload.planId`, loads the checkpoint from a bucket, resumes and deletes it, with `concurrency` keyed by the plan id. GitHub only starts `repository_dispatch` workflows on the default branch.
 
 ## Event format
 
@@ -105,6 +113,7 @@ Both built-in stores take `encryptionKey`: 32 random bytes, base64 (`openssl ran
 - The checkpoint must match the hold: same plan, call id, tool and arguments as the server recorded when the hold was created. A checkpoint edited to run something else is refused with `CheckpointError` and nothing runs.
 - The hold's status comes from the server, never from the checkpoint or the webhook body.
 - The plan token is refreshed for the same plan only. Every later call goes through the normal checks.
+- **Long holds:** the server refreshes a token at most 60 minutes after it expired, and tokens last 15 minutes. If a hold is resolved later than that, resume still settles the held call (the server confirmed the decision) but cannot refresh, so the run's later calls are blocked with `token_expired`. Keep hold timeouts under about an hour for runs that pause, or start a new run after a long hold.
 - With `HybridGate`, the checkpoint also carries the gate's local state for the plan (audit chain position and per-step call counts), so the audit chain continues where it stopped.
 
 `guard.execute()` (your own loop) always waits on holds; pausing is part of `run()`.

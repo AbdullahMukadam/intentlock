@@ -2259,3 +2259,23 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 - Abdullah asked for a new npm release before merging this branch. Bumped `core`, `sdk`, `guard`, `anthropic`, `mcp-proxy` and `cli` to 0.3.0 (the CLI is back in lockstep after its one-off 0.2.2, ADR-079), the self-host bundle and its env example to `INTENTLOCK_VERSION` 0.3.0, the deployment docs page, and `CHANGELOG.md` (`## 0.3.0 · 2026-10-24`, completed with everything since 0.2.1)
 - `pnpm release` only runs on an up-to-date, clean `main` and asks for a typed `yes` and the npm 2FA code, so the publish itself happens after the merge, from Abdullah's terminal
+
+### 2026-10-24 · Session 29 (cont.) · Pausable holds in TriStack (code)
+
+**Done**
+- Checked first: `@intentlock/core`, `sdk`, `guard` 0.3.0 on npm; the deployed instance answers the new webhook route (401 without a session)
+- TriStack branch `feat/triage-pausable-holds` (`dd45be35`): `@intentlock/*` ^0.3.0; `triageIssue` pauses with `onHold: suspend` and saves the checkpoint (encrypted, `S3CheckpointStore`, prefix `triage/`) only when all six checkpoint settings are set, otherwise it waits as before; `resumeTriage` loads by plan id, resumes, deletes or saves again. `main.ts` resumes when `TRIAGE_RESUME_PLAN` is set (validated, from `client_payload.planId`). Workflow: `repository_dispatch` `intentlock-hold-resolved`, concurrency per plan, storage settings as variables and secrets. Relay: `supabase/functions/intentlock-relay` (`handler.ts` plain and tested, `index.ts` Deno with `npm:@intentlock/core@0.3.0`, deploy with `--no-verify-jwt`). README with the setup steps
+- Docs ("Pause on a hold"): resume on a timer without a webhook, a CI recipe (relay → `repository_dispatch`), one resume per plan at a time, the long-hold token limit
+
+**Problems hit and how they were solved**
+- TriStack's pre-commit lint (`anti-slop/no-unknown-parameters`) refused helpers taking `unknown` → inline error text in the `catch` blocks, zod `""` literal for unset env values
+- Found while designing: refresh accepts tokens expired up to 60 min, so pausing past ~75 min blocks the rest of the run → documented, backlog item in PLAN
+
+**Numbers**
+- TriStack bot: 17 tests (8 existing, 9 new: pause, approved once, rejected, expired, still pending, edited checkpoint refused, missing checkpoint, relay signed/forged/GitHub failure); typecheck and oxlint green. Site docs tests 9
+
+**Next**
+- Abdullah: the setup steps in `.github/triage-bot/README.md`, merge the TriStack branch, then one live run on a test issue (approve the held comment in the inbox and watch the resume job)
+
+**Notes for Abdullah**
+- Nothing in TriStack is pushed yet; the branch is local
