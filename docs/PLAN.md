@@ -446,11 +446,11 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [x] ADR-082: single paid tier, free limited mode, per seat per year, all code in this repo, license problems never weaken security
 - [x] PRD §11 rewritten for ADR-082
 - [ ] ARCHITECTURE §5.7 rewritten in the same change as the license format below
-- [ ] Open questions for Abdullah, recorded in ADR-082 when answered: grace period after expiry (proposal: 14 days at full limits, with a banner); default retention on a paid license (proposal: 365 days); whether a seat counts every active user or only people who sign in (proposal: active users, as `maxUsers` counts today)
+- [x] Open questions answered (ADR-082 amendment): 14-day grace period at full limits with no banner, 365 days default retention on a paid license, a seat is an active user
 
 **License format** (no license sold yet, so no compatibility path)
 - [ ] Remove `features`, `LicenseFeature` and `hasFeature()`; `LicenseEdition` becomes `FREE = "free"`, `LICENSED = "licensed"`; `COMMUNITY_LICENSE` becomes `FREE_LICENSE`; inbox schema, footer and CLI follow
-- [ ] `scripts/issue-license.ts`: `--seats <n>` (sets `maxUsers`), agents unlimited, `--retention-days` default from the open question above; refuses a missing or past expiry
+- [ ] `scripts/issue-license.ts`: `--seats <n>` (sets `maxUsers`), agents unlimited, `--retention-days` default 365; refuses a missing or past expiry
 - [ ] Tests: free / valid / expired / bad signature / wrong key; over the free limit after expiry keeps existing users and agents working and refuses only new ones; an expired license changes no decision (existing test kept)
 
 **License in the inbox** (new routes in `API_ENDPOINTS` first, admin-only, audited)
@@ -459,8 +459,8 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [ ] Limit errors in the inbox: inviting a user or creating an agent over the limit says which limit, the current count and "apply a license", with a link to the License page (admins) or "ask an admin" (others)
 
 **Expiry**
-- [ ] Banner for admins 30, 7 and 1 days before expiry and after it; email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)
-- [ ] After expiry: grace period from the open question, then free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
+- [ ] Banner for admins 30, 7 and 1 days before expiry (none during the grace period); email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)
+- [ ] After expiry: 14 days at full limits (grace, no banner), then free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
 
 **Retention purge** (replaces the Phase 7 item)
 - [ ] Daily job on one instance at a time (advisory lock): entries older than `retentionDays` are exported first as verifiable JSONL (to `AUDIT_ARCHIVE_DIR`, or S3-compatible storage reusing the SigV4 code from ADR-080), then deleted in one transaction. An `audit_purged` entry records the last purged seq and its hash. ADR first: where archives go, and how verify anchors on the first kept entry
@@ -474,7 +474,7 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [ ] **Manual, Abdullah:** payment through a merchant of record (for example Lemon Squeezy or Paddle, which handle sales tax), and a small private service that issues the license JWS on purchase and emails it. The vendor private key lives only there, never in this repo
 - [ ] Support channel and response time written on the pricing page
 
-**Acceptance:** a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; an expired license shows the banner, emails admins and falls back after the grace period without blocking any agent call; the retention job archives and purges old entries and the chain still verifies from the archive and the database; `pnpm test && pnpm lint && pnpm typecheck` green.
+**Acceptance:** a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; a license close to expiry shows the banner and emails admins, and after expiry falls back to free limits once the 14-day grace period ends, without blocking any agent call; the retention job archives and purges old entries and the chain still verifies from the archive and the database; `pnpm test && pnpm lint && pnpm typecheck` green.
 
 ---
 
