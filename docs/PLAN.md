@@ -16,6 +16,8 @@
 | 6 · Ship | Sat 17 | Deployed private instance, demo video, README, npm publish, resume bullet |
 | 6.7 · MVP launch | after Ship | Releases, CI, "protect your own agent" guide, policy templates, key rotation, early users |
 | 7 · Stretch | after | MCP proxy, docs site |
+| 8 · Sellable | after 6.7 | One paid license (per seat / year), free limited mode, License page, expiry, retention purge, pricing (ADR-082) |
+| 8.1 · Production basics | after 8 | 2FA, backup and restore, cross-instance events, metrics, signed images |
 
 ---
 
@@ -436,18 +438,72 @@ Added on 2026-10-19 with Abdullah, as the first item after the Phase 6.7 build w
 
 ---
 
+## Phase 8 · Sellable: one paid license — `apps/server`, `apps/inbox`, `apps/site`, `scripts`, `docs`
+
+Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted license, priced per seat per year. Without a license it runs in a free limited mode (5 users, 3 agents, 30-day retention). Every feature is in both modes. All code stays in this repo under ELv2 (ADR-082). Today's license only enforces the user and agent limits, so this phase makes the rest real and adds what a buyer checks before paying.
+
+**Decide and document first**
+- [x] ADR-082: single paid tier, free limited mode, per seat per year, all code in this repo, license problems never weaken security
+- [x] PRD §11 rewritten for ADR-082
+- [ ] ARCHITECTURE §5.7 rewritten in the same change as the license format below
+- [ ] Open questions for Abdullah, recorded in ADR-082 when answered: grace period after expiry (proposal: 14 days at full limits, with a banner); default retention on a paid license (proposal: 365 days); whether a seat counts every active user or only people who sign in (proposal: active users, as `maxUsers` counts today)
+
+**License format** (no license sold yet, so no compatibility path)
+- [ ] Remove `features`, `LicenseFeature` and `hasFeature()`; `LicenseEdition` becomes `FREE = "free"`, `LICENSED = "licensed"`; `COMMUNITY_LICENSE` becomes `FREE_LICENSE`; inbox schema, footer and CLI follow
+- [ ] `scripts/issue-license.ts`: `--seats <n>` (sets `maxUsers`), agents unlimited, `--retention-days` default from the open question above; refuses a missing or past expiry
+- [ ] Tests: free / valid / expired / bad signature / wrong key; over the free limit after expiry keeps existing users and agents working and refuses only new ones; an expired license changes no decision (existing test kept)
+
+**License in the inbox** (new routes in `API_ENDPOINTS` first, admin-only, audited)
+- [ ] License stored in the database (`License` table with `orgId`; newest valid row wins), so every instance sees the same license without a shared file. `LICENSE_FILE` still works and takes precedence when set. `LicenseService` re-reads on its 24 h timer and right after an upload, with no in-memory state that another instance depends on
+- [ ] Admin **License page**: mode, licensee, seats used / total, agents, retention, expiry date; paste or upload a license key (verified on the server before it is stored; a bad key returns its reason); remove a license
+- [ ] Limit errors in the inbox: inviting a user or creating an agent over the limit says which limit, the current count and "apply a license", with a link to the License page (admins) or "ask an admin" (others)
+
+**Expiry**
+- [ ] Banner for admins 30, 7 and 1 days before expiry and after it; email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)
+- [ ] After expiry: grace period from the open question, then free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
+
+**Retention purge** (replaces the Phase 7 item)
+- [ ] Daily job on one instance at a time (advisory lock): entries older than `retentionDays` are exported first as verifiable JSONL (to `AUDIT_ARCHIVE_DIR`, or S3-compatible storage reusing the SigV4 code from ADR-080), then deleted in one transaction. An `audit_purged` entry records the last purged seq and its hash. ADR first: where archives go, and how verify anchors on the first kept entry
+- [ ] `GET /v1/audit/verify`, the Audit page and `intentlock audit verify` accept a chain that starts at a purge anchor; the CLI can verify an archive plus the live export end to end
+- [ ] Tests: purge keeps the chain verifiable; export failure purges nothing; a purged row that is edited in the archive fails verify; free mode purges at 30 days, a license at its own retention; two instances never purge twice
+
+**Selling** (mostly outside the code)
+- [ ] README and the site's licensing page: free limits, what a license unlocks, and "using Intentlock beyond the free limits requires a license; removing or bypassing the license check is not permitted"; every file outside the MIT packages covered by the root ELv2 `LICENSE`
+- [ ] Pricing page on the site (price per seat per year, what is included, how to buy, how to apply the key); no checkout code in this repo
+- [ ] **Manual, Abdullah:** lawyer review of ELv2 and the commercial terms (EULA / order form), CLA for outside contributions to ELv2 parts
+- [ ] **Manual, Abdullah:** payment through a merchant of record (for example Lemon Squeezy or Paddle, which handle sales tax), and a small private service that issues the license JWS on purchase and emails it. The vendor private key lives only there, never in this repo
+- [ ] Support channel and response time written on the pricing page
+
+**Acceptance:** a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; an expired license shows the banner, emails admins and falls back after the grace period without blocking any agent call; the retention job archives and purges old entries and the chain still verifies from the archive and the database; `pnpm test && pnpm lint && pnpm typecheck` green.
+
+---
+
+## Phase 8.1 · Production basics (in the paid license, no gating) — `apps/server`, `apps/inbox`, `deploy`
+
+What a buyer's security or ops review asks for. Order can change with early-buyer feedback.
+
+- [ ] Two-factor sign-in (TOTP) for every user, required for admins and approvers by an org setting; recovery codes; ADR first (new dependency or `node:crypto` HMAC, ask)
+- [ ] Backup and restore: documented `pg_dump` and signing-key backup, a restore that is tested, and a chain verify after restore
+- [ ] Cross-instance live events with Postgres `LISTEN/NOTIFY` (moved from Phase 7, DEPLOYMENT §6.1), so more than one server instance needs no sticky sessions
+- [ ] Prometheus `/metrics` (checks, holds, audit lag, webhook failures) and OpenTelemetry spans (moved from Phase 7); ask before adding dependencies
+- [ ] Signed images, SBOM and a CVE scan in CI
+
+**Later, decide with buyers:** approve holds from Slack or Teams, generic OIDC/SAML sign-in and SCIM, audit streaming to a SIEM, per-tool argument redaction, second-admin approval for policy changes, a Helm chart, an offline install bundle.
+
+---
+
 ## Phase 7 · Stretch (only after Phase 6)
 
 - `packages/mcp-proxy`: moved to Phase 7.1
 - ~~Inbox team page (list, add, disable, re-issue token) for admins~~ moved to Phase 5.5
 - [x] Visual policy rule builder → built free in Phase 6.7 round 3 (ADR-081)
-- [ ] Second-admin approval for policy changes (paid feature candidate)
-- [ ] Per-tool argument redaction in the dashboard (paid feature candidate)
-- [ ] Audit retention purge per license `retentionDays` (with verifiable export before purge)
+- [ ] Second-admin approval for policy changes (in the single license, ADR-082; see Phase 8.1 "Later")
+- [ ] Per-tool argument redaction in the dashboard (in the single license, ADR-082; see Phase 8.1 "Later")
+- ~~Audit retention purge per license `retentionDays`~~ moved to Phase 8
 - ~~Docs site (Next.js / Fumadocs) in the monorepo~~ moved to Phase 6.6 (`apps/site`, Astro + Starlight)
 - [ ] Taint tracking: mark data from private sources and hold writes that contain it
-- [ ] OpenTelemetry spans for checks
-- [ ] Cross-instance live events via Postgres `LISTEN/NOTIFY` (DEPLOYMENT §6.1)
+- ~~OpenTelemetry spans for checks~~ moved to Phase 8.1
+- ~~Cross-instance live events via Postgres `LISTEN/NOTIFY`~~ moved to Phase 8.1
 - [ ] Sharded audit chains with a Merkle-root global anchor (DEPLOYMENT §6.2)
 
 ---

@@ -2299,3 +2299,19 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 - Tests: still-valid token → no refresh and no error event, the report uses the saved token; expired and about-to-expire tokens refresh first; failed refresh reported (guard resume tests 13)
 - Bumped the six packages, the self-host pins and the docs page to 0.3.1; CHANGELOG `## 0.3.1 · 2026-10-24`. TriStack picks it up after `npm install @intentlock/guard@^0.3.1` (its lockfile pins 0.3.0)
 - Live check of 0.3.1 on TriStack issue #37 ("Rust axum scaffold: cargo run fails with missing DATABASE_URL"): triage run 40106991982 paused on the held comment, Abdullah approved, resume run 40107134673 posted it with no `token refresh failed` line. Labels: bug, needs-repro, rust, axum
+
+### 2026-10-25 · Session 30 · Phase 8 planned: one paid license
+
+**Done**
+- Reviewed the docs and license code for what selling needs. Found that `hasFeature()` is never called (no feature is gated), `retentionDays` is shown but nothing purges, and a license can only be applied through `LICENSE_FILE` and a restart
+- With Abdullah: one paid license per seat per year; without one, a free limited mode (5 users, 3 agents, 30 days); every feature in both; all code stays in this repo under ELv2
+- ADR-082; ADR-022 marked as superseded for editions and flags; PRD §11 rewritten; PLAN Phase 8 (sellable) and 8.1 (production basics) added; the Phase 7 retention, OTel and `LISTEN/NOTIFY` items moved there
+
+**Decisions**
+- ADR-082: one paid license, free limited mode, all code in this repo
+
+**Next**
+- Phase 8: answer the three open questions (grace period, default paid retention, what counts as a seat), then the license format change
+
+**Notes for Abdullah**
+- Outside the code: lawyer review of ELv2 and commercial terms, a merchant of record for payments, and a private license-issuing service holding the vendor private key
