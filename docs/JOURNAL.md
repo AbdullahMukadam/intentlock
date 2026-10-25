@@ -2315,3 +2315,18 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Notes for Abdullah**
 - Outside the code: lawyer review of ELv2 and commercial terms, a merchant of record for payments, and a private license-issuing service holding the vendor private key
+
+### 2026-10-25 · Session 30 (cont.) · Phase 8: license format
+
+**Done**
+- ADR-082 amendment: 14-day grace without a banner, 365 days default paid retention, a seat is an active user
+- `LicenseEdition` is `free | licensed`; `features`, `LicenseFeature` and `hasFeature()` removed; `FREE_LICENSE` replaces `COMMUNITY_LICENSE`; `issue-license --seats <n>` (agents unlimited, retention 365, past expiry refused). An old-format license (`edition: "team"`) is refused and falls back to the free limits. Docs, README, site and CLAUDE.md follow (commit `e66ece4`)
+
+**Problems hit and how they were solved**
+- Two script edits slipped in a broken string and a doubled line; typecheck and prettier caught both before the commit
+
+**Numbers**
+- Server: 48 test files, 258 tests green (unit and e2e); site: 9 tests green
+
+**Next**
+- Phase 8: license stored in the database and the admin License page

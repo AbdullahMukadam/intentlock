@@ -445,13 +445,13 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 **Decide and document first**
 - [x] ADR-082: single paid tier, free limited mode, per seat per year, all code in this repo, license problems never weaken security
 - [x] PRD §11 rewritten for ADR-082
-- [ ] ARCHITECTURE §5.7 rewritten in the same change as the license format below
+- [x] ARCHITECTURE §5.7 rewritten in the same change as the license format below
 - [x] Open questions answered (ADR-082 amendment): 14-day grace period at full limits with no banner, 365 days default retention on a paid license, a seat is an active user
 
 **License format** (no license sold yet, so no compatibility path)
-- [ ] Remove `features`, `LicenseFeature` and `hasFeature()`; `LicenseEdition` becomes `FREE = "free"`, `LICENSED = "licensed"`; `COMMUNITY_LICENSE` becomes `FREE_LICENSE`; inbox schema, footer and CLI follow
-- [ ] `scripts/issue-license.ts`: `--seats <n>` (sets `maxUsers`), agents unlimited, `--retention-days` default 365; refuses a missing or past expiry
-- [ ] Tests: free / valid / expired / bad signature / wrong key; over the free limit after expiry keeps existing users and agents working and refuses only new ones; an expired license changes no decision (existing test kept)
+- [x] Remove `features`, `LicenseFeature` and `hasFeature()`; `LicenseEdition` becomes `FREE = "free"`, `LICENSED = "licensed"`; `COMMUNITY_LICENSE` becomes `FREE_LICENSE`; inbox schema, footer and CLI follow
+- [x] `scripts/issue-license.ts`: `--seats <n>` (sets `maxUsers`), agents unlimited, `--retention-days` default 365; refuses a missing or past expiry
+- [x] Tests: free / valid / expired / bad signature / wrong key; over the free limit after expiry keeps existing users and agents working and refuses only new ones; an expired license changes no decision (existing test kept)
 
 **License in the inbox** (new routes in `API_ENDPOINTS` first, admin-only, audited)
 - [ ] License stored in the database (`License` table with `orgId`; newest valid row wins), so every instance sees the same license without a shared file. `LICENSE_FILE` still works and takes precedence when set. `LicenseService` re-reads on its 24 h timer and right after an upload, with no in-memory state that another instance depends on
