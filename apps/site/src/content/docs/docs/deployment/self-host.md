@@ -99,7 +99,7 @@ Deploy a new key the same way. Running plans are blocked and agents start new ru
 
 ## License file
 
-Without a license you run the Community edition. To use one, put the file in `./license/` and set `LICENSE_FILE=/license/<file>`. See [Licensing](/docs/licensing/).
+Without a license you run with the free limits. To use one, put the file in `./license/` and set `LICENSE_FILE=/license/<file>`. See [Licensing](/docs/licensing/).
 
 ## More than one server instance
 

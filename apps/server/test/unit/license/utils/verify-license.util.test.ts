@@ -6,7 +6,6 @@ import { join, resolve } from "node:path";
 import { exportPrivateKeyPem, generateSigningKeyPair } from "@intentlock/core";
 
 import { LicenseEdition } from "../../../../src/license/enums/license-edition.enum.js";
-import { LicenseFeature } from "../../../../src/license/enums/license-feature.enum.js";
 import { LicenseStatus } from "../../../../src/license/enums/license-status.enum.js";
 import { verifyLicense } from "../../../../src/license/utils/verify-license.util.js";
 
@@ -32,53 +31,34 @@ function issue(...args: string[]): string {
 }
 
 describe("scripts/issue-license.ts → verifyLicense", () => {
-  it("issues a license the server accepts with exactly the requested limits", async () => {
-    const jws = issue(
-      "--licensee",
-      "Acme",
-      "--edition",
-      LicenseEdition.TEAM,
-      "--expires",
-      "2099-01-31",
-      "--max-users",
-      "25",
-      "--features",
-      `${LicenseFeature.MULTI_INSTANCE},${LicenseFeature.AUDIT_EXPORT}`,
-    );
+  it("issues a seat license the server accepts with exactly the requested limits", async () => {
+    const jws = issue("--licensee", "Acme", "--seats", "25", "--expires", "2099-01-31");
     const result = await verifyLicense(jws, vendor.publicKey, new Date());
     expect(result).toMatchObject({
       status: LicenseStatus.VALID,
       license: {
         licensee: "Acme",
-        edition: LicenseEdition.TEAM,
+        edition: LicenseEdition.LICENSED,
         maxUsers: 25,
         maxAgents: null,
-        retentionDays: 90,
-        features: [LicenseFeature.MULTI_INSTANCE, LicenseFeature.AUDIT_EXPORT],
+        retentionDays: 365,
       },
     });
   }, 30_000);
 
   it("is rejected when signed by another key or past its expiry", async () => {
-    const jws = issue(
-      "--licensee",
-      "Acme",
-      "--edition",
-      LicenseEdition.TEAM,
-      "--expires",
-      "2000-01-01",
-    );
-    expect((await verifyLicense(jws, vendor.publicKey, new Date())).status).toBe(
+    const jws = issue("--licensee", "Acme", "--seats", "5", "--expires", "2099-01-31");
+    expect((await verifyLicense(jws, vendor.publicKey, new Date("2100-01-01"))).status).toBe(
       LicenseStatus.EXPIRED,
     );
-    expect((await verifyLicense(jws, stranger.publicKey, new Date(0))).status).toBe(
+    expect((await verifyLicense(jws, stranger.publicKey, new Date())).status).toBe(
       LicenseStatus.INVALID,
     );
   }, 30_000);
 
-  it("refuses to sign an invalid license", () => {
-    expect(() =>
-      issue("--licensee", "Acme", "--edition", "platinum", "--expires", "2099-01-01"),
-    ).toThrow();
+  it("refuses to sign without seats, with bad seats or with a past expiry", () => {
+    expect(() => issue("--licensee", "Acme", "--expires", "2099-01-01")).toThrow();
+    expect(() => issue("--licensee", "Acme", "--seats", "0", "--expires", "2099-01-01")).toThrow();
+    expect(() => issue("--licensee", "Acme", "--seats", "5", "--expires", "2000-01-01")).toThrow();
   }, 30_000);
 });

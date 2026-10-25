@@ -13,14 +13,13 @@ import {
 import { LoggerContext } from "../common/enums/logger-context.enum.js";
 import { ENV, type Env } from "../config/config.module.js";
 import type { OrgTx } from "../org/utils/org-db.util.js";
-import { COMMUNITY_LICENSE } from "./constants/community-license.constant.js";
+import { FREE_LICENSE } from "./constants/free-license.constant.js";
 import {
   LICENSE_LIMIT_LOCK_ID,
   LICENSE_RECHECK_MS,
   VENDOR_PUBLIC_KEY,
 } from "./constants/license.constants.js";
 import { LicenseError } from "./enums/license-error.enum.js";
-import type { LicenseFeature } from "./enums/license-feature.enum.js";
 import { LicenseStatus } from "./enums/license-status.enum.js";
 import { LicensedResource } from "./enums/licensed-resource.enum.js";
 import type { License } from "./schemas/license.schema.js";
@@ -30,7 +29,7 @@ import { verifyLicense } from "./utils/verify-license.util.js";
 @Injectable()
 export class LicenseService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(LoggerContext.LICENSE);
-  private license: License = COMMUNITY_LICENSE;
+  private license: License = FREE_LICENSE;
   private status = LicenseStatus.MISSING;
   private timer: NodeJS.Timeout | undefined;
 
@@ -57,10 +56,6 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
 
   currentStatus(): LicenseStatus {
     return this.status;
-  }
-
-  hasFeature(feature: LicenseFeature): boolean {
-    return this.license.features.includes(feature);
   }
 
   async assertWithinLimit(tx: OrgTx, resource: LicensedResource): Promise<void> {
@@ -90,7 +85,7 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
   async load(): Promise<void> {
     const path = this.env.LICENSE_FILE;
     if (!path) {
-      this.apply(COMMUNITY_LICENSE, LicenseStatus.MISSING);
+      this.apply(FREE_LICENSE, LicenseStatus.MISSING);
       return;
     }
     let jws: string;
@@ -109,8 +104,8 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
   }
 
   private fallback(status: LicenseStatus, reason: string) {
-    this.log.warn(`License ${status} (${reason}); using the Community edition limits`);
-    this.apply(COMMUNITY_LICENSE, status);
+    this.log.warn(`License ${status} (${reason}); using the free limits`);
+    this.apply(FREE_LICENSE, status);
   }
 
   private apply(license: License, status: LicenseStatus) {

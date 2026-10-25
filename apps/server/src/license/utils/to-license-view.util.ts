@@ -9,7 +9,6 @@ export function toLicenseView(license: License, usedUsers: number, usedAgents: n
     maxAgents: license.maxAgents,
     usedAgents,
     retentionDays: license.retentionDays,
-    features: license.features,
     expiresAt: Number.isFinite(license.exp) ? new Date(license.exp * 1000).toISOString() : null,
   };
 }

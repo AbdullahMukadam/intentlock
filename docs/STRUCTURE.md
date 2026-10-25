@@ -298,7 +298,7 @@ src/
 │       └── utils/                  # api-key.util.ts (il_live_ keys, hashing), to-api-key-view.util.ts
 ├── license/                        # license.module/controller/service: verify at boot + every 24 h, limits, GET /v1/license
 │   ├── constants/                  # community-license, license.constants (DI token, lock id), vendor-public-key
-│   ├── enums/                      # license-edition, license-feature, license-status, licensed-resource, license-error
+│   ├── enums/                      # license-edition, license-status, licensed-resource, license-error
 │   ├── schemas/                    # license.schema.ts
 │   ├── types/                      # license-check.type.ts
 │   └── utils/                      # verify-license.util.ts (offline JWS verify), to-license-view.util.ts

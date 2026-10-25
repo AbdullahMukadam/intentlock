@@ -256,7 +256,7 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, hold outcomes (`holdOutcomes`: approved/rejected/expired resolved in the range), median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
 | GET | `/v1/runs?agentId=&user=&status=&cursor=` | → runs (plans) with decision counts | Auth: session (scoped by role) |
 | GET | `/v1/runs/:planId` | → plan, policy version, ordered decisions, holds, timing | Auth: session (scoped by role) |
-| GET | `/v1/license` | → `{ edition, licensee, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, features, expiresAt }` | Auth: session |
+| GET | `/v1/license` | → `{ edition, licensee, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, expiresAt }` | Auth: session |
 | POST | `/v1/plans` | `{ plan }` → `{ planId, token, planHash, policyVersion, policyHash, expiresAt }` | Auth: API key. Agent = key's agent (must be enabled); `plan.user` must be an active user; snapshots the agent's active policy; signs; audits `plan_signed` |
 | POST | `/v1/plans/:id/refresh` | `{ token }` → `{ token, expiresAt }` | Same plan hash only |
 | POST | `/v1/check` | `{ token, call }` → `GateDecision` | `remote` mode. Audits every decision; creates hold if needed |
@@ -613,27 +613,26 @@ Every method ends in the same session cookie (`httpOnly`, `Secure` on https, `Sa
 
 **Hardening:** rate limits on every public auth route (sign-in per email and per IP; setup, invites, resets and OAuth per IP), constant-time comparison of passwords and tokens, invite/reset/setup tokens stored only as SHA-256 and sent in request bodies (not paths), CSRF protection on cookie-authenticated mutations (`SameSite=Lax` + an `X-Intentlock-CSRF` header the inbox sends), sessions revoked when a user is disabled, resets their password or changes it (other sessions). All auth events are audited.
 
-### 5.7 Licensing (groundwork)
+### 5.7 Licensing (ADR-082)
 
 ```ts
 // apps/server/src/license/license.ts — pure functions, kept in the ELv2 server (not the MIT core)
 export const License = z.object({
   licensee: z.string(),
-  edition: z.enum(["community", "team", "enterprise"]),
+  edition: z.enum(["free", "licensed"]),
   maxUsers: z.number().int().positive().nullable(),     // null = unlimited
   maxAgents: z.number().int().positive().nullable(),
   retentionDays: z.number().int().positive(),
-  features: z.array(z.enum(["multi_instance", "audit_export", "sso", "sharded_audit", "policy_change_approval", "visual_policy_builder", "arg_redaction", "priority_support"])),
   exp: z.number(),                                        // unix seconds
 });
-export const COMMUNITY: License = { licensee: "Community", edition: "community", maxUsers: 5, maxAgents: 3, retentionDays: 30, features: [], exp: Infinity };
+export const FREE_LICENSE: License = { licensee: "Free", edition: "free", maxUsers: 5, maxAgents: 3, retentionDays: 30, exp: Infinity };
 export function verifyLicense(jws: string, vendorPublicKey: KeyLike, now: Date): License; // throws on bad signature
 ```
 
 - The license file (`LICENSE_FILE`, a JWS) is signed with the **vendor key**, a different Ed25519 key from plan signing. Only the vendor public key ships in the server build; the private key never enters the repo. `scripts/issue-license.ts` (repo root, not published) issues licenses from a key on the vendor's machine.
-- `LicenseService` (server) verifies at boot and every 24 h, fully offline. Missing, invalid or expired → falls back to `COMMUNITY` and logs a warning. **A license problem never disables enforcement, holds or audit** — it only changes limits.
-- v0.1 enforces `maxUsers` and `maxAgents` (creation fails with a clear error) and exposes `hasFeature()` for future paid features. `retentionDays` is reported but purging is out of scope for v0.1.
-- `GET /v1/license` shows the current edition; the inbox shows it in the footer.
+- `LicenseService` (server) verifies at boot and every 24 h, fully offline. Missing, invalid or expired → falls back to `FREE_LICENSE` and logs a warning. **A license problem never disables enforcement, holds or audit** — it only changes limits.
+- One paid license, per seat per year: `scripts/issue-license.ts --seats <n>` sets `maxUsers`, agents are unlimited, retention defaults to 365 days. Every feature is in every install; there are no feature flags. `maxUsers` and `maxAgents` are enforced (creation fails with a clear error). `retentionDays` is reported; the purge is Phase 8.
+- `GET /v1/license` shows the current edition; the inbox shows it in the sidebar.
 
 ### 5.8 Agents and API keys
 

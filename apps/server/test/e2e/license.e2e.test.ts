@@ -10,7 +10,6 @@ import request from "supertest";
 import { ENV, type Env } from "../../src/config/config.module.js";
 import { VENDOR_PUBLIC_KEY } from "../../src/license/constants/license.constants.js";
 import { LicenseEdition } from "../../src/license/enums/license-edition.enum.js";
-import { LicenseFeature } from "../../src/license/enums/license-feature.enum.js";
 import { LicenseStatus } from "../../src/license/enums/license-status.enum.js";
 import { LicenseService } from "../../src/license/license.service.js";
 import { UserRole } from "../../src/users/enums/user-role.enum.js";
@@ -34,13 +33,12 @@ let app: INestApplication;
 let orgId: string;
 let admin: Awaited<ReturnType<typeof signedIn>>;
 
-const TEAM = {
+const PAID = {
   licensee: "Acme",
-  edition: LicenseEdition.TEAM,
+  edition: LicenseEdition.LICENSED,
   maxUsers: 25,
-  maxAgents: 10,
-  retentionDays: 90,
-  features: [LicenseFeature.MULTI_INSTANCE],
+  maxAgents: null,
+  retentionDays: 365,
 };
 
 async function useLicense(
@@ -86,10 +84,10 @@ beforeEach(async () => {
 });
 
 describe("license verification", () => {
-  it("falls back to Community without a license file", async () => {
+  it("falls back to the free limits without a license file", async () => {
     const res = await http().get("/v1/license").set("Cookie", admin.cookie).expect(200);
     expect(res.body).toMatchObject({
-      edition: "community",
+      edition: "free",
       maxUsers: 5,
       usedUsers: 1,
       maxAgents: 3,
@@ -99,36 +97,34 @@ describe("license verification", () => {
   });
 
   it("applies a valid license", async () => {
-    const license = await useLicense({ ...TEAM, exp: inOneYear() });
+    const license = await useLicense({ ...PAID, exp: inOneYear() });
     expect(license.currentStatus()).toBe(LicenseStatus.VALID);
-    expect(license.hasFeature(LicenseFeature.MULTI_INSTANCE)).toBe(true);
-    expect(license.hasFeature(LicenseFeature.SSO)).toBe(false);
     const res = await http().get("/v1/license").set("Cookie", admin.cookie).expect(200);
-    expect(res.body).toMatchObject({ edition: "team", licensee: "Acme", maxAgents: 10 });
+    expect(res.body).toMatchObject({
+      edition: "licensed",
+      licensee: "Acme",
+      maxUsers: 25,
+      maxAgents: null,
+    });
     expect(res.body.expiresAt).toMatch(/^\d{4}-/);
   });
 
-  it("falls back to Community when expired, badly signed or unreadable", async () => {
+  it("falls back to the free limits when expired, badly signed or unreadable", async () => {
     const cases: [object | null, CryptoKey | undefined, string | undefined, LicenseStatus][] = [
       [
-        { ...TEAM, exp: Math.floor(Date.now() / 1000) - 1 },
+        { ...PAID, exp: Math.floor(Date.now() / 1000) - 1 },
         undefined,
         undefined,
         LicenseStatus.EXPIRED,
       ],
-      [{ ...TEAM, exp: inOneYear() }, stranger.privateKey, undefined, LicenseStatus.INVALID],
+      [{ ...PAID, exp: inOneYear() }, stranger.privateKey, undefined, LicenseStatus.INVALID],
       [null, undefined, "not a jws", LicenseStatus.INVALID],
-      [
-        { ...TEAM, exp: inOneYear(), edition: "platinum" },
-        undefined,
-        undefined,
-        LicenseStatus.INVALID,
-      ],
+      [{ ...PAID, exp: inOneYear(), edition: "team" }, undefined, undefined, LicenseStatus.INVALID],
     ];
     for (const [payload, key, raw, status] of cases) {
       const license = await useLicense(payload, key, raw);
       expect(license.currentStatus()).toBe(status);
-      expect(license.current().edition).toBe(LicenseEdition.COMMUNITY);
+      expect(license.current().edition).toBe(LicenseEdition.FREE);
     }
   });
 });
@@ -182,7 +178,7 @@ describe("license limits", () => {
   });
 
   it("a valid license raises the limit", async () => {
-    await useLicense({ ...TEAM, exp: inOneYear() });
+    await useLicense({ ...PAID, exp: inOneYear() });
     for (const name of ["a1", "a2", "a3", "a4"]) await createAgent(name).expect(201);
   });
 });
@@ -216,9 +212,9 @@ describe("license never changes enforcement", () => {
       }
       return out;
     };
-    await useLicense({ ...TEAM, exp: inOneYear() });
+    await useLicense({ ...PAID, exp: inOneYear() });
     const valid = await decide();
-    await useLicense({ ...TEAM, exp: Math.floor(Date.now() / 1000) - 1 });
+    await useLicense({ ...PAID, exp: Math.floor(Date.now() / 1000) - 1 });
     const expired = await decide();
     expect(expired).toEqual(valid);
     expect(valid.map((d) => d.verdict)).toEqual(["allow", "block", "block"]);

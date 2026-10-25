@@ -131,8 +131,8 @@ Nothing in the inbox is visible without signing in. Every agent run is tied to a
 - FR21 · ~30 prompt-injection scenarios across GitHub, email and file tools with mock backends; runner outputs a results table.
 
 ### Licensing groundwork
-- FR23 · The server verifies an optional signed license file offline at boot and daily. No file or an invalid/expired file → Community edition limits. Licence problems never disable enforcement: they only change limits.
-- FR24 · Entitlements (edition, max users, max agents, audit retention, feature flags) are checked in one place (`LicenseService`); v0.1 enforces max users and max agents and exposes the flags for future paid features.
+- FR23 · The server verifies an optional signed license file offline at boot and daily. No file or an invalid/expired file → free limits (ADR-082). Licence problems never disable enforcement: they only change limits.
+- FR24 · Entitlements (edition `free | licensed`, max users = seats, max agents, audit retention) are checked in one place (`LicenseService`). There are no feature flags (ADR-082).
 
 ### MCP proxy (stretch)
 - FR22 · A stdio MCP proxy that forwards to an upstream MCP server and enforces Intentlock on `tools/call`.
