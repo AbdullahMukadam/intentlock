@@ -11,6 +11,7 @@ const ALLOWED: Record<UiAction, Role[]> = {
   [UiAction.TEST_POLICY]: [Role.enum.admin, Role.enum.approver],
   [UiAction.MANAGE_TEAM]: [Role.enum.admin],
   [UiAction.EXPORT_AUDIT_CHAIN]: [Role.enum.admin, Role.enum.approver],
+  [UiAction.MANAGE_LICENSE]: [Role.enum.admin],
 };
 
 export function can(role: Role, action: UiAction) {

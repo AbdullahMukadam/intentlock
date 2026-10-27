@@ -58,7 +58,7 @@ The quickstart bundle is the production bundle; for a real install, edit `.env` 
 - `SMTP_URL` and `SMTP_FROM` to email invites and enable "forgot password"; without them, links are only shown to copy.
 - `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` for "Continue with Google/GitHub" (existing and invited users only, matched by verified email). Callback: `<PUBLIC_URL>/api/v1/auth/oauth/<google|github>/callback`.
 - `INTENTLOCK_VERSION`: the release to run (defaults to the one this bundle came with; see `CHANGELOG.md`).
-- A license file in `./license/` with `LICENSE_FILE=/license/<file>`. Without one you run with the free limits (5 users, 3 agents).
+- A license: paste the key on the inbox's License page, or put the file in `./license/` with `LICENSE_FILE=/license/<file>`. Without one you run with the free limits (5 users, 3 agents).
 
 Agent apps get `INTENTLOCK_URL=<PUBLIC_URL>/api` and an `INTENTLOCK_API_KEY` from Agents → API keys. Teammates can also be invited from the [CLI](packages/cli): `intentlock users invite bob@acme.dev --role approver`.
 

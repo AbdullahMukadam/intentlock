@@ -1,6 +1,10 @@
 import { HoldResolveOutcome, PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
 import { z } from "zod";
 
+import { LicenseEdition } from "./enums/license-edition.enum";
+import { LicenseSource } from "./enums/license-source.enum";
+import { LicenseStatus } from "./enums/license-status.enum";
+
 export const Me = z.object({ email: z.string(), role: Role, groups: z.array(z.string()) });
 export type Me = z.infer<typeof Me>;
 
@@ -22,7 +26,18 @@ export const InviteInfo = z.object({
 });
 export type InviteInfo = z.infer<typeof InviteInfo>;
 
-export const License = z.object({ edition: z.string(), licensee: z.string() });
+export const License = z.object({
+  edition: z.enum(LicenseEdition),
+  licensee: z.string(),
+  status: z.enum(LicenseStatus),
+  source: z.enum(LicenseSource),
+  maxUsers: z.number().nullable(),
+  usedUsers: z.number(),
+  maxAgents: z.number().nullable(),
+  usedAgents: z.number(),
+  retentionDays: z.number(),
+  expiresAt: z.string().nullable(),
+});
 export type License = z.infer<typeof License>;
 
 export const ApiErrorBody = z.object({ error: z.string() });

@@ -404,6 +404,7 @@ src/app/                            # Better-T-Stack puts the App Router under s
 │   ├── agents/[id]/page.tsx        # tabs: overview · policy · api keys · activity
 │   ├── audit/page.tsx              # verify chain
 │   ├── team/page.tsx               # members, roles, groups, invites, reset links (admins); read-only list for others
+│   ├── license/page.tsx            # mode, seats, agents, retention, expiry; paste or remove a key (admins)
 │   ├── account/page.tsx            # profile, password, linked Google/GitHub, sessions, CLI token
 │   ├── welcome/page.tsx            # onboarding: agent → API key → env + snippet → waits for the first decision
 │   └── demo/page.tsx               # split-screen: unprotected vs protected
@@ -419,6 +420,7 @@ src/components/                     # app-specific; shared primitives come from 
 ├── audit/                          # verify-button.tsx
 ├── demo/                           # demo-view.tsx (EventSource + Run both), agent-pane.tsx, event-row.tsx
 ├── team/                           # team-view.tsx (members + invites tables, actions menu), invite-member-form.tsx
+├── license/                        # license-view.tsx (License page), limit-warning.tsx (over-limit notice, also on Audit)
 ├── account/                        # account-view.tsx (password, sign-in methods, sessions, CLI token panels)
 ├── onboarding/                     # onboarding-wizard.tsx (stepper, four steps, live wait for a decision)
 ├── auth/                           # auth-layout, form-field (incl. password field), provider-buttons + provider-icons,

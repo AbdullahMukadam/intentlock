@@ -11,6 +11,7 @@ import { VerifyButton } from "@/components/audit/verify-button";
 import { CodeBlock } from "@/components/code-block";
 import { DetailGrid, DetailItem } from "@/components/detail-grid";
 import { EmptyState } from "@/components/empty-state";
+import { LimitWarning } from "@/components/license/limit-warning";
 import { PageHeader } from "@/components/page-header";
 import { apiUrl } from "@/lib/api";
 import { auditSummaryUrl } from "@/lib/audit-verify";
@@ -159,6 +160,7 @@ export function AuditView() {
           )
         }
       />
+      <LimitWarning linkToLicense />
       <ChainSummary />
       <VerifyButton />
       {canExport && <OfflineVerify />}

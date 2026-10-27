@@ -19,4 +19,7 @@ export enum ApiErrorCode {
   LAST_SIGN_IN_METHOD = "last_sign_in_method",
   DATABASE_UNAVAILABLE = "database_unavailable",
   UNEXPECTED_RESPONSE = "unexpected_response",
+  LICENSE_INVALID = "license_invalid",
+  LICENSE_EXPIRED = "license_expired",
+  LICENSE_FROM_FILE = "license_from_file",
 }
