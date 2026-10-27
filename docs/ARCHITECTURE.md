@@ -256,7 +256,9 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, hold outcomes (`holdOutcomes`: approved/rejected/expired resolved in the range), median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
 | GET | `/v1/runs?agentId=&user=&status=&cursor=` | → runs (plans) with decision counts | Auth: session (scoped by role) |
 | GET | `/v1/runs/:planId` | → plan, policy version, ordered decisions, holds, timing | Auth: session (scoped by role) |
-| GET | `/v1/license` | → `{ edition, licensee, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, expiresAt }` | Auth: session |
+| GET | `/v1/license` | → `{ edition, licensee, status, source, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, expiresAt }` | Auth: session |
+| PUT | `/v1/license` | `{ key }` → same as GET; 400 `license_invalid` / `license_expired`, 409 `license_from_file` while `LICENSE_FILE` is set | Auth: session (admin); audits `license_applied` |
+| DELETE | `/v1/license` | → 204; 409 `license_from_file` | Auth: session (admin); audits `license_removed` |
 | POST | `/v1/plans` | `{ plan }` → `{ planId, token, planHash, policyVersion, policyHash, expiresAt }` | Auth: API key. Agent = key's agent (must be enabled); `plan.user` must be an active user; snapshots the agent's active policy; signs; audits `plan_signed` |
 | POST | `/v1/plans/:id/refresh` | `{ token }` → `{ token, expiresAt }` | Same plan hash only |
 | POST | `/v1/check` | `{ token, call }` → `GateDecision` | `remote` mode. Audits every decision; creates hold if needed |
@@ -293,7 +295,16 @@ model Organization {
   id            String   @id @default(cuid())
   name          String
   setupCodeHash String?                    // sha256 of the setup code; null once the first admin exists
+  licenseClockAt DateTime?                 // latest time the license check has seen; never moves back
   createdAt     DateTime @default(now())
+}
+
+model License {                            // one per org; the signed key applied in the inbox
+  id        String   @id @default(cuid())
+  orgId     String   @unique
+  jws       String
+  appliedBy String
+  appliedAt DateTime @default(now())
 }
 
 model Agent {
@@ -630,7 +641,7 @@ export function verifyLicense(jws: string, vendorPublicKey: KeyLike, now: Date):
 ```
 
 - The license file (`LICENSE_FILE`, a JWS) is signed with the **vendor key**, a different Ed25519 key from plan signing. Only the vendor public key ships in the server build; the private key never enters the repo. `scripts/issue-license.ts` (repo root, not published) issues licenses from a key on the vendor's machine.
-- `LicenseService` (server) verifies at boot and every 24 h, fully offline. Missing, invalid or expired → falls back to `FREE_LICENSE` and logs a warning. **A license problem never disables enforcement, holds or audit** — it only changes limits.
+- The key comes from `LICENSE_FILE` when set, else from the `License` row an admin applied in the inbox (`PUT /v1/license`, verified before it is stored). `LicenseService` (server) re-reads and re-verifies it at boot and every 60 s, fully offline, so a key applied on one instance reaches the others within a minute. Verification uses the later of the server clock and `Organization.licenseClockAt`, which only moves forward, so setting the clock back does not revive an expired license. Missing, invalid or expired → falls back to `FREE_LICENSE` and logs a warning. **A license problem never disables enforcement, holds or audit** — it only changes limits.
 - One paid license, per seat per year: `scripts/issue-license.ts --seats <n>` sets `maxUsers`, agents are unlimited, retention defaults to 365 days. Every feature is in every install; there are no feature flags. `maxUsers` and `maxAgents` are enforced (creation fails with a clear error). `retentionDays` is reported; the purge is Phase 8.
 - `GET /v1/license` shows the current edition; the inbox shows it in the sidebar.
 

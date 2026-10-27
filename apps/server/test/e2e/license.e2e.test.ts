@@ -220,3 +220,115 @@ describe("license never changes enforcement", () => {
     expect(valid.map((d) => d.verdict)).toEqual(["allow", "block", "block"]);
   });
 });
+
+describe("license applied in the inbox", () => {
+  const sign = (payload: object, key: CryptoKey = vendor.privateKey) =>
+    new CompactSign(new TextEncoder().encode(JSON.stringify(payload)))
+      .setProtectedHeader({ alg: "EdDSA" })
+      .sign(key);
+  const put = (cookie: string, key: string) =>
+    http().put("/v1/license").set("Cookie", cookie).set(CSRF).send({ key });
+  const kinds = async () => (await prisma.auditEntry.findMany()).map((e) => e.kind);
+
+  it("an admin applies a key: stored, audited, limits lifted", async () => {
+    const res = await put(admin.cookie, await sign({ ...PAID, exp: inOneYear() })).expect(200);
+    expect(res.body).toMatchObject({
+      edition: "licensed",
+      status: "valid",
+      source: "database",
+      licensee: "Acme",
+      maxUsers: 25,
+    });
+    expect(await prisma.license.count()).toBe(1);
+    expect(await kinds()).toContain("license_applied");
+    for (const name of ["a1", "a2", "a3", "a4"])
+      await http()
+        .post("/v1/agents")
+        .set("Cookie", admin.cookie)
+        .set(CSRF)
+        .send({ name })
+        .expect(201);
+  });
+
+  it("refuses a bad signature, an expired key, garbage and non-admins, storing nothing", async () => {
+    const forged = await put(
+      admin.cookie,
+      await sign({ ...PAID, exp: inOneYear() }, stranger.privateKey),
+    ).expect(400);
+    expect(forged.body).toMatchObject({ error: "license_invalid" });
+    const expired = await put(
+      admin.cookie,
+      await sign({ ...PAID, exp: Math.floor(Date.now() / 1000) - 1 }),
+    ).expect(400);
+    expect(expired.body).toMatchObject({ error: "license_expired" });
+    await put(admin.cookie, "not a jws").expect(400);
+    for (const role of [UserRole.APPROVER, UserRole.MEMBER]) {
+      const other = await signedIn(prisma, orgId, role);
+      await put(other.cookie, await sign({ ...PAID, exp: inOneYear() })).expect(403);
+    }
+    expect(await prisma.license.count()).toBe(0);
+    expect(app.get(LicenseService).current().edition).toBe(LicenseEdition.FREE);
+  });
+
+  it("a stored key edited in the database falls back to the free limits", async () => {
+    await put(admin.cookie, await sign({ ...PAID, exp: inOneYear() })).expect(200);
+    const row = await prisma.license.findFirstOrThrow();
+    const [header, , signature] = row.jws.split(".");
+    const bigger = Buffer.from(
+      JSON.stringify({ ...PAID, maxUsers: 9999, exp: inOneYear() }),
+    ).toString("base64url");
+    await prisma.license.update({
+      where: { id: row.id },
+      data: { jws: `${header}.${bigger}.${signature}` },
+    });
+    const license = app.get(LicenseService);
+    await license.load();
+    expect(license.currentStatus()).toBe(LicenseStatus.INVALID);
+    expect(license.current().maxUsers).toBe(5);
+  });
+
+  it("a clock set back does not revive an expired license", async () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    await put(admin.cookie, await sign({ ...PAID, exp })).expect(200);
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { licenseClockAt: new Date((exp + 60) * 1000) },
+    });
+    const license = app.get(LicenseService);
+    await license.load();
+    expect(license.currentStatus()).toBe(LicenseStatus.EXPIRED);
+    expect(license.current().edition).toBe(LicenseEdition.FREE);
+  });
+
+  it("another server instance picks up the stored key on its next check", async () => {
+    const other = await createTestApp({
+      override: (b) => b.overrideProvider(VENDOR_PUBLIC_KEY).useValue(vendor.publicKey),
+    });
+    try {
+      other.get<Env>(ENV).LICENSE_FILE = undefined;
+      await put(admin.cookie, await sign({ ...PAID, exp: inOneYear() })).expect(200);
+      const remote = other.get(LicenseService);
+      await remote.load();
+      expect(remote.current()).toMatchObject({ edition: LicenseEdition.LICENSED, maxUsers: 25 });
+    } finally {
+      await other.close();
+    }
+  });
+
+  it("removing the key returns to the free limits and is audited", async () => {
+    await put(admin.cookie, await sign({ ...PAID, exp: inOneYear() })).expect(200);
+    await http().delete("/v1/license").set("Cookie", admin.cookie).set(CSRF).expect(204);
+    const res = await http().get("/v1/license").set("Cookie", admin.cookie).expect(200);
+    expect(res.body).toMatchObject({ edition: "free", status: "missing", source: "none" });
+    expect(await kinds()).toContain("license_removed");
+  });
+
+  it("refuses to apply or remove while LICENSE_FILE is set", async () => {
+    await useLicense({ ...PAID, exp: inOneYear() });
+    const res = await put(admin.cookie, await sign({ ...PAID, exp: inOneYear() })).expect(409);
+    expect(res.body).toMatchObject({ error: "license_from_file" });
+    await http().delete("/v1/license").set("Cookie", admin.cookie).set(CSRF).expect(409);
+    const view = await http().get("/v1/license").set("Cookie", admin.cookie).expect(200);
+    expect(view.body).toMatchObject({ source: "file", status: "valid" });
+  });
+});

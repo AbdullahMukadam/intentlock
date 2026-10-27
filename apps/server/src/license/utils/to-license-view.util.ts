@@ -1,9 +1,19 @@
+import type { LicenseSource } from "../enums/license-source.enum.js";
+import type { LicenseStatus } from "../enums/license-status.enum.js";
 import type { License } from "../schemas/license.schema.js";
 
-export function toLicenseView(license: License, usedUsers: number, usedAgents: number) {
+export function toLicenseView(
+  license: License,
+  status: LicenseStatus,
+  source: LicenseSource,
+  usedUsers: number,
+  usedAgents: number,
+) {
   return {
     edition: license.edition,
     licensee: license.licensee,
+    status,
+    source,
     maxUsers: license.maxUsers,
     usedUsers,
     maxAgents: license.maxAgents,
