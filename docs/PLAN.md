@@ -455,8 +455,8 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 
 **License in the inbox** (new routes in `API_ENDPOINTS` first, admin-only, audited)
 - [x] License stored in the database (`License` table with `orgId`; newest valid row wins), so every instance sees the same license without a shared file. `LICENSE_FILE` still works and takes precedence when set. `LicenseService` re-reads on its 24 h timer and right after an upload, with no in-memory state that another instance depends on
-- [ ] Admin **License page**: mode, licensee, seats used / total, agents, retention, expiry date; paste or upload a license key (verified on the server before it is stored; a bad key returns its reason); remove a license
-- [ ] Limit errors in the inbox: inviting a user or creating an agent over the limit says which limit, the current count and "apply a license", with a link to the License page (admins) or "ask an admin" (others)
+- [x] Admin **License page**: mode, licensee, seats used / total, agents, retention, expiry date; paste or upload a license key (verified on the server before it is stored; a bad key returns its reason); remove a license
+- [x] Limit errors in the inbox: inviting a user or creating an agent over the limit says which limit, the current count and "apply a license", with a link to the License page (admins) or "ask an admin" (others)
 
 **Expiry**
 - [ ] Banner for admins 30, 7 and 1 days before expiry (none during the grace period); email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)

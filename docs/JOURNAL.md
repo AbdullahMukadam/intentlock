@@ -2330,3 +2330,21 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Phase 8: license stored in the database and the admin License page
+
+### 2026-10-27 · Session 31 · Phase 8: License page
+
+**Done**
+- Server (commit `5d8a480`): `PUT`/`DELETE /v1/license` (admin, audited `license_applied` / `license_removed`) store the signed key in a `License` row, re-verified on every load; `LICENSE_FILE` still wins (409 `license_from_file`). Every instance re-reads every 60 s (was 24 h). `Organization.licenseClockAt` only moves forward, so a clock set back does not revive an expired license. `GET /v1/license` adds `status` and `source`
+- Inbox (commit `b41490b`): License page under Configure (mode, licensee, seats, agents, retention, expiry; admins paste, replace or remove a key), over-limit warning on License and Audit, limit errors that point to the License page, sidebar shows "Free" or "Licensed to <licensee>" and refreshes after a change
+- Migration `20261025120000_license` applied to the dev database with `migrate deploy`
+
+**Problems hit and how they were solved**
+- GPG signing timed out twice on the server commit → Abdullah unlocked the key, the commit went through signed
+- Checked in the browser against the test database (not the seeded dev one): a scratch seed with an admin, a member and 7 users (over the free limit of 5), the server on `TEST_DATABASE_URL`, headless Edge over the DevTools protocol. A test license from `keys/vendor-private.pem` applied through the page, which also confirms the vendor key matches `VENDOR_PUBLIC_KEY_PEM`
+
+**Numbers**
+- Server 265 tests, inbox 133, site 9; typecheck and lint green; the migration diffs empty against the schema
+- Screenshots (no page errors, no sideways scroll): License free and over the limit at 1280 and 375 px, light and dark; member read-only; Audit with the warning; an invalid key's toast; a 25-seat key applied (sidebar "Licensed to Acme Test"); the 4th agent refused with the new message
+
+**Next**
+- Phase 8 Expiry: warnings at 30, 7 and 1 days, 14-day grace without a banner
