@@ -2348,3 +2348,23 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Phase 8 Expiry: warnings at 30, 7 and 1 days, 14-day grace without a banner
+
+### 2026-10-27 · Session 31 (cont.) · Phase 8: license expiry
+
+**Done**
+- Server: `grace` status keeps a license's limits for 14 days after `exp`, then `expired` falls back to the free limits. `LicenseNotice` (migration `20261027120000_license_notices`) records each warning (30, 7, 1 days left, `expired`) once per org and license expiry; only the instance that inserts it emails the active admins (`MailService.sendLicenseNotice`, shared HTML layout), and `expired` also appends `license_expired`. `GET /v1/license` adds `graceEndsAt`. Applying a key already in grace is refused as expired
+- Inbox: an admin-only banner across the app during the last 30 days of a valid license, linking to the License page; during grace the Expires field reads "Expired <date>, full limits until <date>", with no banner
+- ARCHITECTURE (data model, §5.7, API), the site's licensing page and the ADR-082 build notes updated; the migration applied to the dev database with `migrate deploy`
+
+**Problems hit and how they were solved**
+- The browser check first ran with the `.env` SMTP settings, which point at Brevo, not Mailpit: one 7-day warning was most likely sent for real to the seeded fake address `admin@acme.dev`. The server was restarted with `SMTP_URL=smtp://127.0.0.1:1025`, the notice row cleared in the test database, and the email checked in Mailpit. Next time: set `SMTP_URL` to Mailpit for any local run against seeded data
+- The clock e2e test set the clock one minute past expiry, which is now grace → moved it 15 days past
+- Storing the license expiry as an `Int` of seconds would overflow in 2038 → `expiresAt DateTime`
+- The grace text was cut off by the detail cell's `truncate` → wraps now
+
+**Numbers**
+- Server 280 tests (49 files), inbox 134, site 9; typecheck, lint, Prettier green; migration diff empty
+- Screenshots (no page errors): banner on Overview at 1280 px and on License at 375 px dark, no banner for a member, the 7-day email in Mailpit, the grace view at 1280 and 375 px; the grace period sent no extra email
+
+**Next**
+- Phase 8 retention purge (ADR first: where archives go, how verify anchors on the first kept entry)

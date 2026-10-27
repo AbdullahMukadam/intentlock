@@ -71,4 +71,43 @@ export class MailService {
       }),
     );
   }
+
+  sendLicenseNotice(
+    to: string,
+    notice: { licensee: string; expiresAt: Date; daysLeft: number | null; link: string },
+  ): Promise<boolean> {
+    const date = notice.expiresAt.toISOString().slice(0, 10);
+    const expired = notice.daysLeft === null;
+    const when = expired
+      ? `expired on ${date}`
+      : `expires on ${date} (in ${String(notice.daysLeft)} day${notice.daysLeft === 1 ? "" : "s"})`;
+    const outcome = expired
+      ? "The install now runs with the free limits (5 users, 3 agents). Nothing is switched off and agents keep running, but no users or agents can be added past those limits."
+      : "After it expires, the install keeps its limits for 14 days, then falls back to the free limits. Enforcement, holds and the audit log never stop.";
+    return this.send(
+      to,
+      expired ? "Your Intentlock license has expired" : `Your Intentlock license ${when}`,
+      `The Intentlock license for ${notice.licensee} ${when}.
+
+${outcome}
+
+Renew it and paste the new key on the License page:
+${notice.link}
+`,
+      emailHtml({
+        preheader: `The license for ${notice.licensee} ${when}.`,
+        eyebrow: "License",
+        accent: expired ? "#dc2626" : "#d97706",
+        title: expired ? "Your license has expired" : "Your license expires soon",
+        intro: `The Intentlock license for ${notice.licensee} ${when}.`,
+        details: [
+          { label: "Licensed to", value: notice.licensee },
+          { label: expired ? "Expired" : "Expires", value: date },
+        ],
+        button: { label: "Open the License page", href: notice.link },
+        note: outcome,
+        footer: "You get this email because you are an admin of this Intentlock install.",
+      }),
+    );
+  }
 }

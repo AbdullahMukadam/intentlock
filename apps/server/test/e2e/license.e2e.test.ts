@@ -12,6 +12,7 @@ import { VENDOR_PUBLIC_KEY } from "../../src/license/constants/license.constants
 import { LicenseEdition } from "../../src/license/enums/license-edition.enum.js";
 import { LicenseStatus } from "../../src/license/enums/license-status.enum.js";
 import { LicenseService } from "../../src/license/license.service.js";
+import { MailService } from "../../src/mail/mail.service.js";
 import { UserRole } from "../../src/users/enums/user-role.enum.js";
 import {
   call,
@@ -20,6 +21,7 @@ import {
   createTestApp,
   createUser,
   CSRF,
+  FakeMail,
   planFor,
   signedIn,
 } from "./helpers.js";
@@ -64,12 +66,20 @@ async function useLicense(
   return license;
 }
 
-const inOneYear = () => Math.floor(Date.now() / 1000) + 365 * 86_400;
+const nowSec = () => Math.floor(Date.now() / 1000);
+const inOneYear = () => nowSec() + 365 * 86_400;
+const pastGrace = () => nowSec() - 15 * 86_400;
+const mail = new FakeMail();
 const http = () => request(app.getHttpServer());
 
 beforeAll(async () => {
   app = await createTestApp({
-    override: (b) => b.overrideProvider(VENDOR_PUBLIC_KEY).useValue(vendor.publicKey),
+    override: (b) =>
+      b
+        .overrideProvider(VENDOR_PUBLIC_KEY)
+        .useValue(vendor.publicKey)
+        .overrideProvider(MailService)
+        .useValue(mail),
   });
 });
 afterAll(async () => {
@@ -81,6 +91,7 @@ beforeEach(async () => {
   orgId = await createOrg(prisma);
   admin = await signedIn(prisma, orgId, UserRole.ADMIN);
   await useLicense(null);
+  mail.sent = [];
 });
 
 describe("license verification", () => {
@@ -111,12 +122,7 @@ describe("license verification", () => {
 
   it("falls back to the free limits when expired, badly signed or unreadable", async () => {
     const cases: [object | null, CryptoKey | undefined, string | undefined, LicenseStatus][] = [
-      [
-        { ...PAID, exp: Math.floor(Date.now() / 1000) - 1 },
-        undefined,
-        undefined,
-        LicenseStatus.EXPIRED,
-      ],
+      [{ ...PAID, exp: pastGrace() }, undefined, undefined, LicenseStatus.EXPIRED],
       [{ ...PAID, exp: inOneYear() }, stranger.privateKey, undefined, LicenseStatus.INVALID],
       [null, undefined, "not a jws", LicenseStatus.INVALID],
       [{ ...PAID, exp: inOneYear(), edition: "team" }, undefined, undefined, LicenseStatus.INVALID],
@@ -214,7 +220,7 @@ describe("license never changes enforcement", () => {
     };
     await useLicense({ ...PAID, exp: inOneYear() });
     const valid = await decide();
-    await useLicense({ ...PAID, exp: Math.floor(Date.now() / 1000) - 1 });
+    await useLicense({ ...PAID, exp: pastGrace() });
     const expired = await decide();
     expect(expired).toEqual(valid);
     expect(valid.map((d) => d.verdict)).toEqual(["allow", "block", "block"]);
@@ -292,7 +298,7 @@ describe("license applied in the inbox", () => {
     await put(admin.cookie, await sign({ ...PAID, exp })).expect(200);
     await prisma.organization.update({
       where: { id: orgId },
-      data: { licenseClockAt: new Date((exp + 60) * 1000) },
+      data: { licenseClockAt: new Date((exp + 15 * 86_400) * 1000) },
     });
     const license = app.get(LicenseService);
     await license.load();
@@ -330,5 +336,56 @@ describe("license applied in the inbox", () => {
     await http().delete("/v1/license").set("Cookie", admin.cookie).set(CSRF).expect(409);
     const view = await http().get("/v1/license").set("Cookie", admin.cookie).expect(200);
     expect(view.body).toMatchObject({ source: "file", status: "valid" });
+  });
+});
+
+describe("license expiry", () => {
+  const notices = () => prisma.licenseNotice.findMany();
+
+  it("keeps full limits for 14 days after expiry, without notices", async () => {
+    const license = await useLicense({ ...PAID, exp: nowSec() - 86_400 });
+    expect(license.currentStatus()).toBe(LicenseStatus.GRACE);
+    expect(license.current().maxUsers).toBe(25);
+    const res = await http().get("/v1/license").set("Cookie", admin.cookie).expect(200);
+    expect(res.body).toMatchObject({ edition: "licensed", status: "grace" });
+    expect(Date.parse(res.body.graceEndsAt) - Date.parse(res.body.expiresAt)).toBe(14 * 86_400_000);
+    expect(await notices()).toHaveLength(0);
+    expect(mail.sent).toHaveLength(0);
+  });
+
+  it("emails admins once at the closest warning point, across reloads and instances", async () => {
+    await signedIn(prisma, orgId, UserRole.MEMBER);
+    await useLicense({ ...PAID, exp: nowSec() + 5 * 86_400 });
+    const license = app.get(LicenseService);
+    await license.load();
+    const other = await createTestApp({
+      override: (b) => b.overrideProvider(VENDOR_PUBLIC_KEY).useValue(vendor.publicKey),
+    });
+    try {
+      other.get<Env>(ENV).LICENSE_FILE = app.get<Env>(ENV).LICENSE_FILE;
+      await other.get(LicenseService).load();
+    } finally {
+      await other.close();
+    }
+    expect((await notices()).map((n) => n.kind)).toEqual(["expires_in_7_days"]);
+    expect(mail.sent).toHaveLength(1);
+    expect(mail.sent[0]).toMatchObject({ to: admin.user.email });
+    expect(mail.sent[0]?.subject).toContain("in 5 days");
+  });
+
+  it("records the end of the grace period once in the audit log and emails admins", async () => {
+    const license = await useLicense({ ...PAID, exp: pastGrace() });
+    await license.load();
+    expect(license.currentStatus()).toBe(LicenseStatus.EXPIRED);
+    const expired = await prisma.auditEntry.findMany({ where: { kind: "license_expired" } });
+    expect(expired).toHaveLength(1);
+    expect(mail.sent.map((m) => m.subject)).toEqual(["Your Intentlock license has expired"]);
+  });
+
+  it("a renewed license starts its own warnings", async () => {
+    await useLicense({ ...PAID, exp: nowSec() + 20 * 86_400 });
+    await useLicense({ ...PAID, exp: nowSec() + 25 * 86_400 });
+    expect(await notices()).toHaveLength(2);
+    expect(mail.sent).toHaveLength(2);
   });
 });

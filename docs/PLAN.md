@@ -459,8 +459,8 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [x] Limit errors in the inbox: inviting a user or creating an agent over the limit says which limit, the current count and "apply a license", with a link to the License page (admins) or "ask an admin" (others)
 
 **Expiry**
-- [ ] Banner for admins 30, 7 and 1 days before expiry (none during the grace period); email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)
-- [ ] After expiry: 14 days at full limits (grace, no banner), then free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
+- [x] Banner for admins 30, 7 and 1 days before expiry (none during the grace period); email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)
+- [x] After expiry: 14 days at full limits (grace, no banner), then free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
 
 **Retention purge** (replaces the Phase 7 item)
 - [ ] Daily job on one instance at a time (advisory lock): entries older than `retentionDays` are exported first as verifiable JSONL (to `AUDIT_ARCHIVE_DIR`, or S3-compatible storage reusing the SigV4 code from ADR-080), then deleted in one transaction. An `audit_purged` entry records the last purged seq and its hash. ADR first: where archives go, and how verify anchors on the first kept entry

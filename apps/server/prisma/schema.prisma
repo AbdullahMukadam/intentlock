@@ -26,6 +26,16 @@ model License {
   appliedAt DateTime @default(now())
 }
 
+model LicenseNotice {
+  id         String   @id @default(cuid())
+  orgId      String
+  expiresAt  DateTime
+  kind       String
+  sentAt     DateTime @default(now())
+
+  @@unique([orgId, expiresAt, kind])
+}
+
 model Agent {
   id            String     @id @default(cuid())
   orgId         String

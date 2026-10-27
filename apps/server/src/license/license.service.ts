@@ -14,22 +14,29 @@ import {
 
 import { AuditService } from "../audit/audit.service.js";
 import { AuditKind } from "../audit/enums/audit-kind.enum.js";
+import { AppPage } from "../common/enums/app-page.enum.js";
 import { LoggerContext } from "../common/enums/logger-context.enum.js";
 import type { SessionUser } from "../common/types/auth.types.js";
 import { ENV, type Env } from "../config/config.module.js";
 import { orgDb, type OrgTx } from "../org/utils/org-db.util.js";
+import { MailService } from "../mail/mail.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { UserRole } from "../users/enums/user-role.enum.js";
 import { FREE_LICENSE } from "./constants/free-license.constant.js";
 import {
+  DAY_MS,
   LICENSE_LIMIT_LOCK_ID,
   LICENSE_RECHECK_MS,
   VENDOR_PUBLIC_KEY,
 } from "./constants/license.constants.js";
 import { LicenseError } from "./enums/license-error.enum.js";
+import { LicenseNotice } from "./enums/license-notice.enum.js";
 import { LicenseSource } from "./enums/license-source.enum.js";
 import { LicenseStatus } from "./enums/license-status.enum.js";
 import { LicensedResource } from "./enums/licensed-resource.enum.js";
 import type { License } from "./schemas/license.schema.js";
+import type { LicenseCheck } from "./types/license-check.type.js";
+import { dueExpiryNotice } from "./utils/due-notice.util.js";
 import { verifyLicense } from "./utils/verify-license.util.js";
 
 // A license problem only changes limits; it never touches enforcement, holds or audit.
@@ -47,6 +54,7 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
     @Inject(VENDOR_PUBLIC_KEY) private readonly vendorKey: CryptoKey,
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
 
   async onModuleInit() {
@@ -104,10 +112,10 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException({
         statusCode: HttpStatus.BAD_REQUEST,
         error:
-          result.status === LicenseStatus.EXPIRED
-            ? LicenseError.LICENSE_EXPIRED
-            : LicenseError.LICENSE_INVALID,
-        reason: result.reason,
+          result.status === LicenseStatus.INVALID
+            ? LicenseError.LICENSE_INVALID
+            : LicenseError.LICENSE_EXPIRED,
+        reason: "reason" in result ? result.reason : "license expired",
       });
     }
     const { licensee, maxUsers, exp } = result.license;
@@ -168,8 +176,72 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     const result = await verifyLicense(jws, this.vendorKey, now);
-    if (result.status === LicenseStatus.VALID) this.apply(result.license, result.status, source);
-    else this.fallback(result.status, source, result.reason);
+    if (result.status === LicenseStatus.INVALID) {
+      this.fallback(result.status, source, result.reason);
+      return;
+    }
+    if (result.status === LicenseStatus.EXPIRED)
+      this.fallback(result.status, source, result.reason);
+    else this.apply(result.license, result.status, source);
+    if (org)
+      await this.sendNotice(org.id, result, now).catch((err: unknown) => this.log.error(err));
+  }
+
+  private async sendNotice(
+    orgId: string,
+    result: Exclude<LicenseCheck, { status: LicenseStatus.INVALID }>,
+    now: Date,
+  ): Promise<void> {
+    const { license } = result;
+    const notice =
+      result.status === LicenseStatus.EXPIRED
+        ? LicenseNotice.EXPIRED
+        : result.status === LicenseStatus.VALID
+          ? dueExpiryNotice(license.exp, now)
+          : null;
+    if (!notice) return;
+    const expiresAt = new Date(license.exp * 1000);
+    const db = orgDb(this.prisma, orgId);
+    const claimed = await db.$transaction(async (tx) => {
+      const { count } = await tx.licenseNotice.createMany({
+        data: [{ orgId, expiresAt, kind: notice }],
+        skipDuplicates: true,
+      });
+      if (count === 0) return false;
+      if (notice === LicenseNotice.EXPIRED) {
+        await this.audit.append(
+          orgId,
+          [
+            {
+              kind: AuditKind.LICENSE_EXPIRED,
+              payload: { licensee: license.licensee, expiresAt: expiresAt.toISOString() },
+            },
+          ],
+          tx,
+        );
+      }
+      return true;
+    });
+    if (!claimed) return;
+    const admins = await db.user.findMany({
+      where: { role: UserRole.ADMIN, disabledAt: null },
+      select: { email: true },
+    });
+    const daysLeft =
+      notice === LicenseNotice.EXPIRED
+        ? null
+        : Math.ceil((expiresAt.getTime() - now.getTime()) / DAY_MS);
+    const link = `${this.env.PUBLIC_URL}${AppPage.LICENSE}`;
+    await Promise.all(
+      admins.map((a) =>
+        this.mail.sendLicenseNotice(a.email, {
+          licensee: license.licensee,
+          expiresAt,
+          daysLeft,
+          link,
+        }),
+      ),
+    );
   }
 
   private async clock(orgId: string): Promise<Date> {
@@ -198,7 +270,7 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
   }
 
   private apply(license: License, status: LicenseStatus, source: LicenseSource) {
-    if (status === LicenseStatus.VALID || status === LicenseStatus.MISSING)
+    if (status !== LicenseStatus.INVALID && status !== LicenseStatus.EXPIRED)
       this.lastWarning = undefined;
     this.license = license;
     this.status = status;

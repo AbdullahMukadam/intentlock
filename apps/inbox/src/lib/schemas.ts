@@ -37,6 +37,7 @@ export const License = z.object({
   usedAgents: z.number(),
   retentionDays: z.number(),
   expiresAt: z.string().nullable(),
+  graceEndsAt: z.string().nullable(),
 });
 export type License = z.infer<typeof License>;
 

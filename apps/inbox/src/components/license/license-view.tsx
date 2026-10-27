@@ -182,7 +182,16 @@ export function LicenseView() {
                 </DetailItem>
                 <DetailItem label="Audit retention">{license.retentionDays} days</DetailItem>
                 <DetailItem label="Expires">
-                  {license.expiresAt ? formatDate(license.expiresAt) : "Never"}
+                  {license.graceEndsAt && license.expiresAt ? (
+                    <span className="whitespace-normal">
+                      Expired {formatDate(license.expiresAt)}, full limits until{" "}
+                      {formatDate(license.graceEndsAt)}
+                    </span>
+                  ) : license.expiresAt ? (
+                    formatDate(license.expiresAt)
+                  ) : (
+                    "Never"
+                  )}
                 </DetailItem>
               </DetailGrid>
             </PanelBody>

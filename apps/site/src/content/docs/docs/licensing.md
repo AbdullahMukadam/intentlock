@@ -28,6 +28,10 @@ Every feature is in every install. Without a license file the server runs with t
 
 A license is a signed key, checked offline. An admin pastes it on the **License** page in the inbox; it is verified before it is saved, and every server instance picks it up within a minute. You can also put it in a file and set `LICENSE_FILE`; the file then wins and the inbox page is read-only. The License page shows seats used, agents, retention and the expiry date, and warns when the team is over its limits. The sidebar shows who the install is licensed to.
 
+## When a license expires
+
+Admins get an email 30, 7 and 1 days before the expiry date (when SMTP is set) and see a banner in the inbox during the last 30 days. After the expiry date the install keeps its limits for 14 more days, then falls back to the free limits; admins get one more email and the change is written to the audit log. Paste a renewed key on the License page at any time.
+
 ## Licensing never weakens security
 
 A missing, invalid or expired license only changes limits: the server falls back to the free limits and logs a warning. It never turns off enforcement, holds or the audit log. When a limit is reached, creating another user or agent fails with a clear error; existing ones keep working.

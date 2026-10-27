@@ -3,7 +3,12 @@ import { describe, expect, test } from "vitest";
 import { LicenseEdition } from "../../../src/lib/enums/license-edition.enum";
 import { LicenseSource } from "../../../src/lib/enums/license-source.enum";
 import { LicenseStatus } from "../../../src/lib/enums/license-status.enum";
-import { formatLimit, licenseLabel, limitBreaches } from "../../../src/lib/license";
+import {
+  daysUntilExpiry,
+  formatLimit,
+  licenseLabel,
+  limitBreaches,
+} from "../../../src/lib/license";
 import type { License } from "../../../src/lib/schemas";
 
 const FREE: License = {
@@ -17,6 +22,7 @@ const FREE: License = {
   usedAgents: 3,
   retentionDays: 30,
   expiresAt: null,
+  graceEndsAt: null,
 };
 
 describe("license helpers", () => {
@@ -45,5 +51,20 @@ describe("license helpers", () => {
   test("limits read as used of max", () => {
     expect(formatLimit(3, 25)).toBe("3 of 25");
     expect(formatLimit(7, null)).toBe("7 (unlimited)");
+  });
+  test("warns only in the last 30 days of a valid license", () => {
+    const now = Date.parse("2027-01-01T00:00:00Z");
+    const paid = { ...FREE, edition: LicenseEdition.LICENSED, status: LicenseStatus.VALID };
+    const at = (iso: string) => daysUntilExpiry({ ...paid, expiresAt: iso }, now);
+    expect(at("2027-03-01T00:00:00Z")).toBeNull();
+    expect(at("2027-01-31T00:00:00Z")).toBe(30);
+    expect(at("2027-01-01T12:00:00Z")).toBe(1);
+    expect(daysUntilExpiry(FREE, now)).toBeNull();
+    expect(
+      daysUntilExpiry(
+        { ...paid, status: LicenseStatus.GRACE, expiresAt: "2026-12-30T00:00:00Z" },
+        now,
+      ),
+    ).toBeNull();
   });
 });

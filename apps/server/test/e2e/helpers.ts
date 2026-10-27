@@ -84,6 +84,7 @@ export class FakeMail {
   sent: { to: string; subject: string; text: string }[] = [];
   sendInvite = MailService.prototype.sendInvite;
   sendPasswordReset = MailService.prototype.sendPasswordReset;
+  sendLicenseNotice = MailService.prototype.sendLicenseNotice;
 
   send(to: string, subject: string, text: string): Promise<boolean> {
     if (!this.enabled || this.fail) return Promise.resolve(false);

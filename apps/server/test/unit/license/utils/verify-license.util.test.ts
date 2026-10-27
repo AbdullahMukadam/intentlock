@@ -56,6 +56,18 @@ describe("scripts/issue-license.ts → verifyLicense", () => {
     );
   }, 30_000);
 
+  it("keeps a license for 14 days after it expires", async () => {
+    const jws = issue("--licensee", "Acme", "--seats", "5", "--expires", "2099-01-31");
+    const expiry = Date.parse("2099-01-31T23:59:59Z");
+    const day = 86_400_000;
+    expect((await verifyLicense(jws, vendor.publicKey, new Date(expiry + day))).status).toBe(
+      LicenseStatus.GRACE,
+    );
+    expect((await verifyLicense(jws, vendor.publicKey, new Date(expiry + 14 * day))).status).toBe(
+      LicenseStatus.EXPIRED,
+    );
+  }, 30_000);
+
   it("refuses to sign without seats, with bad seats or with a past expiry", () => {
     expect(() => issue("--licensee", "Acme", "--expires", "2099-01-01")).toThrow();
     expect(() => issue("--licensee", "Acme", "--seats", "0", "--expires", "2099-01-01")).toThrow();

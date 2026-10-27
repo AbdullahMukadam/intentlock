@@ -42,13 +42,16 @@ import { createContext, use, useEffect, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { FrameCorners } from "@/components/frame-corners";
+import { ExpiryBanner } from "@/components/license/expiry-banner";
 import Loader from "@/components/loader";
 import { api } from "@/lib/api";
 import { DOCS_URL } from "@/lib/docs-url";
+import { UiAction } from "@/lib/enums/ui-action.enum";
 import { licenseLabel, licenseUrl } from "@/lib/license";
 import { ThemeName } from "@/lib/enums/theme-name.enum";
 import { initials } from "@/lib/format";
 import { useLiveQueries } from "@/lib/live-queries";
+import { can } from "@/lib/permissions";
 import { prefetchPage } from "@/lib/prefetch";
 import { SearchPalette } from "@/components/search-palette";
 import { License, Me } from "@/lib/schemas";
@@ -293,6 +296,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="truncate font-medium">{current?.label}</span>
             </nav>
           </header>
+          {license && can(me.role, UiAction.MANAGE_LICENSE) && <ExpiryBanner license={license} />}
           <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
             <MeContext value={me}>{children}</MeContext>
           </main>

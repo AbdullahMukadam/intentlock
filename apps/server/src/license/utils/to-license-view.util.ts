@@ -1,5 +1,6 @@
+import { LICENSE_GRACE_MS } from "../constants/license.constants.js";
 import type { LicenseSource } from "../enums/license-source.enum.js";
-import type { LicenseStatus } from "../enums/license-status.enum.js";
+import { LicenseStatus } from "../enums/license-status.enum.js";
 import type { License } from "../schemas/license.schema.js";
 
 export function toLicenseView(
@@ -20,5 +21,9 @@ export function toLicenseView(
     usedAgents,
     retentionDays: license.retentionDays,
     expiresAt: Number.isFinite(license.exp) ? new Date(license.exp * 1000).toISOString() : null,
+    graceEndsAt:
+      status === LicenseStatus.GRACE
+        ? new Date(license.exp * 1000 + LICENSE_GRACE_MS).toISOString()
+        : null,
   };
 }

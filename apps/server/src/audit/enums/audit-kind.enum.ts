@@ -37,4 +37,5 @@ export enum AuditKind {
   AUDIT_VERIFIED = "audit_verified",
   LICENSE_APPLIED = "license_applied",
   LICENSE_REMOVED = "license_removed",
+  LICENSE_EXPIRED = "license_expired",
 }
