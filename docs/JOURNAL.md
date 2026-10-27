@@ -2368,3 +2368,7 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 
 **Next**
 - Phase 8 retention purge (ADR first: where archives go, how verify anchors on the first kept entry)
+
+### 2026-10-27 · Session 31 (cont.) · License recheck every hour
+
+- Abdullah: 60 s was too frequent. `LICENSE_RECHECK_MS` is now 1 h (ADR-082 amendment). The instance that applies or removes a key still reloads at once; other instances follow within an hour. Inbox and site text, ARCHITECTURE and STRUCTURE updated

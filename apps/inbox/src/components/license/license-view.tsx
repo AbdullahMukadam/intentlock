@@ -78,13 +78,14 @@ function ApplyKey({ license, onChange }: { license: License; onChange: () => voi
         {license.source === LicenseSource.FILE ? (
           <p className="text-sm text-muted-foreground">
             This server reads its license from the file set in <code>LICENSE_FILE</code>. To change
-            it, replace that file; the server picks it up within a minute.
+            it, replace that file; the server picks it up within an hour, or at once after a
+            restart.
           </p>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
               Paste the key you received after buying. It is checked on the server before it is
-              saved, and every server instance picks it up within a minute.
+              saved, and takes effect at once; other server instances pick it up within an hour.
             </p>
             <form action={apply} className="grid gap-3">
               <Textarea

@@ -296,7 +296,7 @@ src/
 │       ├── enums/                  # api-key-error
 │       ├── guards/                 # api-key.guard.ts (@AgentAuth routes)
 │       └── utils/                  # api-key.util.ts (il_live_ keys, hashing), to-api-key-view.util.ts
-├── license/                        # license.module/controller/service: verify at boot + every 60 s, limits, GET/PUT/DELETE /v1/license
+├── license/                        # license.module/controller/service: verify at boot + every hour, limits, GET/PUT/DELETE /v1/license
 │   ├── constants/                  # free-license, license.constants (DI token, lock id, recheck, max key size), vendor-public-key
 │   ├── enums/                      # license-edition, license-status, license-source, licensed-resource, license-error
 │   ├── dto/                        # apply-license

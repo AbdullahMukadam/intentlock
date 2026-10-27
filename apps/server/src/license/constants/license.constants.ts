@@ -1,7 +1,7 @@
 import { LicenseNotice } from "../enums/license-notice.enum.js";
 
 export const VENDOR_PUBLIC_KEY = Symbol("VENDOR_PUBLIC_KEY");
-export const LICENSE_RECHECK_MS = 60 * 1000;
+export const LICENSE_RECHECK_MS = 60 * 60 * 1000;
 export const MAX_LICENSE_CHARS = 8192;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const LICENSE_GRACE_MS = 14 * DAY_MS;

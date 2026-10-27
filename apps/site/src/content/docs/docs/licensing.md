@@ -26,7 +26,7 @@ Every feature is in every install. Without a license file the server runs with t
 | Agents | 3 | unlimited |
 | Audit retention reported | 30 days | set by the license (365 days by default) |
 
-A license is a signed key, checked offline. An admin pastes it on the **License** page in the inbox; it is verified before it is saved, and every server instance picks it up within a minute. You can also put it in a file and set `LICENSE_FILE`; the file then wins and the inbox page is read-only. The License page shows seats used, agents, retention and the expiry date, and warns when the team is over its limits. The sidebar shows who the install is licensed to.
+A license is a signed key, checked offline. An admin pastes it on the **License** page in the inbox; it is verified before it is saved and takes effect at once; if you run several server instances, the others pick it up within an hour. You can also put it in a file and set `LICENSE_FILE`; the file then wins and the inbox page is read-only. The License page shows seats used, agents, retention and the expiry date, and warns when the team is over its limits. The sidebar shows who the install is licensed to.
 
 ## When a license expires
 
