@@ -337,12 +337,14 @@ src/
 │   ├── audit.service.ts            # serialized chain append
 │   ├── audit-query.service.ts      # role-scoped list, cursor pagination, JSONL export
 │   ├── batch.service.ts            # /v1/audit/batch ingest under the chain lock: chain check, re-run check(), flags
-│   ├── verify.service.ts           # walks the global chain in batches
+│   ├── verify.service.ts           # walks the global chain in batches, from the purge anchor when old entries were deleted
+│   ├── purge.service.ts            # opt-in daily archive + delete of old entries (ADR-083)
 │   ├── audit.controller.ts
 │   ├── constants/ · dto/           # audit.constants, audit-query.dto, audit-batch.dto (tokens + tokenRef)
-│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format, audit-flag, audit-error, batch-reject-reason
-│   ├── types/                      # audit-input.type.ts
-│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry), decisions-agree.util.ts (looser-than-policy test)
+│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format, audit-flag, audit-error, batch-reject-reason, archive-target
+│   ├── types/                      # audit-input.type.ts, audit-archive.type.ts (put/get of named files)
+│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry), decisions-agree.util.ts (looser-than-policy test),
+│                                   # folder-archive.util.ts, s3-archive.util.ts (core signV4), archive-from-env.util.ts
 ├── events/                         # events.module, events.gateway.ts (WebSocket /events, session checked in handshake middleware),
 │   │                               # events.service.ts (per-socket viewer, filtered publish, session recheck every 60 s)
 │   ├── constants/ · enums/ · types/   # events.constants, event-name, event-audience.type

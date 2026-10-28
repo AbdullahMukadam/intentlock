@@ -35,6 +35,8 @@ export enum AuditKind {
   REPORT = "report",
   CLIENT_GAP = "client_gap",
   AUDIT_VERIFIED = "audit_verified",
+  AUDIT_PURGED = "audit_purged",
+  AUDIT_PURGE_FAILED = "audit_purge_failed",
   LICENSE_APPLIED = "license_applied",
   LICENSE_REMOVED = "license_removed",
   LICENSE_EXPIRED = "license_expired",

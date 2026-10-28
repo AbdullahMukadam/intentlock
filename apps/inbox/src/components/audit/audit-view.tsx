@@ -15,6 +15,7 @@ import { LimitWarning } from "@/components/license/limit-warning";
 import { PageHeader } from "@/components/page-header";
 import { apiUrl } from "@/lib/api";
 import { auditSummaryUrl } from "@/lib/audit-verify";
+import { ArchiveTarget } from "@/lib/enums/archive-target.enum";
 import { AuditFormat } from "@/lib/enums/audit-format.enum";
 import { UiAction } from "@/lib/enums/ui-action.enum";
 import { formatDate, formatRelative, formatTime } from "@/lib/format";
@@ -23,6 +24,10 @@ import { AuditSummary } from "@/lib/schemas";
 import { useApi } from "@/lib/use-api";
 
 const EXPORT_FILE = "intentlock-audit.jsonl";
+const ARCHIVE_LABEL: Record<ArchiveTarget, string> = {
+  [ArchiveTarget.FOLDER]: "a folder",
+  [ArchiveTarget.S3]: "S3 storage",
+};
 const VERIFY_COMMAND = `npx -y @intentlock/cli audit verify --file ${EXPORT_FILE}`;
 const exportUrl = apiUrl(API_ENDPOINTS.AUDIT, { query: { format: AuditFormat.JSONL } });
 
@@ -91,7 +96,11 @@ function ChainSummary() {
               {s ? (
                 <>
                   Last {s.retentionDays} days
-                  <Sub>Older entries are kept and still verified.</Sub>
+                  <Sub className="whitespace-normal">
+                    {s.deletion.afterDays
+                      ? `Entries older than ${s.deletion.afterDays} days are archived to ${ARCHIVE_LABEL[s.deletion.target ?? ArchiveTarget.FOLDER]} and deleted${s.deletion.lastRun ? `; last run ${formatRelative(s.deletion.lastRun.at)}` : ""}.`
+                      : "Older entries are kept and still verified. Nothing is deleted."}
+                  </Sub>
                 </>
               ) : (
                 "—"

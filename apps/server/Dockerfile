@@ -19,6 +19,7 @@ FROM os AS runtime
 ENV NODE_ENV=production PORT=3000
 WORKDIR /app
 COPY --from=build --chown=node:node /out ./
+RUN mkdir -p /audit-archive && chown node:node /audit-archive
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \

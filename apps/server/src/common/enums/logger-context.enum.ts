@@ -8,4 +8,5 @@ export enum LoggerContext {
   SETUP = "Setup",
   EVENTS = "Events",
   OAUTH = "OAuth",
+  AUDIT = "Audit",
 }

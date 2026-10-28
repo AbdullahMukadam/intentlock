@@ -7,3 +7,7 @@ export const JSONL_CONTENT_TYPE = "application/x-ndjson";
 export const MAX_BATCH_ENTRIES = 100;
 export const MAX_BATCH_TOKENS = 20;
 export const PLAN_LOCK_NAMESPACE = 7_406_214;
+export const AUDIT_ARCHIVE = Symbol("AUDIT_ARCHIVE");
+export const AUDIT_ARCHIVE_TIMEOUT_MS = 30_000;
+export const AUDIT_PURGE_BATCH = 10_000;
+export const AUDIT_PURGE_CHECK_MS = 60 * 60 * 1000;

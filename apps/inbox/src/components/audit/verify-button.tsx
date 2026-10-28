@@ -35,12 +35,12 @@ function Result({ result: r, at }: { result: AuditVerifyResult; at: Date }) {
         <div>
           <p className="text-sm font-medium">
             {r.ok
-              ? `Chain intact: ${r.count.toLocaleString()} entries recomputed, every hash matches.`
+              ? `Chain intact${r.fromSeq ? ` from entry #${r.fromSeq}` : ""}: ${r.count.toLocaleString()} entries recomputed, every hash matches.`
               : `Chain broken at entry #${r.firstBrokenSeq}.`}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {r.ok
-              ? `Checked ${at.toLocaleString()}.`
+              ? `Checked ${at.toLocaleString()}.${r.fromSeq ? " Earlier entries were archived and deleted; check them with the CLI." : ""}`
               : `${r.count.toLocaleString()} entries verified before it. An entry was edited or deleted after it was written.`}
           </p>
         </div>

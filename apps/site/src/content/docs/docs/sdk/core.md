@@ -39,7 +39,7 @@ Zod schemas for the formats on the wire: `Plan`, `PlanStep`, `ArgConstraint`, `P
 
 ## Audit
 
-`verifyChain(entries)` walks exported audit entries in order and returns `{ ok: true, count }` or the first broken sequence number with a reason. It is what `intentlock audit verify` runs.
+`verifyChain(entries, { from })` walks exported audit entries in order and returns `{ ok: true, count }` or the first broken sequence number with a reason. `from` is the hash the first entry should link to, for a chain that starts later (default: the start of the chain). It is what `intentlock audit verify` runs.
 
 ```ts title="verify-audit.ts"
 import { readFileSync } from "node:fs";

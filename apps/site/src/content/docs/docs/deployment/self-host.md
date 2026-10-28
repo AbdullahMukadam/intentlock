@@ -101,6 +101,10 @@ Deploy a new key the same way. Running plans are blocked and agents start new ru
 
 Without a license you run with the free limits. To use one, paste the key on the inbox's License page (admins), or put the file in `./license/` and set `LICENSE_FILE=/license/<file>`. See [Licensing](/docs/licensing/).
 
+## Old audit entries
+
+Every audit entry is kept unless you set `AUDIT_DELETE_AFTER_DAYS` (at least 90). Then entries older than that are archived to the `audit-archive` volume (or to S3-compatible storage with `AUDIT_ARCHIVE_S3_URL` and its keys) and deleted once a day. Back up the archive like the database: it is the only copy of deleted entries. See [Audit chain](/docs/concepts/audit-chain/#old-entries) and the [environment variables](/docs/deployment/environment-variables/).
+
 ## More than one server instance
 
 The server is stateless: counters use atomic SQL updates, holds move out of pending exactly once, and audit appends take a database lock. You can run several instances behind a load balancer against one Postgres. Live WebSocket events are not yet shared across instances, so either use sticky sessions or rely on the inbox's 10-second polling for new holds.

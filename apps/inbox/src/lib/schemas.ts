@@ -1,6 +1,7 @@
 import { HoldResolveOutcome, PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
 import { z } from "zod";
 
+import { ArchiveTarget } from "./enums/archive-target.enum";
 import { LicenseEdition } from "./enums/license-edition.enum";
 import { LicenseSource } from "./enums/license-source.enum";
 import { LicenseStatus } from "./enums/license-status.enum";
@@ -238,6 +239,7 @@ export const StaleBaseVersion = z.object({ activeVersion: z.number().nullable() 
 export const AuditVerifyResult = z.object({
   ok: z.boolean(),
   count: z.number(),
+  fromSeq: z.number().optional(),
   firstBrokenSeq: z.number().optional(),
   flagged: z.array(
     z.object({ seq: z.number(), flagged: z.string(), planId: z.string().nullable() }),
@@ -250,6 +252,11 @@ export const AuditSummary = z.object({
   head: z.object({ seq: z.number(), hash: z.string(), at: z.string() }).nullable(),
   oldest: z.object({ seq: z.number(), at: z.string() }).nullable(),
   retentionDays: z.number(),
+  deletion: z.object({
+    afterDays: z.number().nullable(),
+    target: z.enum(ArchiveTarget).nullable(),
+    lastRun: z.object({ at: z.string(), toSeq: z.number(), count: z.number() }).nullable(),
+  }),
   lastVerified: z
     .object({
       seq: z.number(),

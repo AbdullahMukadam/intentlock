@@ -5,4 +5,5 @@ export enum AppPage {
   RESET = "/reset",
   ACCOUNT = "/account",
   LICENSE = "/license",
+  AUDIT = "/audit",
 }

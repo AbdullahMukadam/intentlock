@@ -307,6 +307,14 @@ model License {                            // one per org; the signed key applie
   appliedAt DateTime @default(now())
 }
 
+model AuditPurgeRun {                      // one row per org and day: only one instance runs the deletion job each day
+  id        String   @id @default(cuid())
+  orgId     String
+  day       String                         // YYYY-MM-DD (UTC)
+  startedAt DateTime @default(now())
+  @@unique([orgId, day])
+}
+
 model LicenseNotice {                      // one row per warning sent, so each goes out once across instances
   id        String   @id @default(cuid())
   orgId     String
@@ -566,7 +574,8 @@ entry_1.prevHash = "GENESIS"
 - **The hash covers every column** (ADR-028). Adding a column to `AuditEntry` means adding it to `hashed_n` in `core/src/audit/hash-entry.ts` in the same change; a unit test fails if the hashed field list and the schema drift apart. `flagged` is decided before insert, so it is set once and hashed like the rest.
 
 - Appends take a transaction-scoped advisory lock (`pg_advisory_xact_lock`) before reading the chain head, so concurrent appends from any instance cannot share a `prevHash`.
-- `verify` walks from seq 1, recomputes each hash, and returns the first mismatch. Hashing lives in `core` so the CLI can verify an exported JSONL file offline.
+- `verify` walks from the first stored entry, recomputes each hash, and returns the first mismatch. Hashing lives in `core` so the CLI can verify an exported JSONL file offline.
+- **Old entries (ADR-083).** The license's `retentionDays` only limits how far back reads reach; nothing is deleted because of it. With `AUDIT_DELETE_AFTER_DAYS` set, a daily job (one instance per day through an `AuditPurgeRun` claim) archives up to 10 000 of the oldest entries past that age as `audit-<from>-<to>.jsonl` to `AUDIT_ARCHIVE_DIR` or an S3-compatible bucket, reads the file back and compares its SHA-256, then under the chain lock deletes that seq range and appends `audit_purged` `{ fromSeq, toSeq, lastHash, count, archive: { target, name, sha256 } }`. Verify then starts at the first stored entry only if its `prevHash` equals the `lastHash` of the `audit_purged` entry whose `toSeq` is the seq before it. Archiving failures delete nothing, append `audit_purge_failed` and email admins.
 - Tamper demo: edit one row's payload in psql → verify reports that `seq`.
 
 **Client entries (hybrid mode).** Batched client decisions are appended to the same server chain, so there is still one tamper-evident log. Every entry is stored (never dropped), flagged when suspect. On ingest the server (holding the chain lock, ADR-038):

@@ -26,6 +26,15 @@ model License {
   appliedAt DateTime @default(now())
 }
 
+model AuditPurgeRun {
+  id        String   @id @default(cuid())
+  orgId     String
+  day       String
+  startedAt DateTime @default(now())
+
+  @@unique([orgId, day])
+}
+
 model LicenseNotice {
   id         String   @id @default(cuid())
   orgId      String

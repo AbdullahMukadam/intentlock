@@ -33,6 +33,12 @@ The result is either `ok` with a count, or the first broken sequence number and 
 
 The chain detects edits, deletions in the middle and reordering. Deleting the newest entries is not detectable from the chain alone; keep regular exports if that matters to you.
 
+## Old entries
+
+Nothing is ever deleted because of the license: its retention only limits how far back Activity, runs, stats and exports reach, and verify still covers every stored entry.
+
+Deleting old entries is off by default. With `AUDIT_DELETE_AFTER_DAYS` set (at least 90), a daily job archives the oldest entries past that age to a folder or S3-compatible storage (`audit-<from>-<to>.jsonl`, the export format), reads each file back and checks its SHA-256, and only then deletes them and appends an `audit_purged` entry with the archive's name, hash and the last deleted entry's hash. Verify then starts at the first kept entry and checks that it links to that record; rows deleted any other way fail verify. If archiving fails, nothing is deleted and admins get an email. To check everything, pass the archives to the CLI with `--archive`.
+
 ## Decisions made in your app
 
 In [hybrid mode](/docs/concepts/gates/) the client decides locally and writes every decision to an outbox file, chained with its own hashes, before the tool runs. A background worker uploads batches to the server, which appends them to the same chain. On upload the server:

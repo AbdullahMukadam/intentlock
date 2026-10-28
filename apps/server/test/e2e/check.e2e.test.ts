@@ -169,6 +169,7 @@ describe("audit endpoints", () => {
       head: null,
       oldest: null,
       retentionDays: 30,
+      deletion: { afterDays: null, target: null, lastRun: null },
       lastVerified: null,
     });
 

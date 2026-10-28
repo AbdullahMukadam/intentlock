@@ -110,4 +110,32 @@ ${notice.link}
       }),
     );
   }
+
+  sendAuditArchiveFailed(
+    to: string,
+    failure: { fromSeq: number; toSeq: number; reason: string; link: string },
+  ): Promise<boolean> {
+    const range = `entries ${String(failure.fromSeq)} to ${String(failure.toSeq)}`;
+    const outcome =
+      "Nothing was deleted. The job tries again tomorrow; fix the archive target (AUDIT_ARCHIVE_DIR or AUDIT_ARCHIVE_S3_*) before then.";
+    return this.send(
+      to,
+      "Intentlock could not archive old audit entries",
+      `Intentlock could not archive audit ${range}, so it did not delete them.\n\nReason: ${failure.reason}\n\n${outcome}\n\n${failure.link}\n`,
+      emailHtml({
+        preheader: `Archiving audit ${range} failed; nothing was deleted.`,
+        eyebrow: "Audit archive",
+        accent: "#dc2626",
+        title: "Archiving old audit entries failed",
+        intro: `Intentlock could not archive audit ${range}, so it did not delete them.`,
+        details: [
+          { label: "Entries", value: `${String(failure.fromSeq)} to ${String(failure.toSeq)}` },
+          { label: "Reason", value: failure.reason },
+        ],
+        button: { label: "Open the Audit page", href: failure.link },
+        note: outcome,
+        footer: "You get this email because you are an admin of this Intentlock install.",
+      }),
+    );
+  }
 }

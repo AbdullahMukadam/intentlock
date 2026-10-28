@@ -2372,3 +2372,24 @@ After the restart and `close()`: `GET /v1/audit/verify` → `{"ok":true,"count":
 ### 2026-10-27 · Session 31 (cont.) · License recheck every hour
 
 - Abdullah: 60 s was too frequent. `LICENSE_RECHECK_MS` is now 1 h (ADR-082 amendment). The instance that applies or removes a key still reloads at once; other instances follow within an hour. Inbox and site text, ARCHITECTURE and STRUCTURE updated
+
+### 2026-10-28 · Session 32 · Phase 8: audit retention and deletion (ADR-083)
+
+**Done**
+- ADR-083 (commit `340c399`): the license's retention limits visible history; nothing is deleted because of the license. Deletion is opt-in in env, archived first, anchored in the chain. Abdullah plans to move old entries to a NoSQL store later: archive targets sit behind one `put`/`get` interface, so that is a third target
+- Visibility window (`f5d0e53`): audit pages and export, runs and stats reach `retentionDays` back; server verify walks everything; "History shown" on the License and Audit pages and the site
+- core and CLI (`ddf27f5`): `verifyChain(entries, { from })`; the SigV4 signer moved from guard to core on WebCrypto (same AWS example test, guard S3 tests unchanged); `intentlock audit verify --archive <files...>`, and a windowed export is checked from its first entry with a note
+- Deletion: `AUDIT_DELETE_AFTER_DAYS` (min 90), `AUDIT_ARCHIVE_DIR` or `AUDIT_ARCHIVE_S3_*` (boot refused without a target), `PurgeService` (hourly check, one run per org and day through `AuditPurgeRun`, batches of 10 000, write, read back, SHA-256 compare, then delete plus `audit_purged` under the chain lock; failures delete nothing, `audit_purge_failed`, admin email). Verify starts at the first kept entry and checks it against its anchor. Audit summary reports deletion settings and the last run; the Audit page shows them. Self-host bundle: `audit-archive` volume (image creates `/audit-archive` owned by `node`) and the new variables. Migration `20261028120000_audit_purge_runs` applied to the dev database with `migrate deploy`
+
+**Problems hit and how they were solved**
+- `core` runs in the browser too, so the `node:crypto` SigV4 could not move as is → rewritten on WebCrypto, async
+- The guard typecheck read an old `core` build → rebuilt `core`
+- Escaped newlines in generated strings turned into real ones twice (CLI, email) → fixed by hand; typecheck and Prettier caught them
+- The summary test pins the exact shape → added `deletion`
+
+**Numbers**
+- Server 291 tests (52 files), core 158, guard 62 (+1 skipped), CLI 21, inbox 134, site 9; typecheck, lint, Prettier green; migration diff empty
+- Not checked: the Docker image with the new `/audit-archive` folder (no image build, to save data) and a real S3/R2 bucket (the S3 archive is unit-tested with a fake fetch against the signed path-style URL)
+
+**Next**
+- Phase 8 Selling: README note, pricing page, legal and payment steps (Abdullah)
