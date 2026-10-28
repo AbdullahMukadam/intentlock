@@ -81,6 +81,10 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
     return this.source;
   }
 
+  historyCutoff(now = new Date()): Date {
+    return new Date(now.getTime() - this.license.retentionDays * DAY_MS);
+  }
+
   async assertWithinLimit(tx: OrgTx, resource: LicensedResource): Promise<void> {
     const max =
       resource === LicensedResource.USERS ? this.license.maxUsers : this.license.maxAgents;

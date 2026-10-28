@@ -24,9 +24,11 @@ Every feature is in every install. Without a license file the server runs with t
 | --- | --- | --- |
 | Users | 5 | the seats on the license |
 | Agents | 3 | unlimited |
-| Audit retention reported | 30 days | set by the license (365 days by default) |
+| Audit history shown | 30 days | set by the license (365 days by default) |
 
 A license is a signed key, checked offline. An admin pastes it on the **License** page in the inbox; it is verified before it is saved and takes effect at once; if you run several server instances, the others pick it up within an hour. You can also put it in a file and set `LICENSE_FILE`; the file then wins and the inbox page is read-only. The License page shows seats used, agents, retention and the expiry date, and warns when the team is over its limits. The sidebar shows who the install is licensed to.
+
+Audit history shown is how far back Activity, runs, stats and exports reach. Older entries are never deleted because of the license: they stay in the database, the chain verify still covers them, and a license shows them again. Deleting old entries is a separate setting that is off by default (see the environment variables).
 
 ## When a license expires
 

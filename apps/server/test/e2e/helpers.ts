@@ -1,7 +1,7 @@
 import type { INestApplication, Type } from "@nestjs/common";
 import { Test, type TestingModuleBuilder } from "@nestjs/testing";
 import { type ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
-import { type PlanInput, verifyChain } from "@intentlock/core";
+import { GENESIS, hashEntry, type PlanInput, verifyChain } from "@intentlock/core";
 import request from "supertest";
 
 import { newApiKey } from "../../src/agents/api-keys/utils/api-key.util.js";
@@ -174,4 +174,16 @@ export function call(
   callId = `${tool}-${Math.random()}`,
 ) {
   return { tool, args, callId };
+}
+
+export async function backdateEntries(prisma: PrismaClient, seqs: number[], days: number) {
+  const rows = await prisma.auditEntry.findMany({ orderBy: { seq: "asc" } });
+  let prevHash = rows[0]?.prevHash ?? GENESIS;
+  for (const row of rows) {
+    const at = seqs.includes(row.seq) ? new Date(row.at.getTime() - days * 86_400_000) : row.at;
+    const { hash: _old, ...body } = toAuditEntry({ ...row, at, prevHash });
+    const hash = await hashEntry(body);
+    await prisma.auditEntry.update({ where: { seq: row.seq }, data: { at, prevHash, hash } });
+    prevHash = hash;
+  }
 }

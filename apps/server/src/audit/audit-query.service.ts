@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 import type { SessionUser } from "../common/types/auth.types.js";
+import { LicenseService } from "../license/license.service.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { orgDb } from "../org/utils/org-db.util.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -11,7 +12,10 @@ import { toAuditEntry } from "./utils/to-audit-entry.util.js";
 
 @Injectable()
 export class AuditQueryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly license: LicenseService,
+  ) {}
 
   async page(viewer: SessionUser, filter: AuditFilter, limit: number, cursor?: number) {
     const rows = await orgDb(this.prisma, viewer.orgId).auditEntry.findMany({
@@ -56,6 +60,11 @@ export class AuditQueryService {
     }
   }
 
+  private since(from: Date | undefined): Date {
+    const cutoff = this.license.historyCutoff();
+    return from && from > cutoff ? from : cutoff;
+  }
+
   // Members only ever see entries for runs they own (ARCHITECTURE §5.6).
   private where(viewer: SessionUser, f: AuditFilter): Prisma.AuditEntryWhereInput {
     const user = viewer.role === UserRole.MEMBER ? viewer.email : f.user;
@@ -67,9 +76,7 @@ export class AuditQueryService {
       ...(f.verdict && { verdict: f.verdict }),
       ...(f.ruleId && { ruleId: f.ruleId }),
       ...(f.policyVersion && { policyVersion: f.policyVersion }),
-      ...((f.from || f.to) && {
-        at: { ...(f.from && { gte: f.from }), ...(f.to && { lte: f.to }) },
-      }),
+      at: { gte: this.since(f.from), ...(f.to && { lte: f.to }) },
       ...(f.q && {
         OR: [
           { kind: contains(f.q) },

@@ -87,11 +87,11 @@ function ChainSummary() {
                 "—"
               )}
             </DetailItem>
-            <DetailItem label="Retention">
+            <DetailItem label="History shown">
               {s ? (
                 <>
-                  {s.retentionDays} days on your license
-                  <Sub>Old entries are not purged yet.</Sub>
+                  Last {s.retentionDays} days
+                  <Sub>Older entries are kept and still verified.</Sub>
                 </>
               ) : (
                 "—"

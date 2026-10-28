@@ -181,7 +181,7 @@ export function LicenseView() {
                 <DetailItem label="Agents">
                   {formatLimit(license.usedAgents, license.maxAgents)}
                 </DetailItem>
-                <DetailItem label="Audit retention">{license.retentionDays} days</DetailItem>
+                <DetailItem label="Audit history shown">{license.retentionDays} days</DetailItem>
                 <DetailItem label="Expires">
                   {license.graceEndsAt && license.expiresAt ? (
                     <span className="whitespace-normal">
