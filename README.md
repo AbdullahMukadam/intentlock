@@ -58,11 +58,12 @@ The quickstart bundle is the production bundle; for a real install, edit `.env` 
 - `SMTP_URL` and `SMTP_FROM` to email invites and enable "forgot password"; without them, links are only shown to copy.
 - `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` for "Continue with Google/GitHub" (existing and invited users only, matched by verified email). Callback: `<PUBLIC_URL>/api/v1/auth/oauth/<google|github>/callback`.
 - `INTENTLOCK_VERSION`: the release to run (defaults to the one this bundle came with; see `CHANGELOG.md`).
-- A license: paste the key on the inbox's License page, or put the file in `./license/` with `LICENSE_FILE=/license/<file>`. Without one you run with the free limits (5 users, 3 agents).
+- A license: paste the key on the inbox's License page, or put the file in `./license/` with `LICENSE_FILE=/license/<file>`. Without one you run with the free limits (see [License and pricing](#license-and-pricing)).
+- `AUDIT_DELETE_AFTER_DAYS` (at least 90) only if you want old audit entries deleted. They are archived first to the `audit-archive` volume, or to S3-compatible storage (AWS S3, Cloudflare R2, MinIO) with `AUDIT_ARCHIVE_S3_URL` and its keys. Unset, every entry is kept.
 
 Agent apps get `INTENTLOCK_URL=<PUBLIC_URL>/api` and an `INTENTLOCK_API_KEY` from Agents → API keys. Teammates can also be invited from the [CLI](packages/cli): `intentlock users invite bob@acme.dev --role approver`.
 
-You are responsible for TLS in front of port 8080, Postgres backups (the `pgdata` volume), and keeping `SIGNING_KEY` secret and backed up (leaking it lets anyone sign plans; losing it only stops running plans). Rotation, leaks and loss: [The signing key](apps/site/src/content/docs/docs/deployment/self-host.md#the-signing-key). To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first as a one-off `migrate` service. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
+You are responsible for TLS in front of port 8080, Postgres backups (the `pgdata` volume, and the `audit-archive` volume if you turned deletion on), and keeping `SIGNING_KEY` secret and backed up (leaking it lets anyone sign plans; losing it only stops running plans). Rotation, leaks and loss: [The signing key](apps/site/src/content/docs/docs/deployment/self-host.md#the-signing-key). To upgrade, set `INTENTLOCK_VERSION` to a newer tag and run `up -d` again; migrations run first as a one-off `migrate` service. To build the images from a clone instead of pulling them: `docker compose -f deploy/docker-compose.selfhost.yml --env-file deploy/.env up -d --build`.
 
 ## Add it to your agent
 
@@ -184,7 +185,7 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 - MCP proxy: remote (HTTP) MCP servers, resources and prompts (stdio tools ship now, see `packages/mcp-proxy`)
 - Taint tracking: hold writes that contain data read from private sources
 - Second-admin approval for policy changes; argument redaction
-- Audit retention with verifiable export; OpenTelemetry spans; cross-instance live events; sharded audit chains
+- Two-factor sign-in; backup and restore guide; OpenTelemetry spans and metrics; cross-instance live events; sharded audit chains
 
 ## Repository
 
@@ -205,11 +206,27 @@ Three agents in [`apps/demo`](apps/demo), each run unprotected and protected wit
 
 Development: [`CONTRIBUTING.md`](CONTRIBUTING.md). User docs: [`apps/site/src/content/docs/docs/`](apps/site/src/content/docs/docs/) (published on the website). Design docs: [`docs/`](docs).
 
-## License
+## License and pricing
+
+Every feature is in every install. A license only changes the limits:
+
+|                     | Free (no license) | Licensed                                 |
+| ------------------- | ----------------- | ---------------------------------------- |
+| Users               | 5                 | the seats you buy                        |
+| Agents              | 3                 | unlimited                                |
+| Audit history shown | 30 days           | set by the license (365 days by default) |
+| Price               | free              | per seat, per year                       |
+
+- **Using Intentlock beyond the free limits requires a license. Removing or bypassing the license check is not permitted** (Elastic License 2.0, below).
+- An admin pastes the key on the inbox's **License** page. It is checked offline, so installs without internet access work; nothing phones home.
+- A license problem only changes limits. An expired or invalid key never turns off enforcement, holds or the audit log, and nobody is locked out: over the limits, existing users and agents keep working and only adding more is refused. Admins are emailed 30, 7 and 1 days before expiry, and a license keeps its limits for 14 days after it expires.
+- Audit entries are never deleted because of the license. Older history is hidden on the free limits and shown again with a license.
+
+### Source licenses
 
 Intentlock is open core:
 
 - **MIT** for the SDK packages you embed in your own apps: `@intentlock/core`, `@intentlock/sdk`, `@intentlock/guard`, `@intentlock/anthropic`. Use them anywhere, including closed-source and commercial products. Each has its own `LICENSE` file.
-- **[Elastic License 2.0](LICENSE)** for everything else (server, inbox, CLI, demo, evals). You can read, run, modify and self-host it for your team, including at work. You may not offer it to others as a hosted or managed service, or remove or work around the license-key checks.
+- **[Elastic License 2.0](LICENSE)** for everything else (server, inbox, CLI, MCP proxy, demo, evals, website). You can read, run, modify and self-host it for your team, including at work, within the free limits or with a license. You may not offer it to others as a hosted or managed service, or move, change, disable or work around the license-key checks.
 
-Every feature is in every install. Without a license you get the free limits (5 users, 3 agents); a license, priced per seat per year, lifts them. A missing or expired license key only changes limits; it never turns off enforcement, holds or audit.
+This is a summary, not legal advice; the license texts are what apply.

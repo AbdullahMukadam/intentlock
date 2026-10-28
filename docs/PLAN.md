@@ -471,7 +471,7 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [x] Docs: environment variables, self-host (archive volume or bucket), licensing page ("history shown"), Audit page text
 
 **Selling** (mostly outside the code)
-- [ ] README and the site's licensing page: free limits, what a license unlocks, and "using Intentlock beyond the free limits requires a license; removing or bypassing the license check is not permitted"; every file outside the MIT packages covered by the root ELv2 `LICENSE`
+- [x] README and the site's licensing page: free limits, what a license unlocks, and "using Intentlock beyond the free limits requires a license; removing or bypassing the license check is not permitted"; every file outside the MIT packages covered by the root ELv2 `LICENSE`
 - [ ] Pricing page on the site (price per seat per year, what is included, how to buy, how to apply the key); no checkout code in this repo
 - [ ] **Manual, Abdullah:** lawyer review of ELv2 and the commercial terms (EULA / order form), CLA for outside contributions to ELv2 parts
 - [ ] **Manual, Abdullah:** payment through a merchant of record (for example Lemon Squeezy or Paddle, which handle sales tax), and a small private service that issues the license JWS on purchase and emails it. The vendor private key lives only there, never in this repo
