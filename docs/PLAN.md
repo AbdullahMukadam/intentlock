@@ -462,10 +462,13 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [x] Banner for admins 30, 7 and 1 days before expiry (none during the grace period); email to admins at the same points through `MailService` (skipped without SMTP), sent once per point (recorded, safe across instances)
 - [x] After expiry: 14 days at full limits (grace, no banner), then free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
 
-**Retention purge** (replaces the Phase 7 item)
-- [ ] Daily job on one instance at a time (advisory lock): entries older than `retentionDays` are exported first as verifiable JSONL (to `AUDIT_ARCHIVE_DIR`, or S3-compatible storage reusing the SigV4 code from ADR-080), then deleted in one transaction. An `audit_purged` entry records the last purged seq and its hash. ADR first: where archives go, and how verify anchors on the first kept entry
-- [ ] `GET /v1/audit/verify`, the Audit page and `intentlock audit verify` accept a chain that starts at a purge anchor; the CLI can verify an archive plus the live export end to end
-- [ ] Tests: purge keeps the chain verifiable; export failure purges nothing; a purged row that is edited in the archive fails verify; free mode purges at 30 days, a license at its own retention; two instances never purge twice
+**Audit retention and deletion** (ADR-083, replaces the Phase 7 purge item)
+- [x] ADR-083: license retention is a visibility window; deletion is opt-in in env, archived to S3-compatible storage or a folder first, anchored in the chain
+- [ ] Visibility window: Activity, audit pages and export, runs and stats only reach `retentionDays` back; server verify still walks every entry; License and Audit pages say "history shown"; tests (a 40-day-old entry is hidden on free and shown with a license, verify still counts it)
+- [ ] core: `verifyChain(entries, { from })`; Signature V4 on WebCrypto in core, used by guard's `S3CheckpointStore` (its tests unchanged) and the server; CLI `audit verify` checks a windowed export from its first entry and `--archive <file>...` plus the export end to end
+- [ ] Deletion job: `AUDIT_DELETE_AFTER_DAYS` (min 90), `AUDIT_ARCHIVE_DIR` or `AUDIT_ARCHIVE_S3_*` (refuse to boot with deletion on and no target); daily under an advisory lock, batches of 10 000, write, read back and compare SHA-256, then `audit_purged` plus delete in one transaction under the chain lock; failures delete nothing, `audit_purge_failed`, one admin email per day
+- [ ] Verify across deletion: server verify and the Audit page start at the first kept entry and check it against its `audit_purged` anchor; tests: purge keeps verify green; rows deleted without an archive fail verify; a failed or mismatched archive deletes nothing; two instances never purge the same batch; an edited archive file fails the CLI check
+- [ ] Docs: environment variables, self-host (archive volume or bucket), licensing page ("history shown"), Audit page text
 
 **Selling** (mostly outside the code)
 - [ ] README and the site's licensing page: free limits, what a license unlocks, and "using Intentlock beyond the free limits requires a license; removing or bypassing the license check is not permitted"; every file outside the MIT packages covered by the root ELv2 `LICENSE`
@@ -474,7 +477,7 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 - [ ] **Manual, Abdullah:** payment through a merchant of record (for example Lemon Squeezy or Paddle, which handle sales tax), and a small private service that issues the license JWS on purchase and emails it. The vendor private key lives only there, never in this repo
 - [ ] Support channel and response time written on the pricing page
 
-**Acceptance:** a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; a license close to expiry shows the banner and emails admins, and after expiry falls back to free limits once the 14-day grace period ends, without blocking any agent call; the retention job archives and purges old entries and the chain still verifies from the archive and the database; `pnpm test && pnpm lint && pnpm typecheck` green.
+**Acceptance:** a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; a license close to expiry shows the banner and emails admins, and after expiry falls back to free limits once the 14-day grace period ends, without blocking any agent call; with deletion on, old entries are archived and deleted and the chain still verifies from the archive and the database, and with it off nothing is ever deleted; `pnpm test && pnpm lint && pnpm typecheck` green.
 
 ---
 
