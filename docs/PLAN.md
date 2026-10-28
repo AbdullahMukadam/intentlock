@@ -472,12 +472,37 @@ Added on 2026-10-25 with Abdullah. Intentlock is sold as one paid, self-hosted l
 
 **Selling** (mostly outside the code)
 - [x] README and the site's licensing page: free limits, what a license unlocks, and "using Intentlock beyond the free limits requires a license; removing or bypassing the license check is not permitted"; every file outside the MIT packages covered by the root ELv2 `LICENSE`
-- [ ] Pricing page on the site (price per seat per year, what is included, how to buy, how to apply the key); no checkout code in this repo
-- [ ] **Manual, Abdullah:** lawyer review of ELv2 and the commercial terms (EULA / order form), CLA for outside contributions to ELv2 parts
-- [ ] **Manual, Abdullah:** payment through a merchant of record (for example Lemon Squeezy or Paddle, which handle sales tax), and a small private service that issues the license JWS on purchase and emails it. The vendor private key lives only there, never in this repo
-- [ ] Support channel and response time written on the pricing page
+**Selling: payments and license delivery** (ADR-084; added 2026-10-28 with Abdullah)
 
-**Acceptance:** a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; a license close to expiry shows the banner and emails admins, and after expiry falls back to free limits once the 14-day grace period ends, without blocking any agent call; with deletion on, old entries are archived and deleted and the chain still verifies from the archive and the database, and with it off nothing is ever deleted; `pnpm test && pnpm lint && pnpm typecheck` green.
+*Domain and email*
+- [x] **Manual, Abdullah:** the intentlock domain (registered at Hostinger) added to Brevo as a verified sender domain, with a sender address for license emails
+- [ ] **Manual, Abdullah:** domain DNS on Cloudflare (free plan; nameservers changed in Hostinger, the domain stays registered there), so the site and email forwarding can use it
+- [ ] **Manual, Abdullah:** Brevo: a dedicated API key for the license service only, with IP blocking turned off for API keys (Workers have no fixed outgoing IP; SMTP keys keep their IP blocking); SPF, DKIM and DMARC pass in a test email (Gmail "Show original")
+- [ ] **Manual, Abdullah:** Cloudflare Email Routing forwards `licenses@` and `support@` to Abdullah's inbox; one merged SPF record for Brevo and Email Routing
+- [ ] Site on the domain: Workers custom domain for `intentlock-site`, `SITE_URL` and `INBOX_URL` build variables, inbox `NEXT_PUBLIC_DOCS_URL`, docs links
+
+*Dodo Payments (merchant of record)*
+- [ ] **Manual, Abdullah:** Dodo account approved (check eligibility, payout to your bank, fees on the pricing page); one product: Intentlock license, yearly subscription, priced per seat (quantity chosen at checkout); a required checkout field for the company name; the hosted checkout link; a webhook endpoint pointing at the license service and its signing secret
+- [ ] Dodo is billing only: its own license keys are not used, because they need online activation and Intentlock keys are checked offline
+
+*License service* (separate **private** repo, Cloudflare Worker + D1; never in this repo)
+- [ ] Webhook endpoint: verifies Dodo's signature, ignores repeated deliveries (by webhook id), returns quickly so Dodo does not retry
+- [ ] Events: `subscription.active` → new key; `subscription.renewed` → new key with the new expiry; `subscription.plan_changed` → new key with the new seat count; `past_due` / `on_hold` → nothing (the current key keeps working, Dodo retries the card); `cancelled` / `expired` → record only, no new key
+- [ ] Signs the key with the vendor Ed25519 private key (Worker secret, plus Abdullah's offline backup) in exactly the server's format: licensee = company name, edition `licensed`, `maxUsers` = seats, unlimited agents, 365 days retention, `exp` = end of the paid period + 7 days (the server's 14-day grace covers late pasting)
+- [ ] A test in the service that its keys pass the server's `verifyLicense` (the check is copied, not imported, since the repos are separate), plus tests for each event, repeats and a bad signature
+- [ ] D1 records: customer, subscription, seats, expiry, every key issued, email delivery status
+- [ ] Email through the Brevo API from the verified sender: the key as text and as an attached `intentlock.license` file, seats, expiry, and how to apply it (License page, or `LICENSE_FILE`); renewal and seat-change emails say the old key keeps working until its date
+- [ ] "Resend my license" form on the site: always emails the address on file, never shows a key on the page; rate limited
+- [ ] Alerts to Abdullah when a webhook fails or an email does not send (a paid customer without a key is the failure that matters)
+- [ ] Secrets only in the Worker: vendor private key, Dodo webhook secret, Brevo API key
+
+*Pricing page and support*
+- [ ] Pricing page on the site: price per seat per year, the free limits vs a license (same table as the README), what a license does not change (enforcement, holds, audit), "Buy" linking to the Dodo hosted checkout, how to apply the key; no checkout code in the site or the product
+- [ ] Support channel (`support@`) and response time on the pricing page
+- [ ] **Manual, Abdullah:** lawyer review of ELv2 and the commercial terms (EULA / order form, refund policy that matches Dodo's), CLA for outside contributions to ELv2 parts
+- [ ] End-to-end test in Dodo's test mode: buy 3 seats → key emailed → pasted on a test install's License page → 3 seats shown; change to 5 seats → new key; cancel → no new key
+
+**Acceptance:** a test-mode purchase on the pricing page emails a key that a fresh install accepts on its License page; a fresh install runs in free mode and refuses a 6th user and a 4th agent with a clear message; an admin pastes a license in the inbox and the limits lift on every instance without a restart; a license close to expiry shows the banner and emails admins, and after expiry falls back to free limits once the 14-day grace period ends, without blocking any agent call; with deletion on, old entries are archived and deleted and the chain still verifies from the archive and the database, and with it off nothing is ever deleted; `pnpm test && pnpm lint && pnpm typecheck` green.
 
 ---
 
