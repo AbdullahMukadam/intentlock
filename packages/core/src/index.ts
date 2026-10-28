@@ -11,6 +11,7 @@ export { chainClientEntry, hashClientEntry, type NewClientEntry } from "./audit/
 export { GENESIS, hashEntry } from "./audit/hash-entry.js";
 export { verifyChain, type ChainBreak, type ChainResult } from "./audit/verify-chain.js";
 export { jcs, planHash, policyHash, sha256Base64url } from "./canonical.js";
+export { sha256Hex, signV4, type SigV4Input } from "./crypto/sigv4.js";
 export { block, check, decide } from "./check.js";
 export {
   CLOCK_LEEWAY_SECONDS,

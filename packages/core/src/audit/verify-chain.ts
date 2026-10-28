@@ -11,8 +11,11 @@ export type ChainResult =
  * Walks entries in the given order (ascending seq). Detects edits, deletions in the middle and
  * reordering; deleting the newest entries is not detectable from the chain alone.
  */
-export async function verifyChain(entries: Iterable<unknown>): Promise<ChainResult> {
-  let prev = GENESIS;
+export async function verifyChain(
+  entries: Iterable<unknown>,
+  opts: { from?: string } = {},
+): Promise<ChainResult> {
+  let prev = opts.from ?? GENESIS;
   let count = 0;
   for (const raw of entries) {
     const parsed = AuditEntry.safeParse(raw);

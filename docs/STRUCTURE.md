@@ -87,7 +87,8 @@ src/
 ├── canonical.ts                    # jcs() + sha256Base64url()
 ├── crypto/
 │   ├── keys.ts                     # generate/import/export Ed25519, kid thumbprint
-│   └── bundle-token.ts             # signBundle(), verifyBundle() (jose, injected now)
+│   ├── bundle-token.ts             # signBundle(), verifyBundle() (jose, injected now)
+│   └── sigv4.ts                    # signV4(), sha256Hex() on WebCrypto (S3 checkpoints, audit archives; ADR-083)
 ├── plan/
 │   └── match-step.ts               # matchStep(plan, call) + arg constraint matchers
 ├── policy/
@@ -146,7 +147,7 @@ src/
 │   ├── checkpoint.ts               # Checkpoint schema + CheckpointError (ADR-080)
 │   ├── resume.ts                   # resume(): match holds to the checkpoint, settle them, continue the loop
 │   └── events.ts                   # event types + emitter
-├── checkpoints/                    # store.ts (CheckpointStore), codec.ts (AES-256-GCM), file-store.ts, s3-store.ts, sigv4.ts
+├── checkpoints/                    # store.ts (CheckpointStore), codec.ts (AES-256-GCM), file-store.ts, s3-store.ts (signs with core signV4)
 └── tools/
     └── define-tool.ts              # defineTool({ name, description, schema: zod, impl }) → ToolDef + impl
 ```

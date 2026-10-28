@@ -1,13 +1,13 @@
 import { expect, test } from "vitest";
 
-import { sha256Hex, signV4 } from "../../../src/checkpoints/sigv4.js";
+import { sha256Hex, signV4 } from "../../../src/crypto/sigv4.js";
 
-test("matches the AWS Signature Version 4 GET Object example", () => {
-  const headers = signV4({
+test("matches the AWS Signature Version 4 GET Object example", async () => {
+  const headers = await signV4({
     method: "GET",
     url: new URL("https://examplebucket.s3.amazonaws.com/test.txt"),
     headers: { Range: "bytes=0-9" },
-    payloadHash: sha256Hex(""),
+    payloadHash: await sha256Hex(""),
     region: "us-east-1",
     service: "s3",
     accessKeyId: "AKIAIOSFODNN7EXAMPLE",
