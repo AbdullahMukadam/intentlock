@@ -6,3 +6,4 @@ export const LICENSE_DOCS_PATH = "/docs/licensing/";
 export const CHECKOUT_URL =
   "https://test.checkout.dodopayments.com/buy/pdt_0NqmdsHcOgovxfY9guVhM?quantity=1";
 export const RESEND_LICENSE_URL = "https://intentlock-license.abdullahmukadam21.workers.dev/resend";
+export const SUPPORT_EMAIL = "support@intentlock.space";

@@ -4,7 +4,13 @@ import Corners from "../components/landing/corners.astro";
 import SectionHeading from "../components/landing/section-heading.astro";
 import SiteLayout from "../layouts/site-layout.astro";
 import { OUTLINE_BUTTON, PRIMARY_BUTTON } from "../lib/button";
-import { CHECKOUT_URL, DOCS_PATH, LICENSE_DOCS_PATH, RESEND_LICENSE_URL } from "../lib/links";
+import {
+  CHECKOUT_URL,
+  DOCS_PATH,
+  LICENSE_DOCS_PATH,
+  RESEND_LICENSE_URL,
+  SUPPORT_EMAIL,
+} from "../lib/links";
 
 const SEAT_PRICE_USD = 20;
 const SEAT_PRICE = `$${SEAT_PRICE_USD}`;
@@ -211,6 +217,14 @@ const STEPS = [
         </div>
         <p id="resend-status" role="status" class="min-h-5 text-sm text-muted-foreground"></p>
       </form>
+    </div>
+    <div class="border-t px-5 py-8 sm:px-8">
+      <h2 class="font-medium tracking-[-0.015em]">Support</h2>
+      <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+        Questions about buying, seats or applying a key? Email
+        <a href={`mailto:${SUPPORT_EMAIL}`} class="text-foreground underline">{SUPPORT_EMAIL}</a>.
+        We reply within 2 business days.
+      </p>
     </div>
   </section>
 </SiteLayout>
