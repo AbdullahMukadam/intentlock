@@ -6,7 +6,9 @@ import SiteLayout from "../layouts/site-layout.astro";
 import { OUTLINE_BUTTON, PRIMARY_BUTTON } from "../lib/button";
 import { CHECKOUT_URL, DOCS_PATH, LICENSE_DOCS_PATH } from "../lib/links";
 
-const SEAT_PRICE = "$20";
+const SEAT_PRICE_USD = 20;
+const SEAT_PRICE = `$${SEAT_PRICE_USD}`;
+const MIN_SEATS = 5;
 
 const ROWS = [
   { label: "Users", free: "5", licensed: "the seats you buy" },
@@ -33,7 +35,7 @@ const UNCHANGED = [
 const STEPS = [
   {
     title: "Buy",
-    text: "Choose the number of seats at checkout. A seat is an active user; agents are unlimited.",
+    text: `Choose your seats above (${MIN_SEATS} or more). A seat is an active user; agents are unlimited.`,
   },
   {
     title: "Get the key by email",
@@ -89,10 +91,36 @@ const STEPS = [
             ))
           }
         </dl>
-        <a href={CHECKOUT_URL} class={`${PRIMARY_BUTTON} mt-8`}>
-          Buy a license
-          <Icon name="arrow-right" />
-        </a>
+        <div class="mt-8 flex flex-wrap items-end gap-3">
+          <label class="grid gap-1.5 text-sm">
+            <span class="text-muted-foreground">Seats</span>
+            <input
+              id="seats"
+              type="number"
+              min={MIN_SEATS}
+              max="10000"
+              step="1"
+              value={MIN_SEATS}
+              inputmode="numeric"
+              class="h-11 w-24 rounded-[5px] border border-input bg-card px-3 text-[15px]"
+            />
+          </label>
+          <a
+            id="buy"
+            href={`${CHECKOUT_URL.replace(/quantity=\d+/, `quantity=${MIN_SEATS}`)}`}
+            data-checkout={CHECKOUT_URL}
+            data-price={SEAT_PRICE_USD}
+            data-min={MIN_SEATS}
+            class={`${PRIMARY_BUTTON} flex-1`}
+          >
+            Buy a license
+            <Icon name="arrow-right" />
+          </a>
+        </div>
+        <p class="mt-3 text-sm text-muted-foreground">
+          <span id="total">${SEAT_PRICE_USD * MIN_SEATS}</span> per year, plus tax where it applies.
+          At checkout, tick "Purchasing as a business" to put your company name on the license.
+        </p>
       </div>
     </div>
     <div class="overflow-x-auto border-t px-5 py-10 sm:px-8">
@@ -158,3 +186,25 @@ const STEPS = [
     </ol>
   </section>
 </SiteLayout>
+
+<script>
+  const seats = document.querySelector<HTMLInputElement>("#seats");
+  const buy = document.querySelector<HTMLAnchorElement>("#buy");
+  const total = document.querySelector<HTMLElement>("#total");
+  if (seats && buy && total) {
+    const price = Number(buy.dataset.price);
+    const min = Number(buy.dataset.min);
+    const update = () => {
+      const count = Math.max(min, Math.floor(Number(seats.value)) || min);
+      const url = new URL(buy.dataset.checkout ?? buy.href);
+      url.searchParams.set("quantity", String(count));
+      buy.href = url.href;
+      total.textContent = `$${(price * count).toLocaleString("en-US")}`;
+    };
+    seats.addEventListener("input", update);
+    seats.addEventListener("change", () => {
+      update();
+      seats.value = new URL(buy.href).searchParams.get("quantity") ?? String(min);
+    });
+  }
+</script>
