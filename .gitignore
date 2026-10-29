@@ -68,3 +68,7 @@ apps/server/src/generated/
 
 # Self-host bundle local files
 deploy/license/
+
+docs/PLAN.md
+docs/DECISIONS.md
+docs/JOURNAL.md

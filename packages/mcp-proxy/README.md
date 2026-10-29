@@ -32,7 +32,7 @@ npx -y @intentlock/mcp-proxy --list-tools -- npx -y @modelcontextprotocol/server
 }
 ```
 
-The plan file, holds and limits are explained in the docs: [MCP proxy](https://github.com/AbdullahMukadam/intentlock/blob/main/apps/site/src/content/docs/docs/sdk/mcp-proxy.md). Design: ADR-070 and ADR-071 in `docs/DECISIONS.md`.
+The plan file, holds and limits are explained in the docs: [MCP proxy](https://github.com/AbdullahMukadam/intentlock/blob/main/apps/site/src/content/docs/docs/sdk/mcp-proxy.md).
 
 Needs Node 22 or newer and a running Intentlock server.
 
