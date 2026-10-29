@@ -4,7 +4,7 @@ import Corners from "../components/landing/corners.astro";
 import SectionHeading from "../components/landing/section-heading.astro";
 import SiteLayout from "../layouts/site-layout.astro";
 import { OUTLINE_BUTTON, PRIMARY_BUTTON } from "../lib/button";
-import { CHECKOUT_URL, DOCS_PATH, LICENSE_DOCS_PATH } from "../lib/links";
+import { CHECKOUT_URL, DOCS_PATH, LICENSE_DOCS_PATH, RESEND_LICENSE_URL } from "../lib/links";
 
 const SEAT_PRICE_USD = 20;
 const SEAT_PRICE = `$${SEAT_PRICE_USD}`;
@@ -185,6 +185,34 @@ const STEPS = [
       }
     </ol>
   </section>
+
+  <section aria-labelledby="resend" class="relative border-t">
+    <Corners />
+    <div class="grid gap-6 px-5 py-12 sm:px-8 md:grid-cols-2 md:items-end">
+      <div>
+        <h2 id="resend" class="text-2xl font-medium tracking-[-0.03em]">Lost your license key?</h2>
+        <p class="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          Enter the email you bought with and we will send the current key to that address.
+        </p>
+      </div>
+      <form id="resend-form" action={RESEND_LICENSE_URL} method="post" class="grid gap-3">
+        <div class="flex flex-wrap gap-3">
+          <label for="resend-email" class="sr-only">Email</label>
+          <input
+            id="resend-email"
+            name="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="you@company.com"
+            class="h-11 min-w-0 flex-1 rounded-[5px] border border-input bg-card px-3 text-[15px]"
+          />
+          <button type="submit" class={OUTLINE_BUTTON}>Email my key</button>
+        </div>
+        <p id="resend-status" role="status" class="min-h-5 text-sm text-muted-foreground"></p>
+      </form>
+    </div>
+  </section>
 </SiteLayout>
 
 <script>
@@ -205,6 +233,36 @@ const STEPS = [
     seats.addEventListener("change", () => {
       update();
       seats.value = new URL(buy.href).searchParams.get("quantity") ?? String(min);
+    });
+  }
+
+  const resendForm = document.querySelector<HTMLFormElement>("#resend-form");
+  const resendStatus = document.querySelector<HTMLElement>("#resend-status");
+  if (resendForm && resendStatus) {
+    resendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = resendForm.querySelector("button");
+      if (button) button.disabled = true;
+      resendStatus.textContent = "Sending…";
+      try {
+        const response = await fetch(resendForm.action, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: new FormData(resendForm).get("email") }),
+        });
+        const body: unknown = await response.json().catch(() => null);
+        const text =
+          body && typeof body === "object" && "message" in body && typeof body.message === "string"
+            ? body.message
+            : body && typeof body === "object" && "error" in body && typeof body.error === "string"
+              ? body.error
+              : null;
+        resendStatus.textContent = text ?? "Something went wrong. Try again in a minute.";
+      } catch {
+        resendStatus.textContent = "Something went wrong. Try again in a minute.";
+      } finally {
+        if (button) button.disabled = false;
+      }
     });
   }
 </script>
