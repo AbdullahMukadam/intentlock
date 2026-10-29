@@ -19,6 +19,7 @@ import {
   Bot,
   ChevronsUpDown,
   Hand,
+  KeyRound,
   LayoutGrid,
   ListChecks,
   LogOut,
@@ -41,16 +42,21 @@ import { createContext, use, useEffect, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { FrameCorners } from "@/components/frame-corners";
+import { ExpiryBanner } from "@/components/license/expiry-banner";
 import Loader from "@/components/loader";
 import { api } from "@/lib/api";
 import { DOCS_URL } from "@/lib/docs-url";
+import { UiAction } from "@/lib/enums/ui-action.enum";
+import { licenseLabel, licenseUrl } from "@/lib/license";
 import { ThemeName } from "@/lib/enums/theme-name.enum";
 import { initials } from "@/lib/format";
 import { useLiveQueries } from "@/lib/live-queries";
+import { can } from "@/lib/permissions";
 import { prefetchPage } from "@/lib/prefetch";
 import { SearchPalette } from "@/components/search-palette";
 import { License, Me } from "@/lib/schemas";
 import { signOut } from "@/lib/sign-out";
+import { useApi } from "@/lib/use-api";
 
 type NavItem = { href: Route; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -69,6 +75,7 @@ const NAV: { section: string; items: NavItem[]; docs?: boolean }[] = [
     items: [
       { href: "/agents", label: "Agents", icon: Bot },
       { href: "/team", label: "Team", icon: Users },
+      { href: "/license", label: "License", icon: KeyRound },
     ],
   },
   {
@@ -179,8 +186,8 @@ function Sidebar({
         <BrandMark className="size-7" />
         <div className="min-w-0">
           <div className="text-[15px] leading-tight font-semibold tracking-tight">Intentlock</div>
-          <div className="truncate text-xs text-muted-foreground capitalize">
-            {license ? `${license.edition} edition` : " "}
+          <div className="truncate text-xs text-muted-foreground">
+            {license ? licenseLabel(license) : " "}
           </div>
         </div>
       </div>
@@ -238,14 +245,13 @@ function Sidebar({
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
-  const [license, setLicense] = useState<License | null>(null);
   const [failed, setFailed] = useState(false);
   const [drawer, setDrawer] = useState(false);
   useLiveQueries();
+  const license = useApi(licenseUrl, License).data ?? null;
 
   useEffect(() => {
     api(API_ENDPOINTS.ME, Me).then(setMe, () => setFailed(true));
-    api(API_ENDPOINTS.LICENSE, License).then(setLicense, () => undefined);
   }, []);
 
   if (failed)
@@ -290,6 +296,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="truncate font-medium">{current?.label}</span>
             </nav>
           </header>
+          {license && can(me.role, UiAction.MANAGE_LICENSE) && <ExpiryBanner license={license} />}
           <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
             <MeContext value={me}>{children}</MeContext>
           </main>

@@ -27,7 +27,7 @@ Identity-based access ("this token can access these repos") is too coarse. What 
 - Detecting prompt injection in text (classifiers). Intentlock constrains *actions*, not content.
 - Preventing data leaks through the *content* of an allowed action (e.g. an allowed comment that contains private data). Mitigated by holds on public writes; documented as a limitation.
 - Multi-tenant SaaS hosting. v0.1 is single-tenant (one team per deployment), but every table carries an `orgId` so a hosted version is possible later.
-- Billing, SSO/SAML, SCIM. Planned as paid features; v0.1 only builds the licensing groundwork (§11).
+- Billing, SSO/SAML, SCIM. v0.1 only builds the licensing groundwork (§11, ADR-082).
 - Fully open source. Only the SDK packages are MIT.
 - Supporting every agent framework (LangChain, ADK, ...). v0.1 = own guard loop with two provider adapters (Anthropic, OpenAI-compatible) + MCP proxy (stretch).
 - Streaming responses. The guard works on complete model responses.
@@ -131,8 +131,8 @@ Nothing in the inbox is visible without signing in. Every agent run is tied to a
 - FR21 · ~30 prompt-injection scenarios across GitHub, email and file tools with mock backends; runner outputs a results table.
 
 ### Licensing groundwork
-- FR23 · The server verifies an optional signed license file offline at boot and daily. No file or an invalid/expired file → Community edition limits. Licence problems never disable enforcement: they only change limits.
-- FR24 · Entitlements (edition, max users, max agents, audit retention, feature flags) are checked in one place (`LicenseService`); v0.1 enforces max users and max agents and exposes the flags for future paid features.
+- FR23 · The server verifies an optional signed license file offline at boot and daily. No file or an invalid/expired file → free limits (ADR-082). Licence problems never disable enforcement: they only change limits.
+- FR24 · Entitlements (edition `free | licensed`, max users = seats, max agents, audit retention) are checked in one place (`LicenseService`). There are no feature flags (ADR-082).
 
 ### MCP proxy (stretch)
 - FR22 · A stdio MCP proxy that forwards to an upstream MCP server and enforces Intentlock on `tools/call`.
@@ -171,19 +171,17 @@ Nothing in the inbox is visible without signing in. Every agent run is tied to a
 | Auth, policy editor, dashboard and three demo agents add scope | CLI-only user management (team page is stretch); YAML editor rather than a visual builder; dashboard uses plain SQL; support/files agents are cut first; licensing = verify + limits only |
 | Source-available license misunderstood or unsuitable | ELv2 chosen for clarity; confirm with a lawyer before selling (not legal advice) |
 
-## 11. Business model (later, not built in v0.1)
+## 11. Business model
 
-Self-hosted, source-available, sold as editions — the open-core pattern used by GitLab, Sentry and HashiCorp.
+Self-hosted and source-available, sold as **one paid license** (ADR-082). Every feature is in every install; only the limits differ.
 
-| Edition | Price | Includes |
+| Mode | Price | Limits |
 | --- | --- | --- |
-| **Community** | Free, no license file | Everything in v0.1, up to 5 users, up to 3 agents, 30-day audit retention, single server instance |
-| **Team** | Paid, per seat / year | Unlimited users and agents, multiple instances, 1-year retention, audit export to SIEM, visual policy builder, argument redaction, email support |
-| **Enterprise** | Paid, annual contract | SSO/SAML, SCIM, second-admin approval for policy changes, sharded audit chains, longer retention, priority support |
+| **Free** | No license file (or an invalid or expired one) | Up to 5 active users, 3 agents, 30-day audit retention |
+| **Licensed** | Per seat per year | Seats = active users, unlimited agents, retention set by the license, support |
 | **Cloud** (much later) | Subscription | Hosted version, built on the `orgId` groundwork |
 
 Licensing:
 - **SDK packages** (`core`, `sdk`, `guard`, `anthropic`): MIT, so customers can embed them anywhere.
-- **Server, inbox, CLI, evals, demo**: Elastic License 2.0 — source is public and usable, but it cannot be offered as a managed service and license-key checks cannot be removed or circumvented. Not legal advice; confirm before selling.
+- **Server, inbox, CLI, evals, demo**: Elastic License 2.0. The source is public and usable, but it cannot be offered as a managed service, and the license-key checks cannot be removed or circumvented. All code stays in this repo; there is no private paid edition. Not legal advice; confirm before selling.
 - **License keys**: a JWS signed with the vendor's Ed25519 key (separate from plan-signing keys), verified offline by the server. Contracts do the enforcing; no heavy DRM.
-

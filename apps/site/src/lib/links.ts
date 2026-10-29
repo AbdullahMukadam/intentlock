@@ -1,3 +1,11 @@
 export const DOCS_PATH = "/docs/";
 export const GITHUB_URL = "https://github.com/AbdullahMukadam/intentlock";
 export const SIGN_IN_URL = new URL("/login", "https://app.intentlock.space").href;
+export const PRICING_PATH = "/pricing/";
+export const LICENSE_DOCS_PATH = "/docs/licensing/";
+export const CHECKOUT_URL: string | null = null;
+export const RESEND_LICENSE_URL = "https://intentlock-license.abdullahmukadam21.workers.dev/resend";
+export const SUPPORT_EMAIL = "support@intentlock.space";
+export const TERMS_PATH = "/terms/";
+export const PRIVACY_PATH = "/privacy/";
+export const REFUNDS_PATH = "/refunds/";

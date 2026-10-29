@@ -1,5 +1,3 @@
-import { createHash, createHmac } from "node:crypto";
-
 export interface SigV4Input {
   method: string;
   url: URL;
@@ -14,16 +12,33 @@ export interface SigV4Input {
 }
 
 const ALGORITHM = "AWS4-HMAC-SHA256";
+const encoder = new TextEncoder();
 
-export function sha256Hex(data: string | Buffer): string {
-  return createHash("sha256").update(data).digest("hex");
+function hex(bytes: ArrayBuffer): string {
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function hmac(key: string | Buffer, data: string): Buffer {
-  return createHmac("sha256", key).update(data).digest();
+function bytesOf(data: string | Uint8Array): Uint8Array<ArrayBuffer> {
+  return typeof data === "string" ? encoder.encode(data) : new Uint8Array(data);
 }
 
-export function signV4(input: SigV4Input): Record<string, string> {
+export async function sha256Hex(data: string | Uint8Array): Promise<string> {
+  return hex(await crypto.subtle.digest("SHA-256", bytesOf(data)));
+}
+
+async function hmac(key: string | ArrayBuffer, data: string): Promise<ArrayBuffer> {
+  const raw = typeof key === "string" ? encoder.encode(key) : key;
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    raw,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(data));
+}
+
+export async function signV4(input: SigV4Input): Promise<Record<string, string>> {
   const amzDate = input.now
     .toISOString()
     .replace(/[-:]/g, "")
@@ -48,12 +63,12 @@ export function signV4(input: SigV4Input): Record<string, string> {
     input.payloadHash,
   ].join("\n");
   const scope = `${day}/${input.region}/${input.service}/aws4_request`;
-  const toSign = [ALGORITHM, amzDate, scope, sha256Hex(canonical)].join("\n");
-  const signingKey = hmac(
-    hmac(hmac(hmac(`AWS4${input.secretAccessKey}`, day), input.region), input.service),
-    "aws4_request",
-  );
-  const signature = createHmac("sha256", signingKey).update(toSign).digest("hex");
+  const toSign = [ALGORITHM, amzDate, scope, await sha256Hex(canonical)].join("\n");
+  const dayKey = await hmac(`AWS4${input.secretAccessKey}`, day);
+  const regionKey = await hmac(dayKey, input.region);
+  const serviceKey = await hmac(regionKey, input.service);
+  const signingKey = await hmac(serviceKey, "aws4_request");
+  const signature = hex(await hmac(signingKey, toSign));
   const { host: _host, ...rest } = headers;
   return {
     ...rest,

@@ -1,6 +1,6 @@
 # @intentlock/server
 
-The [Intentlock](../../README.md) service (NestJS + Prisma + Postgres): signs plan bundles with the team's Ed25519 key, stores agents, API keys and versioned policies, runs remote checks, manages holds and approvals, keeps the hash-chained audit log, and serves the inbox's REST and WebSocket API. Licensing (Community fallback, offline license verification) lives here.
+The [Intentlock](../../README.md) service (NestJS + Prisma + Postgres): signs plan bundles with the team's Ed25519 key, stores agents, API keys and versioned policies, runs remote checks, manages holds and approvals, keeps the hash-chained audit log, and serves the inbox's REST and WebSocket API. Licensing (free-limits fallback, offline license verification) lives here.
 
 ```bash
 docker compose up -d                                   # Postgres (+ Mailpit for the demo)

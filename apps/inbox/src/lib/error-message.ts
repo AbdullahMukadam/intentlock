@@ -5,9 +5,15 @@ import { HttpStatus } from "./enums/http-status.enum";
 const SHARED: Partial<Record<string, string>> = {
   [ApiErrorCode.PASSWORD_TOO_WEAK]: "Choose a password that does not contain your email.",
   [ApiErrorCode.USER_LIMIT_REACHED]:
-    "Your team has reached its user limit. Ask an admin to free a seat.",
+    "Your team has reached its user limit. An admin can free a seat or apply a license on the License page.",
   [ApiErrorCode.AGENT_NAME_TAKEN]: "An agent with that name already exists.",
-  [ApiErrorCode.AGENT_LIMIT_REACHED]: "Your license's agent limit is reached.",
+  [ApiErrorCode.AGENT_LIMIT_REACHED]:
+    "Your team has reached its agent limit. An admin can delete an agent or apply a license on the License page.",
+  [ApiErrorCode.LICENSE_INVALID]:
+    "That license key is not valid. Paste the whole key you received.",
+  [ApiErrorCode.LICENSE_EXPIRED]: "That license key has expired.",
+  [ApiErrorCode.LICENSE_FROM_FILE]:
+    "This server reads its license from LICENSE_FILE. Change that file instead.",
   [ApiErrorCode.HOLD_NOT_PENDING]: "Someone else resolved this hold, or it expired.",
   [ApiErrorCode.NOT_AN_APPROVER]: "You are not an approver for this hold.",
   [ApiErrorCode.USER_EXISTS]: "That person is already on the team.",

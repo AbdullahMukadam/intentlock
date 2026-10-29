@@ -62,6 +62,19 @@ describe("hashEntry", () => {
 });
 
 describe("verifyChain", () => {
+  test("a chain that starts later verifies from a given hash", async () => {
+    const entries = await chain(5);
+    const tail = entries.slice(2);
+    expect(await verifyChain(tail, { from: entries[1]!.hash })).toEqual({ ok: true, count: 3 });
+    expect(await verifyChain(tail)).toEqual({
+      ok: false,
+      count: 0,
+      firstBrokenSeq: 3,
+      reason: "prev_hash_mismatch",
+    });
+    expect(await verifyChain(tail, { from: entries[0]!.hash })).toMatchObject({ ok: false });
+  });
+
   test("intact chain", async () => {
     expect(await verifyChain(await chain(5))).toEqual({ ok: true, count: 5 });
     expect(await verifyChain([])).toEqual({ ok: true, count: 0 });

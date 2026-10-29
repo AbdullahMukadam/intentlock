@@ -7,4 +7,5 @@ export enum UiAction {
   TEST_POLICY = "test_policy",
   MANAGE_TEAM = "manage_team",
   EXPORT_AUDIT_CHAIN = "export_audit_chain",
+  MANAGE_LICENSE = "manage_license",
 }

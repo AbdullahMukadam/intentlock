@@ -1,0 +1,322 @@
+---
+import Icon from "../components/icon.astro";
+import Corners from "../components/landing/corners.astro";
+import SectionHeading from "../components/landing/section-heading.astro";
+import SiteLayout from "../layouts/site-layout.astro";
+import { OUTLINE_BUTTON, PRIMARY_BUTTON } from "../lib/button";
+import {
+  CHECKOUT_URL,
+  DOCS_PATH,
+  LICENSE_DOCS_PATH,
+  RESEND_LICENSE_URL,
+  SUPPORT_EMAIL,
+} from "../lib/links";
+
+const SEAT_PRICE_USD = 20;
+const SEAT_PRICE = `$${SEAT_PRICE_USD}`;
+const MIN_SEATS = 5;
+
+function checkoutFor(base: string, seats: number): string {
+  const url = new URL(base);
+  url.searchParams.set("quantity", String(seats));
+  return url.href;
+}
+
+const ROWS = [
+  { label: "Users", free: "5", licensed: "the seats you buy" },
+  { label: "Agents", free: "3", licensed: "unlimited" },
+  { label: "Audit history shown", free: "30 days", licensed: "365 days" },
+  { label: "Price", free: "free", licensed: `${SEAT_PRICE} per seat, per year` },
+];
+
+const UNCHANGED = [
+  {
+    title: "Every feature, every install",
+    text: "Plans, policies, holds, the approval inbox and the audit log are the same with or without a license.",
+  },
+  {
+    title: "Security never depends on the license",
+    text: "A missing, invalid or expired key only changes limits. Enforcement, holds and the audit log keep running, and nobody is locked out.",
+  },
+  {
+    title: "Checked offline",
+    text: "The key is a signed file verified on your server. Nothing phones home, so installs without internet access work.",
+  },
+];
+
+const STEPS = [
+  {
+    title: "Buy",
+    text: `Choose your seats above (${MIN_SEATS} or more). A seat is an active user; agents are unlimited.`,
+  },
+  {
+    title: "Get the key by email",
+    text: "The license key arrives as text and as an intentlock.license file. Renewals and seat changes send a new key; the old one works until its date.",
+  },
+  {
+    title: "Apply it",
+    text: "An admin pastes it on the inbox's License page, or mounts the file and sets LICENSE_FILE. The limits lift at once.",
+  },
+];
+---
+
+<SiteLayout
+  title="Pricing · Intentlock"
+  description="Intentlock is free for small teams. A license, priced per seat per year, lifts the user, agent and audit history limits."
+>
+  <section aria-labelledby="pricing" class="relative border-b">
+    <Corners />
+    <SectionHeading id="pricing" title="Free for small teams, one license when you grow" />
+    <div class="grid gap-px border-t bg-border md:grid-cols-2">
+      <div class="flex flex-col bg-background px-5 py-8 sm:px-8">
+        <h3 class="text-lg font-medium tracking-[-0.015em]">Free</h3>
+        <p class="mt-1.5 text-sm text-muted-foreground">No license. Self-host and start now.</p>
+        <p class="mt-6 text-4xl font-medium tracking-[-0.035em]">$0</p>
+        <dl class="mt-6 grid gap-3 text-sm">
+          {
+            ROWS.slice(0, 3).map(({ label, free }) => (
+              <div class="flex justify-between gap-4 border-b pb-3">
+                <dt class="text-muted-foreground">{label}</dt>
+                <dd>{free}</dd>
+              </div>
+            ))
+          }
+        </dl>
+        <a href={DOCS_PATH} class={`${OUTLINE_BUTTON} mt-8`}>Get started</a>
+      </div>
+      <div class="flex flex-col bg-background px-5 py-8 sm:px-8">
+        <h3 class="text-lg font-medium tracking-[-0.015em]">Licensed</h3>
+        <p class="mt-1.5 text-sm text-muted-foreground">One license for your whole deployment.</p>
+        <p class="mt-6 text-4xl font-medium tracking-[-0.035em]">
+          {SEAT_PRICE}{" "}
+          <span class="text-base font-normal tracking-normal text-muted-foreground">
+            per seat / year
+          </span>
+        </p>
+        <dl class="mt-6 grid gap-3 text-sm">
+          {
+            ROWS.slice(0, 3).map(({ label, licensed }) => (
+              <div class="flex justify-between gap-4 border-b pb-3">
+                <dt class="text-muted-foreground">{label}</dt>
+                <dd>{licensed}</dd>
+              </div>
+            ))
+          }
+        </dl>
+        <div class="mt-8 flex flex-wrap items-end gap-3">
+          <label class="grid gap-1.5 text-sm">
+            <span class="text-muted-foreground">Seats</span>
+            <input
+              id="seats"
+              type="number"
+              min={MIN_SEATS}
+              max="10000"
+              step="1"
+              value={MIN_SEATS}
+              inputmode="numeric"
+              class="h-11 w-24 rounded-[5px] border border-input bg-card px-3 text-[15px]"
+            />
+          </label>
+          {
+            CHECKOUT_URL ? (
+              <a
+                id="buy"
+                href={checkoutFor(CHECKOUT_URL, MIN_SEATS)}
+                data-checkout={CHECKOUT_URL}
+                data-price={SEAT_PRICE_USD}
+                data-min={MIN_SEATS}
+                class={`${PRIMARY_BUTTON} flex-1`}
+              >
+                Buy a license
+                <Icon name="arrow-right" />
+              </a>
+            ) : (
+              <span
+                id="buy"
+                role="link"
+                aria-disabled="true"
+                data-price={SEAT_PRICE_USD}
+                data-min={MIN_SEATS}
+                class={`${PRIMARY_BUTTON} flex-1 cursor-not-allowed opacity-60`}
+              >
+                Available soon
+              </span>
+            )
+          }
+        </div>
+        <p class="mt-3 text-sm text-muted-foreground">
+          <span id="total">${SEAT_PRICE_USD * MIN_SEATS}</span> per year, plus tax where it applies.{" "}
+          {
+            CHECKOUT_URL ? (
+              <>
+                At checkout, tick "Purchasing as a business" to put your company name on the
+                license.
+              </>
+            ) : (
+              <>
+                Licenses go on sale soon. Want to know when? Email{" "}
+                <a href={`mailto:${SUPPORT_EMAIL}`} class="text-foreground underline">
+                  {SUPPORT_EMAIL}
+                </a>
+                .
+              </>
+            )
+          }
+        </p>
+      </div>
+    </div>
+    <div class="overflow-x-auto border-t px-5 py-10 sm:px-8">
+      <table class="w-full min-w-[28rem] text-left text-sm">
+        <caption class="sr-only">Free vs licensed</caption>
+        <thead>
+          <tr class="border-b">
+            <th scope="col" class="py-3 font-medium"></th>
+            <th scope="col" class="py-3 font-medium">Free (no license)</th>
+            <th scope="col" class="py-3 font-medium">Licensed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            ROWS.map(({ label, free, licensed }) => (
+              <tr class="border-b">
+                <th scope="row" class="py-3 font-normal text-muted-foreground">
+                  {label}
+                </th>
+                <td class="py-3">{free}</td>
+                <td class="py-3">{licensed}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p class="mt-6 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        Using Intentlock beyond the free limits requires a license. Removing or bypassing the
+        license check is not permitted (<a href={LICENSE_DOCS_PATH} class="underline">Elastic
+        License 2.0</a>). The SDK packages you embed stay MIT.
+      </p>
+    </div>
+  </section>
+
+  <section aria-labelledby="unchanged" class="relative border-b">
+    <Corners />
+    <SectionHeading id="unchanged" title="What a license does not change" />
+    <ul class="grid gap-px border-t bg-border md:grid-cols-3">
+      {
+        UNCHANGED.map(({ title, text }) => (
+          <li class="bg-background px-5 py-7 sm:px-6">
+            <h3 class="font-medium tracking-[-0.015em]">{title}</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section aria-labelledby="apply" class="relative">
+    <Corners />
+    <SectionHeading id="apply" title="From checkout to a licensed install" />
+    <ol class="grid gap-px border-t bg-border md:grid-cols-3">
+      {
+        STEPS.map(({ title, text }, i) => (
+          <li class="bg-background px-5 py-7 sm:px-6">
+            <span class="font-mono text-xs text-muted-foreground">0{i + 1}</span>
+            <h3 class="mt-2 font-medium tracking-[-0.015em]">{title}</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section aria-labelledby="resend" class="relative border-t">
+    <Corners />
+    <div class="grid gap-6 px-5 py-12 sm:px-8 md:grid-cols-2 md:items-end">
+      <div>
+        <h2 id="resend" class="text-2xl font-medium tracking-[-0.03em]">Lost your license key?</h2>
+        <p class="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          Enter the email you bought with and we will send the current key to that address.
+        </p>
+      </div>
+      <form id="resend-form" action={RESEND_LICENSE_URL} method="post" class="grid gap-3">
+        <div class="flex flex-wrap gap-3">
+          <label for="resend-email" class="sr-only">Email</label>
+          <input
+            id="resend-email"
+            name="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="you@company.com"
+            class="h-11 min-w-0 flex-1 rounded-[5px] border border-input bg-card px-3 text-[15px]"
+          />
+          <button type="submit" class={OUTLINE_BUTTON}>Email my key</button>
+        </div>
+        <p id="resend-status" role="status" class="min-h-5 text-sm text-muted-foreground"></p>
+      </form>
+    </div>
+    <div class="border-t px-5 py-8 sm:px-8">
+      <h2 class="font-medium tracking-[-0.015em]">Support</h2>
+      <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+        Questions about buying, seats or applying a key? Email
+        <a href={`mailto:${SUPPORT_EMAIL}`} class="text-foreground underline">{SUPPORT_EMAIL}</a>.
+        We reply within 2 business days.
+      </p>
+    </div>
+  </section>
+</SiteLayout>
+
+<script>
+  const seats = document.querySelector<HTMLInputElement>("#seats");
+  const buy = document.querySelector<HTMLElement>("#buy");
+  const total = document.querySelector<HTMLElement>("#total");
+  if (seats && buy && total) {
+    const price = Number(buy.dataset.price);
+    const min = Number(buy.dataset.min);
+    const update = () => {
+      const count = Math.max(min, Math.floor(Number(seats.value)) || min);
+      if (buy instanceof HTMLAnchorElement && buy.dataset.checkout) {
+        const url = new URL(buy.dataset.checkout);
+        url.searchParams.set("quantity", String(count));
+        buy.href = url.href;
+      }
+      total.textContent = `$${(price * count).toLocaleString("en-US")}`;
+      return count;
+    };
+    seats.addEventListener("input", () => {
+      update();
+    });
+    seats.addEventListener("change", () => {
+      seats.value = String(update());
+    });
+  }
+
+  const resendForm = document.querySelector<HTMLFormElement>("#resend-form");
+  const resendStatus = document.querySelector<HTMLElement>("#resend-status");
+  if (resendForm && resendStatus) {
+    resendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = resendForm.querySelector("button");
+      if (button) button.disabled = true;
+      resendStatus.textContent = "Sending…";
+      try {
+        const response = await fetch(resendForm.action, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: new FormData(resendForm).get("email") }),
+        });
+        const body: unknown = await response.json().catch(() => null);
+        const text =
+          body && typeof body === "object" && "message" in body && typeof body.message === "string"
+            ? body.message
+            : body && typeof body === "object" && "error" in body && typeof body.error === "string"
+              ? body.error
+              : null;
+        resendStatus.textContent = text ?? "Something went wrong. Try again in a minute.";
+      } catch {
+        resendStatus.textContent = "Something went wrong. Try again in a minute.";
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+  }
+</script>

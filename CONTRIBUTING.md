@@ -41,7 +41,7 @@ pnpm test && pnpm lint && pnpm typecheck && pnpm format
 - **Pure core.** `packages/core` does no I/O; time comes from an injected `now()`.
 - **Provider-agnostic guard.** Provider SDKs live only in adapters.
 - Strict TypeScript, `zod` at every boundary, string enums instead of string literals for fixed sets, API paths from `API_ENDPOINTS`.
-- No code comments; rationale goes in the commit message or an ADR in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+- No code comments; rationale goes in the commit message.
 - Tests live in `test/unit/` (mirroring `src/`) and `test/e2e/`; every new decision path needs one, including its failure path.
 - Never commit secrets. Demo data is fake.
 

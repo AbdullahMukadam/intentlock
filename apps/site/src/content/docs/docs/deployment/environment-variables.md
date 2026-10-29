@@ -19,7 +19,12 @@ All configuration comes from environment variables. The server validates them at
 | `TRUST_PROXY` | `0` | Number of reverse proxies in front of the server: `1` behind the bundled nginx. Never more than the real number, or clients can spoof their IP. |
 | `API_KEY_PEPPER` | empty | Extra secret mixed into API key hashes. Changing it invalidates every API key. |
 | `CORS_ORIGINS` | | Only if the inbox is served from another origin. Avoid it; use one origin. |
-| `LICENSE_FILE` | | Path to a license file. Unset means Community edition. |
+| `LICENSE_FILE` | | Path to a license file. Unset means the free limits. |
+| `AUDIT_DELETE_AFTER_DAYS` | | Delete audit entries older than this many days (at least 90), after archiving them. Unset keeps every entry. Needs `AUDIT_ARCHIVE_DIR` or `AUDIT_ARCHIVE_S3_URL`; the server will not start without one. |
+| `AUDIT_ARCHIVE_DIR` | `/audit-archive` in the self-host bundle | Folder for archived audit entries (`audit-<from>-<to>.jsonl`). Use a volume that is backed up. |
+| `AUDIT_ARCHIVE_S3_URL` | | Bucket URL of any S3-compatible store, path style: `https://s3.us-east-1.amazonaws.com/<bucket>`, `https://<account>.r2.cloudflarestorage.com/<bucket>`. Wins over `AUDIT_ARCHIVE_DIR`. |
+| `AUDIT_ARCHIVE_S3_REGION` | `auto` | The bucket's region (`auto` for Cloudflare R2). |
+| `AUDIT_ARCHIVE_S3_ACCESS_KEY_ID`, `AUDIT_ARCHIVE_S3_SECRET_ACCESS_KEY` | | Keys that may write and read the bucket. Required with `AUDIT_ARCHIVE_S3_URL`. |
 | `SMTP_URL` | | For example `smtps://user:pass@smtp.example.com:465`. Set: invite and reset links are emailed and "forgot password" appears. Unset: links are only shown to copy. |
 | `SMTP_FROM` | | Sender, for example `Intentlock <intentlock@acme.dev>`. Required with `SMTP_URL`. |
 | `HOLD_WEBHOOK_URL` | | Optional `https://` Slack or Discord incoming webhook. Each new hold is posted with the agent, person, tool and argument names, but never argument values. |

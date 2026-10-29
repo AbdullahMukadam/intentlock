@@ -52,4 +52,21 @@ describe("loadEnv", () => {
       "https://il.acme.dev",
     );
   });
+
+  it("audit deletion is off by default, needs an archive target and at least 90 days", () => {
+    const db = { DATABASE_URL: "postgresql://x@localhost/db" };
+    expect(loadEnv(db).AUDIT_DELETE_AFTER_DAYS).toBeUndefined();
+    expect(loadEnv({ ...db, AUDIT_DELETE_AFTER_DAYS: "" }).AUDIT_DELETE_AFTER_DAYS).toBeUndefined();
+    expect(() => loadEnv({ ...db, AUDIT_DELETE_AFTER_DAYS: "120" })).toThrow(/AUDIT_ARCHIVE_DIR/);
+    expect(() =>
+      loadEnv({ ...db, AUDIT_DELETE_AFTER_DAYS: "30", AUDIT_ARCHIVE_DIR: "/archive" }),
+    ).toThrow(/AUDIT_DELETE_AFTER_DAYS/);
+    expect(
+      loadEnv({ ...db, AUDIT_DELETE_AFTER_DAYS: "120", AUDIT_ARCHIVE_DIR: "/archive" })
+        .AUDIT_DELETE_AFTER_DAYS,
+    ).toBe(120);
+    expect(() =>
+      loadEnv({ ...db, AUDIT_ARCHIVE_S3_URL: "https://acct.r2.cloudflarestorage.com/audit" }),
+    ).toThrow(/AUDIT_ARCHIVE_S3_ACCESS_KEY_ID/);
+  });
 });

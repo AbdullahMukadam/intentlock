@@ -7,6 +7,7 @@ import type { SessionUser } from "../common/types/auth.types.js";
 import { emptyVerdictCounts } from "../common/utils/verdict-counts.util.js";
 import { HoldStatus, Prisma } from "../generated/prisma/client.js";
 import { orgDb } from "../org/utils/org-db.util.js";
+import { LicenseService } from "../license/license.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
 import {
@@ -25,7 +26,10 @@ type TopRow = { key: string; count: number };
 // ARCHITECTURE §5.10: plain SQL aggregates over indexed columns; orgId (and member scope) filtered by hand.
 @Injectable()
 export class StatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly license: LicenseService,
+  ) {}
 
   async overview(viewer: SessionUser, q: OverviewQueryDto) {
     const to = q.to ?? new Date();
@@ -37,12 +41,14 @@ export class StatsService {
         error: StatsError.INVALID_RANGE,
       });
     }
+    const cutoff = this.license.historyCutoff();
+    const since = from > cutoff ? from : cutoff;
     const bucket = span <= HOURLY_BUCKETS_UP_TO_MS ? StatsBucket.HOUR : StatsBucket.DAY;
     const member = viewer.role === UserRole.MEMBER ? viewer.email : null;
 
     const scope = [
       Prisma.sql`"orgId" = ${viewer.orgId}`,
-      Prisma.sql`at >= ${from}`,
+      Prisma.sql`at >= ${since}`,
       Prisma.sql`at < ${to}`,
       ...(q.agentId ? [Prisma.sql`"agentId" = ${q.agentId}`] : []),
       ...(member ? [Prisma.sql`"user" = ${member}`] : []),
@@ -61,7 +67,7 @@ export class StatsService {
       [
         Prisma.sql`"orgId" = ${viewer.orgId}`,
         Prisma.sql`status = ${HoldStatus.APPROVED}::"HoldStatus"`,
-        Prisma.sql`"resolvedAt" >= ${from}`,
+        Prisma.sql`"resolvedAt" >= ${since}`,
         Prisma.sql`"resolvedAt" < ${to}`,
         ...(q.agentId ? [Prisma.sql`"agentId" = ${q.agentId}`] : []),
         ...(member ? [Prisma.sql`"user" = ${member}`] : []),
@@ -99,7 +105,7 @@ export class StatsService {
         by: ["status"],
         where: {
           status: { not: HoldStatus.PENDING },
-          resolvedAt: { gte: from, lt: to },
+          resolvedAt: { gte: since, lt: to },
           ...(q.agentId && { agentId: q.agentId }),
           ...(member && { user: member }),
         },

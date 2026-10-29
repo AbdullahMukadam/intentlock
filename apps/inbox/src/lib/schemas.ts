@@ -1,6 +1,11 @@
 import { HoldResolveOutcome, PlanStep, Role, ToolCall, Verdict } from "@intentlock/core";
 import { z } from "zod";
 
+import { ArchiveTarget } from "./enums/archive-target.enum";
+import { LicenseEdition } from "./enums/license-edition.enum";
+import { LicenseSource } from "./enums/license-source.enum";
+import { LicenseStatus } from "./enums/license-status.enum";
+
 export const Me = z.object({ email: z.string(), role: Role, groups: z.array(z.string()) });
 export type Me = z.infer<typeof Me>;
 
@@ -22,7 +27,19 @@ export const InviteInfo = z.object({
 });
 export type InviteInfo = z.infer<typeof InviteInfo>;
 
-export const License = z.object({ edition: z.string(), licensee: z.string() });
+export const License = z.object({
+  edition: z.enum(LicenseEdition),
+  licensee: z.string(),
+  status: z.enum(LicenseStatus),
+  source: z.enum(LicenseSource),
+  maxUsers: z.number().nullable(),
+  usedUsers: z.number(),
+  maxAgents: z.number().nullable(),
+  usedAgents: z.number(),
+  retentionDays: z.number(),
+  expiresAt: z.string().nullable(),
+  graceEndsAt: z.string().nullable(),
+});
 export type License = z.infer<typeof License>;
 
 export const ApiErrorBody = z.object({ error: z.string() });
@@ -222,6 +239,7 @@ export const StaleBaseVersion = z.object({ activeVersion: z.number().nullable() 
 export const AuditVerifyResult = z.object({
   ok: z.boolean(),
   count: z.number(),
+  fromSeq: z.number().optional(),
   firstBrokenSeq: z.number().optional(),
   flagged: z.array(
     z.object({ seq: z.number(), flagged: z.string(), planId: z.string().nullable() }),
@@ -234,6 +252,11 @@ export const AuditSummary = z.object({
   head: z.object({ seq: z.number(), hash: z.string(), at: z.string() }).nullable(),
   oldest: z.object({ seq: z.number(), at: z.string() }).nullable(),
   retentionDays: z.number(),
+  deletion: z.object({
+    afterDays: z.number().nullable(),
+    target: z.enum(ArchiveTarget).nullable(),
+    lastRun: z.object({ at: z.string(), toSeq: z.number(), count: z.number() }).nullable(),
+  }),
   lastVerified: z
     .object({
       seq: z.number(),

@@ -1,9 +1,10 @@
+import { sha256Hex, signV4 } from "@intentlock/core";
+
 import type { Checkpoint } from "../guard/checkpoint.js";
 import { CheckpointError } from "../guard/checkpoint.js";
 import { HttpStatus } from "../guard/enums/http-status.enum.js";
 import { checkpointKey, decodeCheckpoint, encodeCheckpoint } from "./codec.js";
 import { HttpMethod } from "./enums/http-method.enum.js";
-import { sha256Hex, signV4 } from "./sigv4.js";
 import type { CheckpointStore } from "./store.js";
 
 export interface S3CheckpointStoreOptions {
@@ -76,11 +77,11 @@ export class S3CheckpointStore implements CheckpointStore {
 
   async #send(method: HttpMethod, key: string, body?: Buffer): Promise<Response> {
     const url = this.#url(key);
-    const headers = signV4({
+    const headers = await signV4({
       method,
       url,
       headers: body ? { "content-type": OCTET_STREAM } : {},
-      payloadHash: sha256Hex(body ?? ""),
+      payloadHash: await sha256Hex(body ?? ""),
       region: this.#opts.region,
       service: S3_SERVICE,
       accessKeyId: this.#opts.accessKeyId,

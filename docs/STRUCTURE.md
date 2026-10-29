@@ -87,7 +87,8 @@ src/
 ├── canonical.ts                    # jcs() + sha256Base64url()
 ├── crypto/
 │   ├── keys.ts                     # generate/import/export Ed25519, kid thumbprint
-│   └── bundle-token.ts             # signBundle(), verifyBundle() (jose, injected now)
+│   ├── bundle-token.ts             # signBundle(), verifyBundle() (jose, injected now)
+│   └── sigv4.ts                    # signV4(), sha256Hex() on WebCrypto (S3 checkpoints, audit archives; ADR-083)
 ├── plan/
 │   └── match-step.ts               # matchStep(plan, call) + arg constraint matchers
 ├── policy/
@@ -146,7 +147,7 @@ src/
 │   ├── checkpoint.ts               # Checkpoint schema + CheckpointError (ADR-080)
 │   ├── resume.ts                   # resume(): match holds to the checkpoint, settle them, continue the loop
 │   └── events.ts                   # event types + emitter
-├── checkpoints/                    # store.ts (CheckpointStore), codec.ts (AES-256-GCM), file-store.ts, s3-store.ts, sigv4.ts
+├── checkpoints/                    # store.ts (CheckpointStore), codec.ts (AES-256-GCM), file-store.ts, s3-store.ts (signs with core signV4)
 └── tools/
     └── define-tool.ts              # defineTool({ name, description, schema: zod, impl }) → ToolDef + impl
 ```
@@ -296,9 +297,10 @@ src/
 │       ├── enums/                  # api-key-error
 │       ├── guards/                 # api-key.guard.ts (@AgentAuth routes)
 │       └── utils/                  # api-key.util.ts (il_live_ keys, hashing), to-api-key-view.util.ts
-├── license/                        # license.module/controller/service: verify at boot + every 24 h, limits, GET /v1/license
-│   ├── constants/                  # community-license, license.constants (DI token, lock id), vendor-public-key
-│   ├── enums/                      # license-edition, license-feature, license-status, licensed-resource, license-error
+├── license/                        # license.module/controller/service: verify at boot + every hour, limits, GET/PUT/DELETE /v1/license
+│   ├── constants/                  # free-license, license.constants (DI token, lock id, recheck, max key size), vendor-public-key
+│   ├── enums/                      # license-edition, license-status, license-source, licensed-resource, license-error
+│   ├── dto/                        # apply-license
 │   ├── schemas/                    # license.schema.ts
 │   ├── types/                      # license-check.type.ts
 │   └── utils/                      # verify-license.util.ts (offline JWS verify), to-license-view.util.ts
@@ -335,12 +337,14 @@ src/
 │   ├── audit.service.ts            # serialized chain append
 │   ├── audit-query.service.ts      # role-scoped list, cursor pagination, JSONL export
 │   ├── batch.service.ts            # /v1/audit/batch ingest under the chain lock: chain check, re-run check(), flags
-│   ├── verify.service.ts           # walks the global chain in batches
+│   ├── verify.service.ts           # walks the global chain in batches, from the purge anchor when old entries were deleted
+│   ├── purge.service.ts            # opt-in daily archive + delete of old entries (ADR-083)
 │   ├── audit.controller.ts
 │   ├── constants/ · dto/           # audit.constants, audit-query.dto, audit-batch.dto (tokens + tokenRef)
-│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format, audit-flag, audit-error, batch-reject-reason
-│   ├── types/                      # audit-input.type.ts
-│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry), decisions-agree.util.ts (looser-than-policy test)
+│   ├── enums/                      # audit-kind, audit-origin, audit-verdict, audit-format, audit-flag, audit-error, batch-reject-reason, archive-target
+│   ├── types/                      # audit-input.type.ts, audit-archive.type.ts (put/get of named files)
+│   └── utils/                      # to-audit-entry.util.ts (row → core AuditEntry), decisions-agree.util.ts (looser-than-policy test),
+│                                   # folder-archive.util.ts, s3-archive.util.ts (core signV4), archive-from-env.util.ts
 ├── events/                         # events.module, events.gateway.ts (WebSocket /events, session checked in handshake middleware),
 │   │                               # events.service.ts (per-socket viewer, filtered publish, session recheck every 60 s)
 │   ├── constants/ · enums/ · types/   # events.constants, event-name, event-audience.type
@@ -403,6 +407,7 @@ src/app/                            # Better-T-Stack puts the App Router under s
 │   ├── agents/[id]/page.tsx        # tabs: overview · policy · api keys · activity
 │   ├── audit/page.tsx              # verify chain
 │   ├── team/page.tsx               # members, roles, groups, invites, reset links (admins); read-only list for others
+│   ├── license/page.tsx            # mode, seats, agents, retention, expiry; paste or remove a key (admins)
 │   ├── account/page.tsx            # profile, password, linked Google/GitHub, sessions, CLI token
 │   ├── welcome/page.tsx            # onboarding: agent → API key → env + snippet → waits for the first decision
 │   └── demo/page.tsx               # split-screen: unprotected vs protected
@@ -418,6 +423,7 @@ src/components/                     # app-specific; shared primitives come from 
 ├── audit/                          # verify-button.tsx
 ├── demo/                           # demo-view.tsx (EventSource + Run both), agent-pane.tsx, event-row.tsx
 ├── team/                           # team-view.tsx (members + invites tables, actions menu), invite-member-form.tsx
+├── license/                        # license-view.tsx (License page), limit-warning.tsx (over-limit notice, also on Audit)
 ├── account/                        # account-view.tsx (password, sign-in methods, sessions, CLI token panels)
 ├── onboarding/                     # onboarding-wizard.tsx (stepper, four steps, live wait for a decision)
 ├── auth/                           # auth-layout, form-field (incl. password field), provider-buttons + provider-icons,

@@ -8,6 +8,7 @@ import { type Prisma, PlanStatus } from "../generated/prisma/client.js";
 import { toHoldView } from "../holds/utils/to-hold-view.util.js";
 import { emailsById } from "../users/utils/emails-by-id.util.js";
 import { orgDb } from "../org/utils/org-db.util.js";
+import { LicenseService } from "../license/license.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { UserRole } from "../users/enums/user-role.enum.js";
 import type { ListRunsQueryDto } from "./dto/list-runs-query.dto.js";
@@ -18,12 +19,16 @@ import { runStatus } from "./utils/run-status.util.js";
 
 @Injectable()
 export class RunsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly license: LicenseService,
+  ) {}
 
   async list(viewer: SessionUser, q: ListRunsQueryDto) {
     const db = orgDb(this.prisma, viewer.orgId);
     const now = new Date();
     const where: Prisma.PlanWhereInput = {
+      createdAt: { gte: this.license.historyCutoff(now) },
       ...(q.agentId && { agentId: q.agentId }),
       ...this.ownerFilter(viewer, q.user),
       ...(q.cursor && { id: { lt: q.cursor } }),
@@ -68,7 +73,13 @@ export class RunsService {
 
   async get(viewer: SessionUser, planId: string) {
     const db = orgDb(this.prisma, viewer.orgId);
-    const plan = await db.plan.findFirst({ where: { id: planId, ...this.ownerFilter(viewer) } });
+    const plan = await db.plan.findFirst({
+      where: {
+        id: planId,
+        createdAt: { gte: this.license.historyCutoff() },
+        ...this.ownerFilter(viewer),
+      },
+    });
     if (!plan) {
       throw new NotFoundException({
         statusCode: HttpStatus.NOT_FOUND,

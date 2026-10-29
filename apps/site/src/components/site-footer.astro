@@ -1,11 +1,23 @@
 ---
-import { DOCS_PATH, GITHUB_URL, SIGN_IN_URL } from "../lib/links";
+import {
+  DOCS_PATH,
+  GITHUB_URL,
+  PRICING_PATH,
+  PRIVACY_PATH,
+  REFUNDS_PATH,
+  SIGN_IN_URL,
+  TERMS_PATH,
+} from "../lib/links";
 import BrandMark from "./brand-mark.astro";
 
 const LINKS = [
   { href: DOCS_PATH, label: "Docs" },
+  { href: PRICING_PATH, label: "Pricing" },
   { href: GITHUB_URL, label: "GitHub" },
   { href: SIGN_IN_URL, label: "Sign in" },
+  { href: TERMS_PATH, label: "Terms" },
+  { href: PRIVACY_PATH, label: "Privacy" },
+  { href: REFUNDS_PATH, label: "Refunds" },
 ];
 ---
 
@@ -17,7 +29,7 @@ const LINKS = [
       <BrandMark class="size-6" />
       <span>Intentlock · SDKs under MIT · server and inbox under the Elastic License 2.0</span>
     </div>
-    <nav aria-label="Footer" class="flex gap-5 text-[13px]">
+    <nav aria-label="Footer" class="flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
       {
         LINKS.map(({ href, label }) => (
           <a href={href} class="text-muted-foreground hover:text-foreground">

@@ -78,3 +78,9 @@ intentlock audit verify --file audit.jsonl
 ```
 
 Verifies an exported audit chain (`GET /v1/audit?format=jsonl`) offline, with the same code as the server. No sign-in needed. See [Audit chain](/docs/concepts/audit-chain/#verifying-offline).
+
+```bash
+intentlock audit verify --file audit.jsonl --archive audit-1-10000.jsonl audit-10001-20000.jsonl
+```
+
+`--archive` adds archived files of deleted entries, checked before the export, so the whole chain is verified from its first entry. An export that starts later (older entries hidden or deleted) is checked from its first entry, and the CLI says that earlier entries were not checked.

@@ -59,6 +59,30 @@ describe("audit verify", () => {
     expect(await run(["audit", "verify", "--file", "bad.jsonl"], ctx)).toBe(1);
     expect(lines.at(-1)).toMatch(/^error: Chain broken at seq 2 \(hash_mismatch\)/);
   });
+
+  test("checks archives plus the export, and a windowed export from its first entry", async () => {
+    const { ctx, dir, lines } = await fakeContext();
+    const entries = await chain(6);
+    const write = (name: string, part: typeof entries) =>
+      writeFile(join(dir, name), part.map((e) => JSON.stringify(e)).join("\n") + "\n");
+    await write("audit-1-2.jsonl", entries.slice(0, 2));
+    await write("audit-3-4.jsonl", entries.slice(2, 4));
+    await write("export.jsonl", entries.slice(4));
+    const args = ["audit", "verify", "--file", "export.jsonl", "--archive"];
+    expect(await run([...args, "audit-3-4.jsonl", "audit-1-2.jsonl"], ctx)).toBe(0);
+    expect(lines.at(-1)).toBe("ok: 6 entries, chain intact");
+
+    expect(await run(["audit", "verify", "--file", "export.jsonl"], ctx)).toBe(0);
+    expect(lines.at(-2)).toBe("ok: 2 entries, chain intact");
+    expect(lines.at(-1)).toMatch(/^note: the files start at seq 5/);
+
+    expect(await run([...args, "audit-1-2.jsonl"], ctx)).toBe(1);
+    expect(lines.at(-1)).toMatch(/^error: Chain broken at seq 5 \(prev_hash_mismatch\)/);
+
+    await write("audit-3-4.jsonl", [entries[2]!, { ...entries[3]!, payload: { n: 7 } }]);
+    expect(await run([...args, "audit-1-2.jsonl", "audit-3-4.jsonl"], ctx)).toBe(1);
+    expect(lines.at(-1)).toMatch(/^error: Chain broken at seq 4 \(hash_mismatch\)/);
+  });
 });
 
 describe("keygen", () => {

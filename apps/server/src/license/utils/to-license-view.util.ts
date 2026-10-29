@@ -1,15 +1,29 @@
+import { LICENSE_GRACE_MS } from "../constants/license.constants.js";
+import type { LicenseSource } from "../enums/license-source.enum.js";
+import { LicenseStatus } from "../enums/license-status.enum.js";
 import type { License } from "../schemas/license.schema.js";
 
-export function toLicenseView(license: License, usedUsers: number, usedAgents: number) {
+export function toLicenseView(
+  license: License,
+  status: LicenseStatus,
+  source: LicenseSource,
+  usedUsers: number,
+  usedAgents: number,
+) {
   return {
     edition: license.edition,
     licensee: license.licensee,
+    status,
+    source,
     maxUsers: license.maxUsers,
     usedUsers,
     maxAgents: license.maxAgents,
     usedAgents,
     retentionDays: license.retentionDays,
-    features: license.features,
     expiresAt: Number.isFinite(license.exp) ? new Date(license.exp * 1000).toISOString() : null,
+    graceEndsAt:
+      status === LicenseStatus.GRACE
+        ? new Date(license.exp * 1000 + LICENSE_GRACE_MS).toISOString()
+        : null,
   };
 }

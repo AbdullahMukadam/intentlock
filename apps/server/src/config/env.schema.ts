@@ -47,11 +47,35 @@ export const Env = z
       .default("0")
       .transform((v) => v === "1"),
     LOG_LEVEL: z.enum(LogLevel).default(LogLevel.INFO),
+    AUDIT_DELETE_AFTER_DAYS: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.coerce.number().int().min(90).optional(),
+    ),
+    AUDIT_ARCHIVE_DIR: optional,
+    AUDIT_ARCHIVE_S3_URL: optional.pipe(z.string().url().optional()),
+    AUDIT_ARCHIVE_S3_REGION: z.string().min(1).default("auto"),
+    AUDIT_ARCHIVE_S3_ACCESS_KEY_ID: optional,
+    AUDIT_ARCHIVE_S3_SECRET_ACCESS_KEY: optional,
   })
   .refine((e) => !e.SMTP_URL || e.SMTP_FROM, {
     path: ["SMTP_FROM"],
     message: "required when SMTP_URL is set",
-  });
+  })
+  .refine((e) => !e.AUDIT_DELETE_AFTER_DAYS || e.AUDIT_ARCHIVE_DIR || e.AUDIT_ARCHIVE_S3_URL, {
+    path: ["AUDIT_DELETE_AFTER_DAYS"],
+    message:
+      "needs AUDIT_ARCHIVE_DIR or AUDIT_ARCHIVE_S3_URL: entries are archived before they are deleted",
+  })
+  .refine(
+    (e) =>
+      !e.AUDIT_ARCHIVE_S3_URL ||
+      (e.AUDIT_ARCHIVE_S3_ACCESS_KEY_ID && e.AUDIT_ARCHIVE_S3_SECRET_ACCESS_KEY),
+    {
+      path: ["AUDIT_ARCHIVE_S3_ACCESS_KEY_ID"],
+      message:
+        "AUDIT_ARCHIVE_S3_ACCESS_KEY_ID and AUDIT_ARCHIVE_S3_SECRET_ACCESS_KEY are required with AUDIT_ARCHIVE_S3_URL",
+    },
+  );
 export type Env = z.infer<typeof Env>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {

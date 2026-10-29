@@ -11,10 +11,38 @@ datasource db {
 }
 
 model Organization {
-  id            String   @id @default(cuid())
-  name          String
-  setupCodeHash String?
-  createdAt     DateTime @default(now())
+  id             String    @id @default(cuid())
+  name           String
+  setupCodeHash  String?
+  licenseClockAt DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model License {
+  id        String   @id @default(cuid())
+  orgId     String   @unique
+  jws       String
+  appliedBy String
+  appliedAt DateTime @default(now())
+}
+
+model AuditPurgeRun {
+  id        String   @id @default(cuid())
+  orgId     String
+  day       String
+  startedAt DateTime @default(now())
+
+  @@unique([orgId, day])
+}
+
+model LicenseNotice {
+  id         String   @id @default(cuid())
+  orgId      String
+  expiresAt  DateTime
+  kind       String
+  sentAt     DateTime @default(now())
+
+  @@unique([orgId, expiresAt, kind])
 }
 
 model Agent {

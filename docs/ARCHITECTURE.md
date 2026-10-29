@@ -256,7 +256,9 @@ Two kinds of callers, never mixed: **agent apps** send `Authorization: Bearer <a
 | GET | `/v1/stats/overview?from=&to=&agentId=` | → counts by verdict over time, top blocked tools/rules, pending holds, hold outcomes (`holdOutcomes`: approved/rejected/expired resolved in the range), median approval time, flagged entries, audit lag | Auth: session (scoped by role, §5.6) |
 | GET | `/v1/runs?agentId=&user=&status=&cursor=` | → runs (plans) with decision counts | Auth: session (scoped by role) |
 | GET | `/v1/runs/:planId` | → plan, policy version, ordered decisions, holds, timing | Auth: session (scoped by role) |
-| GET | `/v1/license` | → `{ edition, licensee, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, features, expiresAt }` | Auth: session |
+| GET | `/v1/license` | → `{ edition, licensee, status, source, maxUsers, usedUsers, maxAgents, usedAgents, retentionDays, expiresAt, graceEndsAt }` | Auth: session |
+| PUT | `/v1/license` | `{ key }` → same as GET; 400 `license_invalid` / `license_expired`, 409 `license_from_file` while `LICENSE_FILE` is set | Auth: session (admin); audits `license_applied` |
+| DELETE | `/v1/license` | → 204; 409 `license_from_file` | Auth: session (admin); audits `license_removed` |
 | POST | `/v1/plans` | `{ plan }` → `{ planId, token, planHash, policyVersion, policyHash, expiresAt }` | Auth: API key. Agent = key's agent (must be enabled); `plan.user` must be an active user; snapshots the agent's active policy; signs; audits `plan_signed` |
 | POST | `/v1/plans/:id/refresh` | `{ token }` → `{ token, expiresAt }` | Same plan hash only |
 | POST | `/v1/check` | `{ token, call }` → `GateDecision` | `remote` mode. Audits every decision; creates hold if needed |
@@ -293,7 +295,33 @@ model Organization {
   id            String   @id @default(cuid())
   name          String
   setupCodeHash String?                    // sha256 of the setup code; null once the first admin exists
+  licenseClockAt DateTime?                 // latest time the license check has seen; never moves back
   createdAt     DateTime @default(now())
+}
+
+model License {                            // one per org; the signed key applied in the inbox
+  id        String   @id @default(cuid())
+  orgId     String   @unique
+  jws       String
+  appliedBy String
+  appliedAt DateTime @default(now())
+}
+
+model AuditPurgeRun {                      // one row per org and day: only one instance runs the deletion job each day
+  id        String   @id @default(cuid())
+  orgId     String
+  day       String                         // YYYY-MM-DD (UTC)
+  startedAt DateTime @default(now())
+  @@unique([orgId, day])
+}
+
+model LicenseNotice {                      // one row per warning sent, so each goes out once across instances
+  id        String   @id @default(cuid())
+  orgId     String
+  expiresAt DateTime                       // the license's expiry: a renewed license starts its own warnings
+  kind      String                         // expires_in_30_days | expires_in_7_days | expires_in_1_day | expired
+  sentAt    DateTime @default(now())
+  @@unique([orgId, expiresAt, kind])
 }
 
 model Agent {
@@ -546,7 +574,8 @@ entry_1.prevHash = "GENESIS"
 - **The hash covers every column** (ADR-028). Adding a column to `AuditEntry` means adding it to `hashed_n` in `core/src/audit/hash-entry.ts` in the same change; a unit test fails if the hashed field list and the schema drift apart. `flagged` is decided before insert, so it is set once and hashed like the rest.
 
 - Appends take a transaction-scoped advisory lock (`pg_advisory_xact_lock`) before reading the chain head, so concurrent appends from any instance cannot share a `prevHash`.
-- `verify` walks from seq 1, recomputes each hash, and returns the first mismatch. Hashing lives in `core` so the CLI can verify an exported JSONL file offline.
+- `verify` walks from the first stored entry, recomputes each hash, and returns the first mismatch. Hashing lives in `core` so the CLI can verify an exported JSONL file offline.
+- **Old entries (ADR-083).** The license's `retentionDays` only limits how far back reads reach; nothing is deleted because of it. With `AUDIT_DELETE_AFTER_DAYS` set, a daily job (one instance per day through an `AuditPurgeRun` claim) archives up to 10 000 of the oldest entries past that age as `audit-<from>-<to>.jsonl` to `AUDIT_ARCHIVE_DIR` or an S3-compatible bucket, reads the file back and compares its SHA-256, then under the chain lock deletes that seq range and appends `audit_purged` `{ fromSeq, toSeq, lastHash, count, archive: { target, name, sha256 } }`. Verify then starts at the first stored entry only if its `prevHash` equals the `lastHash` of the `audit_purged` entry whose `toSeq` is the seq before it. Archiving failures delete nothing, append `audit_purge_failed` and email admins.
 - Tamper demo: edit one row's payload in psql → verify reports that `seq`.
 
 **Client entries (hybrid mode).** Batched client decisions are appended to the same server chain, so there is still one tamper-evident log. Every entry is stored (never dropped), flagged when suspect. On ingest the server (holding the chain lock, ADR-038):
@@ -613,27 +642,27 @@ Every method ends in the same session cookie (`httpOnly`, `Secure` on https, `Sa
 
 **Hardening:** rate limits on every public auth route (sign-in per email and per IP; setup, invites, resets and OAuth per IP), constant-time comparison of passwords and tokens, invite/reset/setup tokens stored only as SHA-256 and sent in request bodies (not paths), CSRF protection on cookie-authenticated mutations (`SameSite=Lax` + an `X-Intentlock-CSRF` header the inbox sends), sessions revoked when a user is disabled, resets their password or changes it (other sessions). All auth events are audited.
 
-### 5.7 Licensing (groundwork)
+### 5.7 Licensing (ADR-082)
 
 ```ts
 // apps/server/src/license/license.ts — pure functions, kept in the ELv2 server (not the MIT core)
 export const License = z.object({
   licensee: z.string(),
-  edition: z.enum(["community", "team", "enterprise"]),
+  edition: z.enum(["free", "licensed"]),
   maxUsers: z.number().int().positive().nullable(),     // null = unlimited
   maxAgents: z.number().int().positive().nullable(),
   retentionDays: z.number().int().positive(),
-  features: z.array(z.enum(["multi_instance", "audit_export", "sso", "sharded_audit", "policy_change_approval", "visual_policy_builder", "arg_redaction", "priority_support"])),
   exp: z.number(),                                        // unix seconds
 });
-export const COMMUNITY: License = { licensee: "Community", edition: "community", maxUsers: 5, maxAgents: 3, retentionDays: 30, features: [], exp: Infinity };
+export const FREE_LICENSE: License = { licensee: "Free", edition: "free", maxUsers: 5, maxAgents: 3, retentionDays: 30, exp: Infinity };
 export function verifyLicense(jws: string, vendorPublicKey: KeyLike, now: Date): License; // throws on bad signature
 ```
 
 - The license file (`LICENSE_FILE`, a JWS) is signed with the **vendor key**, a different Ed25519 key from plan signing. Only the vendor public key ships in the server build; the private key never enters the repo. `scripts/issue-license.ts` (repo root, not published) issues licenses from a key on the vendor's machine.
-- `LicenseService` (server) verifies at boot and every 24 h, fully offline. Missing, invalid or expired → falls back to `COMMUNITY` and logs a warning. **A license problem never disables enforcement, holds or audit** — it only changes limits.
-- v0.1 enforces `maxUsers` and `maxAgents` (creation fails with a clear error) and exposes `hasFeature()` for future paid features. `retentionDays` is reported but purging is out of scope for v0.1.
-- `GET /v1/license` shows the current edition; the inbox shows it in the footer.
+- The key comes from `LICENSE_FILE` when set, else from the `License` row an admin applied in the inbox (`PUT /v1/license`, verified before it is stored). `LicenseService` (server) re-reads and re-verifies it at boot, right after a key is applied or removed, and every hour, fully offline, so a key applied on one instance reaches the others within an hour. Verification uses the later of the server clock and `Organization.licenseClockAt`, which only moves forward, so setting the clock back does not revive an expired license.
+- **Expiry:** a license keeps its limits for 14 days after `exp` (status `grace`, no banner), then the free limits apply (status `expired`). On each load the closest warning point that is due (30, 7 or 1 days left, or `expired` after the grace period) is claimed with an insert into `LicenseNotice` (`skipDuplicates`); only the instance that inserted it emails the active admins, and the `expired` claim also appends `license_expired` to the audit chain in the same transaction. Admins see a banner in the inbox during the last 30 days of a valid license. Missing, invalid or expired → falls back to `FREE_LICENSE` and logs a warning. **A license problem never disables enforcement, holds or audit** — it only changes limits.
+- One paid license, per seat per year: `scripts/issue-license.ts --seats <n>` sets `maxUsers`, agents are unlimited, retention defaults to 365 days. Every feature is in every install; there are no feature flags. `maxUsers` and `maxAgents` are enforced (creation fails with a clear error). `retentionDays` is reported; the purge is Phase 8.
+- `GET /v1/license` shows the current edition; the inbox shows it in the sidebar.
 
 ### 5.8 Agents and API keys
 
