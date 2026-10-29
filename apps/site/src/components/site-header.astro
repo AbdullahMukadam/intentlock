@@ -1,6 +1,6 @@
 ---
 import { OUTLINE_BUTTON_SMALL } from "../lib/button";
-import { DOCS_PATH, GITHUB_URL, SIGN_IN_URL } from "../lib/links";
+import { DOCS_PATH, GITHUB_URL, PRICING_PATH, SIGN_IN_URL } from "../lib/links";
 import BrandMark from "./brand-mark.astro";
 import Corners from "./landing/corners.astro";
 
@@ -8,6 +8,7 @@ const NAV = [
   { href: "/#how-it-works", label: "How it works" },
   { href: "/#features", label: "Features" },
   { href: "/#self-host", label: "Self-host" },
+  { href: PRICING_PATH, label: "Pricing" },
   { href: DOCS_PATH, label: "Docs" },
   { href: GITHUB_URL, label: "GitHub" },
 ];
