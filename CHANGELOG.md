@@ -4,6 +4,31 @@ Versions apply to the npm packages (`@intentlock/core`, `sdk`, `guard`, `anthrop
 
 ## Unreleased
 
+## 0.4.0 · 2026-10-29
+
+Intentlock is now sold as one paid license, priced per seat per year (ADR-082). Every feature stays in every install; without a license the server runs with the free limits. A license problem never turns off enforcement, holds or the audit log.
+
+### Upgrade notes
+
+- Three migrations (`license`, `license_notices`, `audit_purge_runs`) run before the new server starts, as usual
+- Without a license, Activity, the audit pages and export, runs and stats now show the last **30 days** of history. Older entries are not deleted: they stay in the database, the chain verify still covers them, and a license shows them again
+- The free limits are unchanged (5 users, 3 agents). Over a limit, existing users and agents keep working; only adding more is refused
+- License keys from before 0.4.0 are not accepted (the format changed; none were sold)
+
+### Added
+
+- License page in the inbox (admins): mode, licensee, seats used and total, agents, history shown, expiry; paste or upload a key, verified on the server before it is saved; remove a license. Stored in the database, so every instance picks it up within an hour without a restart. `LICENSE_FILE` still works and takes precedence. New `GET/PUT/DELETE /v1/license`
+- Seat licenses: a key sets the number of users, agents are unlimited, 365 days of history by default. Keys are checked offline; nothing phones home
+- Expiry: banner for admins and an email 30, 7 and 1 days before the date; 14 days at full limits after it, then the free limits. Audit entries `license_applied`, `license_removed`, `license_expired`
+- Limit errors say which limit was reached, the current count and how to apply a license
+- Opt-in deletion of old audit entries (ADR-083): `AUDIT_DELETE_AFTER_DAYS` (at least 90) with `AUDIT_ARCHIVE_DIR` or `AUDIT_ARCHIVE_S3_*`. Entries are archived, read back and compared before they are deleted, the deletion is anchored in the chain (`audit_purged`), and verify starts from the first kept entry. Off by default; the server refuses to start with deletion on and no archive target
+- `verifyChain(entries, { from })` and `signV4` (Signature V4 on WebCrypto) in `@intentlock/core`
+- `intentlock audit verify --archive <files...>` checks archives together with an export; a windowed export is checked from its first entry
+
+### Changed
+
+- `S3CheckpointStore` in `@intentlock/guard` signs with the SigV4 implementation now in core; its behaviour is unchanged
+
 ## 0.3.1 · 2026-10-24
 
 ### Fixed
