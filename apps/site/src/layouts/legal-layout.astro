@@ -1,0 +1,25 @@
+---
+import Corners from "../components/landing/corners.astro";
+import SiteLayout from "./site-layout.astro";
+
+interface Props {
+  frontmatter: { title: string; description: string; updated: string };
+}
+
+const { frontmatter } = Astro.props;
+---
+
+<SiteLayout title={`${frontmatter.title} · Intentlock`} description={frontmatter.description}>
+  <article class="relative px-5 py-12 sm:px-8 sm:py-16">
+    <Corners />
+    <div
+      class="mx-auto max-w-2xl text-[15px] leading-relaxed text-foreground/85 [&_a]:text-foreground [&_a]:underline [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-medium [&_h2]:tracking-[-0.02em] [&_h2]:text-foreground [&_li]:mt-1.5 [&_p]:mt-3 [&_strong]:text-foreground [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-5"
+    >
+      <h1 class="text-[2rem] leading-tight font-medium tracking-[-0.035em] text-foreground">
+        {frontmatter.title}
+      </h1>
+      <p class="text-sm text-muted-foreground">Last updated {frontmatter.updated}</p>
+      <slot />
+    </div>
+  </article>
+</SiteLayout>

@@ -16,6 +16,12 @@ const SEAT_PRICE_USD = 20;
 const SEAT_PRICE = `$${SEAT_PRICE_USD}`;
 const MIN_SEATS = 5;
 
+function checkoutFor(base: string, seats: number): string {
+  const url = new URL(base);
+  url.searchParams.set("quantity", String(seats));
+  return url.href;
+}
+
 const ROWS = [
   { label: "Users", free: "5", licensed: "the seats you buy" },
   { label: "Agents", free: "3", licensed: "unlimited" },
@@ -82,7 +88,7 @@ const STEPS = [
         <h3 class="text-lg font-medium tracking-[-0.015em]">Licensed</h3>
         <p class="mt-1.5 text-sm text-muted-foreground">One license for your whole deployment.</p>
         <p class="mt-6 text-4xl font-medium tracking-[-0.035em]">
-          {SEAT_PRICE}
+          {SEAT_PRICE}{" "}
           <span class="text-base font-normal tracking-normal text-muted-foreground">
             per seat / year
           </span>
@@ -111,21 +117,51 @@ const STEPS = [
               class="h-11 w-24 rounded-[5px] border border-input bg-card px-3 text-[15px]"
             />
           </label>
-          <a
-            id="buy"
-            href={`${CHECKOUT_URL.replace(/quantity=\d+/, `quantity=${MIN_SEATS}`)}`}
-            data-checkout={CHECKOUT_URL}
-            data-price={SEAT_PRICE_USD}
-            data-min={MIN_SEATS}
-            class={`${PRIMARY_BUTTON} flex-1`}
-          >
-            Buy a license
-            <Icon name="arrow-right" />
-          </a>
+          {
+            CHECKOUT_URL ? (
+              <a
+                id="buy"
+                href={checkoutFor(CHECKOUT_URL, MIN_SEATS)}
+                data-checkout={CHECKOUT_URL}
+                data-price={SEAT_PRICE_USD}
+                data-min={MIN_SEATS}
+                class={`${PRIMARY_BUTTON} flex-1`}
+              >
+                Buy a license
+                <Icon name="arrow-right" />
+              </a>
+            ) : (
+              <span
+                id="buy"
+                role="link"
+                aria-disabled="true"
+                data-price={SEAT_PRICE_USD}
+                data-min={MIN_SEATS}
+                class={`${PRIMARY_BUTTON} flex-1 cursor-not-allowed opacity-60`}
+              >
+                Available soon
+              </span>
+            )
+          }
         </div>
         <p class="mt-3 text-sm text-muted-foreground">
-          <span id="total">${SEAT_PRICE_USD * MIN_SEATS}</span> per year, plus tax where it applies.
-          At checkout, tick "Purchasing as a business" to put your company name on the license.
+          <span id="total">${SEAT_PRICE_USD * MIN_SEATS}</span> per year, plus tax where it applies.{" "}
+          {
+            CHECKOUT_URL ? (
+              <>
+                At checkout, tick "Purchasing as a business" to put your company name on the
+                license.
+              </>
+            ) : (
+              <>
+                Licenses go on sale soon. Want to know when? Email{" "}
+                <a href={`mailto:${SUPPORT_EMAIL}`} class="text-foreground underline">
+                  {SUPPORT_EMAIL}
+                </a>
+                .
+              </>
+            )
+          }
         </p>
       </div>
     </div>
@@ -231,22 +267,26 @@ const STEPS = [
 
 <script>
   const seats = document.querySelector<HTMLInputElement>("#seats");
-  const buy = document.querySelector<HTMLAnchorElement>("#buy");
+  const buy = document.querySelector<HTMLElement>("#buy");
   const total = document.querySelector<HTMLElement>("#total");
   if (seats && buy && total) {
     const price = Number(buy.dataset.price);
     const min = Number(buy.dataset.min);
     const update = () => {
       const count = Math.max(min, Math.floor(Number(seats.value)) || min);
-      const url = new URL(buy.dataset.checkout ?? buy.href);
-      url.searchParams.set("quantity", String(count));
-      buy.href = url.href;
+      if (buy instanceof HTMLAnchorElement && buy.dataset.checkout) {
+        const url = new URL(buy.dataset.checkout);
+        url.searchParams.set("quantity", String(count));
+        buy.href = url.href;
+      }
       total.textContent = `$${(price * count).toLocaleString("en-US")}`;
+      return count;
     };
-    seats.addEventListener("input", update);
-    seats.addEventListener("change", () => {
+    seats.addEventListener("input", () => {
       update();
-      seats.value = new URL(buy.href).searchParams.get("quantity") ?? String(min);
+    });
+    seats.addEventListener("change", () => {
+      seats.value = String(update());
     });
   }
 
